@@ -268,6 +268,7 @@ public sealed class DesktopPetGiftTests
     {
         Assert.Equal(expected, told.Deserialize<BlindBoxResult>(WebServer.Json));
         Assert.Equal(outcome, told.GetProperty("tally").GetProperty("outcome").GetString());
+        Assert.Equal(["spend", "openedValue", "outcome"], told.GetProperty("tally").EnumerateObject().Select(field => field.Name));
     }
 
     /// <summary>The next 一轮送礼 told is <paramref name="round"/>, the gifts of the message it was told after too.</summary>

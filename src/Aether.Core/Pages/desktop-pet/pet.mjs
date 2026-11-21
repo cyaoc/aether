@@ -32,6 +32,17 @@ const ROW = [BAR.y + BAR.h + 22, BAR.y + BAR.h + 62], HUD = BAR.y + BAR.h + 82;
 // half toward the line and its gift's icon under the bar beats in its countdown ring; the last DOUBLE.hurry both blink
 // faster, and at the end the ×2 shrinks away in DOUBLE.out.
 const DOUBLE = { fly: 450, pop: 220, flash: 260, hurry: 3000, out: 200 };
+// text's lines in g's font, maxW wide and broken at its line breaks (her bubble's, the 账单卡's): a line never starts with
+// closing punctuation, which stays on the line before, a little over the width
+const wrap = (g, text, maxW) => {
+  const lines = [];
+  let cur = '';
+  for (const ch of [...text]) {
+    if (ch === '\n') { lines.push(cur); cur = ''; } else if (cur && g.measureText(cur + ch).width > maxW && !'！？。，、…～）」’”'.includes(ch)) { lines.push(cur); cur = ch; } else cur += ch;
+  }
+  lines.push(cur);
+  return lines;
+};
 // A 盲盒查询's 账单卡 (design package README 14: the board's BILL, which DP-BlindBoxCard.dc.html draws too), in page px, 1 : 1 at
 // 1080p: a receipt W wide and as tall as its words (layout), the 投入 and 盈亏 as the reply wrote them (Core's text), and her
 // line at its foot where a receipt says 谢谢惠顾. stampT: ms since the sprite stamped it, null before (or none, no record).
@@ -41,7 +52,6 @@ const BILL = (() => {
   // each result its colour and its own word (pill, stamp), never the colour alone: 赚 red as luck is, 亏 her tears' blue
   const RESULT = { Gain: { ink: '#E23A5E', pill: '赚', stamp: '赚' }, Even: { ink: '#8456D8', stamp: '回本' }, Loss: { ink: '#3D74E0', pill: '亏', stamp: '亏' }, None: { ink: MUTED } };
   const F = (w, px) => `${w} ${px}px ${SANS}`;
-  const wrap = (g, text, maxW) => { const lines = []; let cur = ''; for (const ch of [...text]) { if (cur && g.measureText(cur + ch).width > maxW && !'！？。，、…～）」’”'.includes(ch)) { lines.push(cur); cur = ch; } else cur += ch; } lines.push(cur); return lines; };
   function layout(g, c) {
     g.save(); g.font = F(500, 28); const name = wrap(g, c.name, IN); g.font = F(500, 24); const foot = wrap(g, c.line || '', IN); g.restore();
     let y = HEAD + 16; const nameY = y; y += name.length * 38 + 10; const rule1 = y; y += 14;
@@ -115,7 +125,7 @@ const BILL = (() => {
     }
     g.restore();
   }
-  return { W, layout, draw };
+  return { W, PAPER, EDGE, layout, draw };
 })();
 
 // The box of what is drawn in a part of a picture, and the centre of its mass.
@@ -567,7 +577,7 @@ export class Pet extends Engine {
     g.save(); g.beginPath(); g.rect(spot.x - 80, y - 80, BILL.W + 160, edge - y + 80); g.clip();
     BILL.draw(g, b, spot.x, y, b.stampT); g.restore();
     if (b.reveal < 1) {
-      g.save(); g.fillStyle = '#FFFDF9'; g.strokeStyle = '#F0A3C0'; g.lineWidth = 2; g.shadowColor = 'rgba(60,30,50,0.3)'; g.shadowBlur = 6; g.shadowOffsetY = 2;
+      g.save(); g.fillStyle = BILL.PAPER; g.strokeStyle = BILL.EDGE; g.lineWidth = 2; g.shadowColor = 'rgba(60,30,50,0.3)'; g.shadowBlur = 6; g.shadowOffsetY = 2;
       g.beginPath(); g.roundRect(spot.x - 4, edge - 8, BILL.W + 8, 16, 8); g.fill(); g.stroke(); g.restore();
     }
   }
@@ -1001,21 +1011,16 @@ export class Pet extends Engine {
   // 总督's stair would flip it back and forth in the middle of a line. A new bubble after none is placed afresh.
   bubbleBox(g, st, her, was) {
     const b = st.bubble, s = BUBBLE_SCALE;
-    // a line never starts with closing punctuation: it stays on the line before, a little over the width
-    const wrap = maxW => {
+    const lay = maxW => {
       g.save(); g.font = BUBBLE_FONT;
-      const lines = [];
-      let cur = '';
-      for (const ch of [...b.text]) { if (ch === '\n') { lines.push(cur); cur = ''; continue; } if (g.measureText(cur + ch).width > maxW && !'！？。，、…～）」’”'.includes(ch)) { lines.push(cur); cur = ch; } else cur += ch; }
-      lines.push(cur);
-      const w = Math.max(...lines.map(l => g.measureText(l).width)) + 26 * s;
+      const lines = wrap(g, b.text, maxW), w = Math.max(...lines.map(l => g.measureText(l).width)) + 26 * s;
       g.restore();
       return { lines, w, h: (lines.length * 24 + 16) * s };
     };
-    const up = wrap((b.maxW || 230) * s), anchor = b.at ? { x: b.at.x, y: b.at.y - 90 } : { x: her.x + her.w * 0.62, y: her.y - 6 };
+    const up = lay((b.maxW || 230) * s), anchor = b.at ? { x: b.at.x, y: b.at.y - 90 } : { x: her.x + her.w * 0.62, y: her.y - 6 };
     if (b.at || st.y - H * st.s - 6 - up.h - 14 * s >= 8 + (was ? HOP : 0)) return { ...up, x: clamp(anchor.x - up.w / 2 + 30 * s, 10, PAGE.w - up.w - 10), y: clamp(anchor.y - up.h - 14 * s, 8, PAGE.h - up.h - 8), tip: anchor, side: 0 };
     const l = her.x + her.w * 0.15, r = her.x + her.w * 0.85, side = PAGE.w - r >= l ? 1 : -1;  // her head's edges
-    const beside = wrap(Math.min(230 * s, (side > 0 ? PAGE.w - r : l) - 10 - 14 * s - 26 * s));
+    const beside = lay(Math.min(230 * s, (side > 0 ? PAGE.w - r : l) - 10 - 14 * s - 26 * s));
     return { ...beside, x: side > 0 ? r + 14 * s : l - 14 * s - beside.w, y: clamp(her.y + her.h * 0.3, 8, PAGE.h - beside.h - 8), tip: { x: side > 0 ? r : l, y: her.y + her.h * 0.42 }, side };
   }
 

@@ -26,18 +26,15 @@ internal sealed record BlindBoxTally(long Spend, long OpenedValue)
     public BlindBoxOutcome Outcome => (BlindBoxOutcome)Math.Sign(OpenedValue - Spend);
 
     /// <summary>投入 and 盈亏 in 电池 as replies and the 账单卡 write them, the 盈亏 without its sign, and how it came out by the
-    /// 盈亏 shown, so the words always match the number.</summary>
-    public (string Spend, string Profit, BlindBoxOutcome Outcome) Shown
+    /// 盈亏 shown, so the words always match the number. A method, so the tally a 盲盒播报 tells the 桌宠 does not carry it.</summary>
+    public (string Spend, string Profit, BlindBoxOutcome Outcome) Shown()
     {
-        get
-        {
-            var profit = Batteries(OpenedValue - Spend);
-            return (Text(Batteries(Spend)), Text(Math.Abs(profit)), (BlindBoxOutcome)Math.Sign(profit));
+        var profit = Batteries(OpenedValue - Spend);
+        return (Text(Batteries(Spend)), Text(Math.Abs(profit)), (BlindBoxOutcome)Math.Sign(profit));
 
-            // Round to one decimal first, so whole numbers drop the ".0".
-            static decimal Batteries(long coins) => Math.Round(Battery.FromCoins(coins), 1, MidpointRounding.AwayFromZero);
-            static string Text(decimal batteries) => batteries.ToString(batteries % 1 == 0 ? "0" : "0.0", CultureInfo.InvariantCulture);
-        }
+        // Round to one decimal first, so whole numbers drop the ".0".
+        static decimal Batteries(long coins) => Math.Round(Battery.FromCoins(coins), 1, MidpointRounding.AwayFromZero);
+        static string Text(decimal batteries) => batteries.ToString(batteries % 1 == 0 ? "0" : "0.0", CultureInfo.InvariantCulture);
     }
 
     public static BlindBoxTally Of(IReadOnlyCollection<Gift> boxes) => new(boxes.Sum(box => box.Spend), boxes.Sum(box => box.Value));
@@ -51,7 +48,7 @@ internal sealed record BlindBoxTally(long Spend, long OpenedValue)
 
     private static string Amounts(BlindBoxTally tally)
     {
-        var (spend, profit, outcome) = tally.Shown;
+        var (spend, profit, outcome) = tally.Shown();
         return $"投入{spend}电池 " + outcome switch
         {
             BlindBoxOutcome.Gain => $"赚{profit}电池",

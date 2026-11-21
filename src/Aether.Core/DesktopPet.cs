@@ -271,11 +271,11 @@ internal sealed record BlindBoxResult(long Uid, string Nickname, BlindBoxTally T
 }
 
 /// <summary>A viewer's 盲盒查询 as its reply went out, sent or given up, for the 账单卡: the period as the reply names it, and the
-/// 投入, 盈亏 and how it came out as the reply writes them (BlindBoxTally.Shown); None and no numbers when no blind box was
+/// 投入, 盈亏 and how it came out as the reply writes them (BlindBoxTally.Shown()); None and no numbers when no blind box was
 /// recorded.</summary>
 internal sealed record BlindBoxQueryResult(long Uid, string Nickname, string Period, BlindBoxOutcome Result, string? Spend, string? Profit)
 {
-    public static BlindBoxQueryResult Of(SendQueue.Query query, BlindBoxTally? tally) => tally?.Shown is (var spend, var profit, var outcome)
+    public static BlindBoxQueryResult Of(SendQueue.Query query, BlindBoxTally? tally) => tally?.Shown() is (var spend, var profit, var outcome)
         ? new(query.Uid, query.Nickname, query.Period.Name(), outcome, spend, profit)
         : new(query.Uid, query.Nickname, query.Period.Name(), BlindBoxOutcome.None, null, null);
 }
