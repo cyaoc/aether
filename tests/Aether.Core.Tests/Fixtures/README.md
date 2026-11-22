@@ -1,5 +1,10 @@
 # 协议测试数据
 
+## 设置文件
+
+`settings-v0.6.2.yml`、`settings-v0.6.3.yml` 是那一版首次运行写出的设置文件：取那一版 `src/Aether.Core/Settings.cs` 里的 `Template`
+（如 `git show v0.6.3:src/Aether.Core/Settings.cs`），去掉每行前面 8 格缩进。设置文件升级测试从它们出发，冻结不改。
+
 ## V1 盲盒重建样本
 
 `blind-gift-v1.json` **不是自己的抓包**。以

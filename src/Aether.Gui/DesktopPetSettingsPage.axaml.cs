@@ -92,7 +92,7 @@ public partial class DesktopPetSettingsPage : SettingsPage
             (SleepyOn, SleepyNote, "抱着膝盖打瞌睡，有人来就惊醒", "不会犯困"),
             (MishapOn, MishapNote, "砸到脚、破音、摔一跤", "不会出事"),
             (PranksterOn, PranksterMinutesNote, "有人在看、她闲着时它自己来", "只在你点「叫它来」时来"),
-            (LuckyOn, LuckyNote, "砸中谁，对面 10 秒内的礼物算双倍", "不出幸运纸团")
+            (LuckyOn, LuckyNote, "砸中谁，对面 20 秒内的礼物算双倍", "不出幸运纸团")
         })
         {
             // A switch starts off and reading 0 leaves it so without a change, so the note starts as off.

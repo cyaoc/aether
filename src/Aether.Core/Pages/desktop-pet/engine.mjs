@@ -204,7 +204,7 @@ export const NOTICE = 500;
 // fight waits this long for 票 sent before 0 that are late on the way; flash: the winning half of the bar flashes this long;
 // buzzer: a 绝杀 is written up this long; about: someone is about who wrote or came in this recently, for it to come on its
 // own; hourly: how many times an hour at most it comes on its own (叫它来 brings it whenever).
-export const GAME = { peek: 2400, carry: 9000, loiter: 45000, fight: 60000, sprint: 10000, urge: 30000, grace: 5000, buzzer: 1700, flash: 600, about: 5 * 60000, hourly: 2 };
+export const GAME = { peek: 2400, carry: 9000, loiter: 45000, fight: 60000, sprint: 10000, urge: 30000, grace: 10000, buzzer: 1700, flash: 600, about: 5 * 60000, hourly: 2 };
 // The phases in which it is already on its way off the page: a gift then is a gift to her again.
 export const DONE = new Set(['knocked', 'toss', 'leave', 'won', 'lost', 'fled', 'away', 'snatch']);
 // Off with the chest in the air (away): she starts for AWAY.spot ms, then reaches up after it.
@@ -226,7 +226,7 @@ const SIDE_GIFT = { 人气票: 1, 小花花: -1 };
 // A danmaku of one on a side throws a paper ball that flies BALL ms; a lucky one opens whoever it hits for LUCK.ms, the other
 // side's gift counting twice, not again until LUCK.gap after. One on no side is called out by name, no sooner than TAUNT
 // after the last; RETORT.hits balls of one side's in RETORT.ms have the one hit answer back, RETORT.gap apart at least.
-export const LUCK = { ms: 10000, gap: 5000 }, BALL = 650;
+export const LUCK = { ms: 20000, gap: 5000 }, BALL = 650;
 const TAUNT = 8000, RETORT = { hits: 5, ms: 5000, gap: 10000 };
 // The tug bar along the top of the page.
 export const BAR = { x: 20, y: 96, w: 440, h: 20 };

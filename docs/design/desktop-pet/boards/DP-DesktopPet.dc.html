@@ -246,7 +246,7 @@ const NOTICE = 500;
 // and back out), carry (flying over with the chest), loiter (on an empty chest), fight and sprint (the fight's last stretch):
 // how long each lasts; urge: from this much time left
 // the countdown grows anxious.
-const GAME = { every: 30 * 60000, peek: 2400, carry: 9000, loiter: 45000, fight: 60000, sprint: 10000, urge: 30000, grace: 5000, buzzer: 1700, flash: 600 };
+const GAME = { every: 30 * 60000, peek: 2400, carry: 9000, loiter: 45000, fight: 60000, sprint: 10000, urge: 30000, grace: 10000, buzzer: 1700, flash: 600 };
 // The phases in which it is already on its way off the page: a gift then is a gift to her again.
 const DONE = new Set(['knocked', 'toss', 'leave', 'won', 'lost', 'fled', 'away', 'snatch']);
 // Off with the chest in the air (away): she starts for AWAY.spot ms, then reaches up after it.
@@ -280,7 +280,7 @@ const PKLINES = {
 // unplayed, and a viewer's round that comes to a 中礼物 plays her show, which scares it off. A danmaku that is just 1 or 2
 // picks a side for one who has sent neither gift this visit; a danmaku of anyone on a side throws a paper ball at the
 // other side (BALL), one in LUCK.chance a lucky one: whoever it hits is open for LUCK.ms, the other side's gift counting
-// twice, not again until LUCK.gap after (用户：“双倍窗口换成10秒、结束后隔5秒才能再出”; a double ends the fight at once
+// twice, not again until LUCK.gap after (用户：“双倍窗口换成10秒、结束后隔5秒才能再出”, 20 s and 3 in 10 from 2026-11-22, #391; a double ends the fight at once
 // as any gift may). One on no side is called out by name (TAUNT); a run of RETORT.hits balls in RETORT.ms has the one hit
 // answer back.
 // How a fight ends (用户：“挪中间ok”“有些人就喜欢偷袭”): the line starts in the middle, span 票 from either end (the 电池
@@ -288,12 +288,12 @@ const PKLINES = {
 // landed or not: enough of one side's on their way to take the line to its end ends the fight there and then (秒杀),
 // even with the prankster still in the air, and nothing waits for the drop, for it to get up or for the lightning; a big
 // gift is meant to end it (用户：“别人送了一大组就想秒杀哦结束”). At 0:00 the board waits GAME.grace for 票 sent before 0
-// that are late on the way (5 s: the stream reaches viewers and their gifts the page 3 to 10 s late in all, 用户测过，
-// “建议按照5秒计算宽限”; it was 3 s, for the gifts' push alone), lands what is on its way, and the side the line is on wins; a tie is
+// that are late on the way (10 s, the top of it: the stream reaches viewers and their gifts the page 3 to 10 s late in all, 用户测过，
+// “建议按照5秒计算宽限”, then 10 from 2026-11-22, #391; it was 3 s, for the gifts' push alone), lands what is on its way, and the side the line is on wins; a tie is
 // the prankster's (it has the chest, and a quiet room with nobody giving is 0 : 0). No extra time: a last-second strike is
 // part of the fun. One decided by a gift that came in the last GAME.sprint or the grace is a 绝杀 (buzzer).
 const SIDE_GIFT = { 人气票: 1, 小花花: -1 };
-// LUCK.chance is the settings' 幸运纸团 % on the 桌宠页 (desktop_pet.lucky_percent, 10 by default, 0 off: no lucky balls)
+// LUCK.chance is the settings' 幸运纸团 % on the 桌宠页 (desktop_pet.lucky_percent, 30 by default, 0 off: no lucky balls)
 // How a double shows (用户：“丢到幸运纸团以后、为啥在捣蛋鬼周围会出现*2这个莫名其妙的图标、另外、2倍时间、是不是要特效来提醒
 // 用户”; ui-ux-pro-max: an effect shows cause and effect, one or two things move at once, leaving is quicker than coming;
 // a PK bar's multiplier stands at the side that gains, not at whoever is hit): a pink star flies from the one hit to the
@@ -301,7 +301,7 @@ const SIDE_GIFT = { 人气票: 1, 小花花: -1 };
 // (DOUBLE.flash); for the window light stripes run along that half toward the line and its gift's icon under the bar beats
 // in its countdown ring; the last DOUBLE.hurry both blink faster, and at the end the ×2 shrinks away in DOUBLE.out.
 const DOUBLE = { fly: 450, pop: 220, flash: 260, hurry: 3000, out: 200 };
-const LUCK = { chance: 0.1, ms: 10000, gap: 5000 }, TAUNT = 8000, RETORT = { hits: 5, ms: 5000, gap: 10000 }, BALL = 650;
+const LUCK = { chance: 0.3, ms: 20000, gap: 5000 }, TAUNT = 8000, RETORT = { hits: 5, ms: 5000, gap: 10000 }, BALL = 650;
 // B站's own icons of the two (giftConfig?platform=pc, 2026-11-16), from B站's CDN as the page draws a gift's icon
 const SIDE_ICON = { 1: 'https://s1.hdslb.com/bfs/live/7d78646ee4ecc900cebbe46cb963f421079548f0.png', '-1': 'https://s1.hdslb.com/bfs/live/5126973892625f3a43a8290be6b625b5e54261a5.png' };
 // her side red, its blue (用户：“血条换成红色和蓝色”), each with a light one for what is on its way and its numbers
@@ -3396,7 +3396,7 @@ class Component extends DCLogic {
     const side = (gift, n) => () => this.give([{ gift, price: 1, n, viewer: this.someone() }]), dm = (on, said) => () => this.heard(this.someone(on), said);
     // ×100 is a 秒杀 while the chest holds 2000 电池 or less (each end is 100 票 away then); the last stretch is a jump of
     // the fight's own clock to 10 s left, to see the dragging, the 0:00 wait and a 绝杀 without waiting the minute out
-    // a lucky ball for sure (one in ten by chance), from someone put on that side, while the tug is on and none is open
+    // a lucky ball for sure (three in ten by chance), from someone put on that side, while the tug is on and none is open
     const lucky = sd => () => { const v = this.gm.visit, w = this.someone(); if (v?.phase !== 'tug' || v.cut != null || v.luck) return; this.enlist(w, sd, 'dm'); v.balls.push({ at: this.now(), side: sd, lucky: true, w, seed: this.rng() }); };
     const last10 = () => { const v = this.gm.visit; if (v?.phase === 'tug' && v.judge == null) v.left = Math.min(v.left, GAME.sprint + 400); };
     group('小游戏', [['捣蛋鬼来了', () => this.visit()], ['人气票', side('人气票', 1)], ['人气票 ×10', side('人气票', 10)], ['人气票 ×100', side('人气票', 100)],

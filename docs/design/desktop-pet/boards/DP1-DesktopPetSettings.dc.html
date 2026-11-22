@@ -384,7 +384,7 @@ class Component extends DCLogic {
       ['小游戏·它', [['探头', '它从左边探进来时', []], ['记仇', '上次来时有人砸过它，探头说这句', n], ['炫耀', '上次偷到了，探头说这句', []],
         ['空箱', '掀开发现是空箱时', []], ['赖着', '坐在空箱上赖着，隔一阵说一句', []], ['扔回去', '空箱扔回去时', []],
         ['被发现', '她抓住宝箱时', []], ['招人', '拉帮手时', []], ['点名', '没站队的人发弹幕时，点他的名', n], ['回嘴', '站她那边的人发弹幕，纸团连着砸中它时', n],
-        ['露破绽', '幸运纸团砸中它时（这 10 秒人气票算双倍）', []], ['趁现在', '幸运纸团砸中她时（这 10 秒小花花算双倍）', []], ['收下小花花', '空箱时有人送小花花、它拿走箱子时', n], ['绝杀得手', '最后 10 秒或时间到时，有人送小花花让它赢', n], ['放闪电', '她领先到一半、它放闪电时', []],
+        ['露破绽', '幸运纸团砸中它时（这 20 秒人气票算双倍）', []], ['趁现在', '幸运纸团砸中她时（这 20 秒小花花算双倍）', []], ['收下小花花', '空箱时有人送小花花、它拿走箱子时', n], ['绝杀得手', '最后 10 秒或时间到时，有人送小花花让它赢', n], ['放闪电', '她领先到一半、它放闪电时', []],
         ['最后 10 秒', '扛起绳子往外拖时', []], ['得手', '把宝箱拖走时', []], ['被打跑', '被人气票打跑时', []]]]
     ];
   }
@@ -558,7 +558,7 @@ class Component extends DCLogic {
     const canCall = !callBlocked && !called && !onStage;
     // 自己来 and 幸运纸团 each have a switch in front (第 13 节): off grey and not editable, the file writing 0
     const everyOn = s.everyOn ?? this.props.switches !== '关', luckyOn = s.luckyOn ?? this.props.switches !== '关';
-    const every = s.every ?? '30', lucky = s.lucky ?? '10';
+    const every = s.every ?? '30', lucky = s.lucky ?? '30';
     const playing = s.playing ?? scene === '试演中';
     const testDisabled = !masterOn || !pageOk;
     return {
@@ -572,7 +572,7 @@ class Component extends DCLogic {
       every, setEvery: e => edited({ every: e.target.value }), everySw: this.switchOf(t, everyOn), everyToggle: () => edited({ everyOn: !everyOn }),
       everyDisabled: everyOn ? null : 'true', everyDim: everyOn ? 1 : 0.5, everyNote: everyOn ? '有人在看、她闲着时它自己来' : '只在你点「叫它来」时来',
       lucky, setLucky: e => edited({ lucky: e.target.value }), luckySw: this.switchOf(t, luckyOn), luckyToggle: () => edited({ luckyOn: !luckyOn }),
-      luckyDisabled: luckyOn ? null : 'true', luckyDim: luckyOn ? 1 : 0.5, luckyNote: luckyOn ? '砸中谁，对面 10 秒内的礼物算双倍' : '不出幸运纸团',
+      luckyDisabled: luckyOn ? null : 'true', luckyDim: luckyOn ? 1 : 0.5, luckyNote: luckyOn ? '砸中谁，对面 20 秒内的礼物算双倍' : '不出幸运纸团',
       isShows: tab === '演出' && this.props.showsLayout === '三列', isShowsGrouped: tab === '演出' && (this.props.showsLayout ?? '分组') === '分组', showGroups, sel,
       master: { on: masterOn ? 'true' : 'false', bg: masterOn ? t.accent : t.switchOff, knob: masterOn ? '21px' : '3px', toggle: () => edited({ master: !masterOn }) },
       pageOk: masterOn && pageOk, pageWaiting: masterOn && !pageOk, pageOff: !masterOn,

@@ -119,8 +119,8 @@ public sealed class DesktopPetSettingsTests
     {
         GuiHarness.Tab(page, 2);
         var lucky = Number(page, "每个纸团是幸运纸团的几率");
-        Assert.Equal(("30", "10"), (Number(page, "它最多每几分钟自己来一次").Text, lucky.Text));
-        Assert.Subset(Texts(page).ToHashSet(), new HashSet<string?> { "有人在看、她闲着时它自己来", "砸中谁，对面 10 秒内的礼物算双倍" });
+        Assert.Equal(("30", "30"), (Number(page, "它最多每几分钟自己来一次").Text, lucky.Text));
+        Assert.Subset(Texts(page).ToHashSet(), new HashSet<string?> { "有人在看、她闲着时它自己来", "砸中谁，对面 20 秒内的礼物算双倍" });
         Assert.DoesNotContain("帮它的关键字", Texts(page));
         Switch(page, "捣蛋鬼自己来").IsChecked = false;
         Switch(page, "幸运纸团").IsChecked = false;
@@ -136,7 +136,7 @@ public sealed class DesktopPetSettingsTests
 
         Switch(page, "幸运纸团").IsChecked = true;
         GuiHarness.Flush();
-        Assert.Equal((true, "10"), (lucky.IsEnabled, lucky.Text));
+        Assert.Equal((true, "30"), (lucky.IsEnabled, lucky.Text));
     });
 
     [Fact]
@@ -152,7 +152,7 @@ public sealed class DesktopPetSettingsTests
                     .Select(row => (Switch(page, row.Item1).IsChecked == true, Number(page, row.Item2).Text)));
             GuiHarness.Tab(page, 2);
             Assert.Equal((true, "30"), (Switch(page, "捣蛋鬼自己来").IsChecked == true, Number(page, "它最多每几分钟自己来一次").Text));
-            Assert.Equal((true, "10"), (Switch(page, "幸运纸团").IsChecked == true, Number(page, "每个纸团是幸运纸团的几率").Text));
+            Assert.Equal((true, "30"), (Switch(page, "幸运纸团").IsChecked == true, Number(page, "每个纸团是幸运纸团的几率").Text));
             Assert.False(page.IsDirty);
             Assert.Equal(before, File.ReadAllText(Settings.FilePath(harness.DataDirectory)));
             return Task.CompletedTask;

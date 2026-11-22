@@ -7,6 +7,7 @@
 - 改设置键、值的写法或含义，要同时写升级步骤和测试；设置文件仍按 [ADR 0004](0004-settings-file-line-editing.md) 逐行改写，保留注释和不认识的键。
 - 设置文件的版本记在顶层的 `format_version`，缺失时视为 0。文件版本高于程序时报错，和数据库一样。
 - 升级不改变用户已有的效果：新设置的默认值会改变效果时，升级时写入旧效果对应的值。
+- 例外（2026-11-22，[#391](https://github.com/cyaoc/aether/issues/391)）：设置文件格式 4 把 `desktop_pet.lucky_percent` 还是 10 的改成 30，别的值不动。10 只是 v0.6.3 的默认值，这次是重调玩法：幸运纸团的双倍和 0:00 后的等待对所有人都变长，几率留在 10 就只调了一半。手动填了 10 的和没动过的分不出来，也会改成 30。只此一次，以后改默认值仍按上一条和 [ADR 0004](0004-settings-file-line-editing.md)：已经写进文件的默认值不跟着变。
 - 改表结构或 JSON 列格式，要在 `Database` 里加版本块并升 `user_version`。版本块可以转换旧数据，和版本号在同一事务里提交；块里不调用现在的 Store 和 record，发布后不再改。
 - JSON 列的格式跟着 C# record 走（如 `lottery_draw.result`、`lottery_prize_set.content`），改属性名就是改格式，旧行读出来不报错，只是值丢失。
 - 改约束或类型要重建表。`PRAGMA foreign_keys` 在事务里无效，`defer_foreign_keys` 过不了提交（`DROP TABLE` 记下的违规不会被改名抵消），所以要在事务开始前关掉升级用的连接的外键，提交前跑 `foreign_key_check`。

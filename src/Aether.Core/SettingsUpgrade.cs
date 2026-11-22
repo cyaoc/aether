@@ -7,7 +7,7 @@ namespace Aether.Core;
 
 internal static class SettingsUpgrade
 {
-    internal const int CurrentVersion = 3;
+    internal const int CurrentVersion = 4;
 
     // The 0.2.x spellings, frozen here rather than read from Settings.WelcomeGuards, which may change.
     private static readonly string[] V0Guards = ["关闭", "舰长", "提督", "总督"];
@@ -21,6 +21,11 @@ internal static class SettingsUpgrade
     private const string V2HelperComment = "# 帮它的关键字，观众发了就站到捣蛋鬼那边；非空文字，不能和下一场报名抽奖、盲盒查询的关键字一样";
     private const string V2Placeholder = "{关键字}";
 
+    // The v0.6.3 Template's comment on lucky_percent, the last of format 3, and the one format 4 writes over it. Frozen as
+    // V0Guards is.
+    private const string V3LuckyComment = "# 拔河时每个纸团是幸运纸团的几率，0 到 100（%），0 表示不出幸运纸团；砸中谁，对面 10 秒内送的入伙礼物算双倍";
+    private const string V4LuckyComment = "# 拔河时每个纸团是幸运纸团的几率，0 到 100（%），0 表示不出幸运纸团；砸中谁，对面 20 秒内送的入伙礼物算双倍";
+
     internal static string Apply(string source, int version, string path)
     {
         var original = source;
@@ -31,6 +36,7 @@ internal static class SettingsUpgrade
                 0 => UpgradeV0(source, path),
                 1 => UpgradeV1(source, path),
                 2 => UpgradeV2(source, path),
+                3 => UpgradeV3(source, path),
                 _ => throw new InvalidOperationException("缺少设置文件升级步骤。"),
             };
             version++;
@@ -151,14 +157,13 @@ internal static class SettingsUpgrade
         }
         return source;
 
-        // A comment the user changed stays. Only a scanner-recognized one counts, as in UpgradeV0, and tokens after the line have moved.
+        // A comment the user changed stays; tokens after the line have moved.
         string WithoutHelper(YamlNode key, YamlNode value)
         {
             var end = Settings.EndOf(tokens, value);
             if (group.Style != MappingStyle.Block || key.Start.Line != end.Line) throw CannotEdit(path, key);
             int from = LineStart(source, (int)key.Start.Index), to = LineEnd(source, (int)end.Index);
-            var comment = tokens.OfType<Tokens.Comment>().FirstOrDefault(token => token.End.Index < from && LineEnd(source, (int)token.End.Index) == from
-                && source[LineStart(source, (int)token.Start.Index)..(int)token.End.Index].TrimStart(' ') == V2HelperComment);
+            var comment = CommentAbove(tokens, source, from, V2HelperComment);
             return source[..(comment is null ? from : LineStart(source, (int)comment.Start.Index))] + source[to..];
         }
 
@@ -178,6 +183,29 @@ internal static class SettingsUpgrade
             }
             return source;
         }
+    }
+
+    /// <summary>Format 4 makes a paper ball lucky 30 times in a hundred by default, not 10, and a double last 20 seconds, not
+    /// 10: a lucky_percent still at format 3's default of 10 becomes 30 (the one exception ADR 0011 makes to keeping what
+    /// users have), and the Template's comment right above it says 20 seconds. Any other value, and a comment the user
+    /// changed, stay. Only the value's scalar is replaced, so unlike UpgradeV2 the group need not be in block style.</summary>
+    private static string UpgradeV3(string source, string path)
+    {
+        if (Settings.ChildOf(RootOf(source), "desktop_pet") is not YamlMappingNode group) return source;
+        var (key, value) = group.Children.FirstOrDefault(pair => pair.Key is YamlScalarNode { Value: "lucky_percent" });
+        if (key is null) return source;
+        var tokens = Settings.Scan(source);
+        // Read as format 3's Definition.Percent read it, frozen here as V0Guards is. The value comes after its comment, so
+        // it is replaced first and the comment keeps its place.
+        if (value is YamlScalarNode { Value: { } text } && int.TryParse(text.Trim(), System.Globalization.NumberStyles.Integer,
+                System.Globalization.CultureInfo.InvariantCulture, out var percent) && percent == 10)
+        {
+            var (start, length, written) = ScalarEdit(tokens, value, "30", path);
+            source = source.Remove(start, length).Insert(start, written);
+        }
+        var comment = CommentAbove(tokens, source, LineStart(source, (int)key.Start.Index), V3LuckyComment);
+        return comment is null ? source
+            : source.Remove((int)comment.Start.Index, (int)(comment.End.Index - comment.Start.Index)).Insert((int)comment.Start.Index, V4LuckyComment);
     }
 
     /// <summary>Marks a file the steps changed as the current format: its format_version, or one above the comments that lead its
@@ -201,6 +229,12 @@ internal static class SettingsUpgrade
         var newline = Settings.NewlineOf(source);
         return source.Insert(at, indent + "# 设置文件格式版本，由程序维护" + newline + indent + "format_version: " + version + newline + newline);
     }
+
+    /// <summary>The comment on the line right above the one starting at <paramref name="from"/>, if it reads
+    /// <paramref name="text"/> past its indent. Only a scanner-recognized one counts: a block scalar can hold the same text.</summary>
+    private static Tokens.Comment? CommentAbove(List<Tokens.Token> tokens, string source, int from, string text) =>
+        tokens.OfType<Tokens.Comment>().FirstOrDefault(token => token.End.Index < from && LineEnd(source, (int)token.End.Index) == from
+            && source[LineStart(source, (int)token.Start.Index)..(int)token.End.Index].TrimStart(' ') == text);
 
     /// <summary>Replaces only <paramref name="node"/>'s scalar token, keeping its tag and the whitespace around it.</summary>
     private static (int Start, int Length, string Value) ScalarEdit(List<Tokens.Token> tokens, YamlNode node, string value, string path)

@@ -174,7 +174,7 @@ the page beside the board, as the web service serves it, telling it it is on in 
   its 来访 counting for nothing, what was thrown or kept aside for her chest too. The page reports it setting off and leaving.
   What it and she say in a 来访 are her character's lines of the groups `chestGame` and `prankster` (a space breaks the
   捣蛋鬼's line), and a paper ball is a 幸运纸团 `luckyPercent` times in a hundred, never at 0; the board said fixed lines,
-  and one ball in ten was lucky.
+  and three balls in ten were lucky.
 - The viewers of a 来访 are the room's. Whoever sends a 人气票 or 小花花 is on its side with the face their gift message
   carried, or, with none, the first character of their name on the side's colour; the board's are eight sample viewers with
   avatars of their own. A gift message's gifts are each taken as the board takes one, so one message may throw some and keep

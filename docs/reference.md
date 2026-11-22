@@ -47,7 +47,7 @@ desktop_pet:
   gloomy_minutes: 40
   sleepy_minutes: 60
   prankster_minutes: 30
-  lucky_percent: 10
+  lucky_percent: 30
   daily_min_seconds: 20
   daily_max_seconds: 40
   mishap_percent: 25
