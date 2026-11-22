@@ -976,7 +976,7 @@ export class Engine extends EventTarget {
     v.chest = null;
   }
 
-  pkCell(pose) { const [k, i] = this.prankster.poses[pose]; return this.cells[k][i]; }
+  pkCell(pose) { return this.still(pose, this.prankster.poses); }
 
   // Where the rope in its carrying drawing ends on the page (tip, measured by Pet), and how far from the sprite's centre the
   // rope in its drawing ends.
@@ -1000,8 +1000,9 @@ export class Engine extends EventTarget {
   // were drawn with the chest standing in the canvas; the link is at column grip of their cells).
   grip(pose) { const c = this.still(pose); return (c.ox + this.art.grip - c.cx) * H / c.ruler; }
 
-  // A pose's own cell of her sheet, not a loop's frame (Pet's cell): what is measured on her drawing standing still.
-  still(pose) { const [k, i] = this.art.poses[pose]; return this.cells[k][i]; }
+  // A pose's own cell of its sheet, of her poses unless set is another's (a name not in it, that sheet's first), not a loop's
+  // frame (Pet's cell): what is measured on a drawing standing still.
+  still(pose, set = this.art.poses) { const [k, i] = set[pose] || [pose, 0]; return this.cells[k][i]; }
 
   // Where her sprite pats her head as she lies where the 捣蛋鬼 has dragged the chest from her: as 'head' puts it over her
   // standing, her head lyingHead across her lying drawing.

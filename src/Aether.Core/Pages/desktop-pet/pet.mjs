@@ -208,7 +208,7 @@ export class Pet extends Engine {
   // Everything she always needs, her sprite's sheets, turnaround views and moving drawings included, and her props, whose sizes
   // place the big shows from their first moment; not the sheets of SEGMENTS.
   async boot() {
-    const { sheets, views, props, poses: POSE } = this.art, later = Object.values(SEGMENTS).flat(), { idle, blink, happy, lookRight } = this.character.sprite;
+    const { sheets, views, props } = this.art, later = Object.values(SEGMENTS).flat(), { idle, blink, happy, lookRight } = this.character.sprite;
     await Promise.all([
       ...Object.keys(sheets).filter(k => !later.includes(k)).map(k => this.loadSheet(k)),
       ...Object.entries({ sIdle: idle, sBlink: blink, sHappy: happy, sLook: lookRight }).map(async ([k, file]) => {
@@ -225,7 +225,7 @@ export class Pet extends Engine {
     await this.loadSpriteStrips();
     const { castleClosed: closed, castleOpen: open } = this.props;
     this.castle = { closed, open, box: box(closed, 0, 0, closed.width, closed.height) };
-    const [k, i] = POSE.idle, c = this.cells[k][i];
+    const c = this.still('idle');
     this.herLeft = (c.x - c.cx) * H / c.ruler;  // her left edge standing idle, from her centre
     this.measureG = document.createElement('canvas').getContext('2d');   // where the 对手情报卡's words are measured (intelShow)
   }
@@ -395,7 +395,7 @@ export class Pet extends Engine {
       for (const [i, ms] of steps) { if (t < ms || !ms) return f[i]; t -= ms; }
       return f[steps.at(-1)[0]];
     }
-    const [k, i] = set[name] || [name, 0]; return this.cells[k][i];
+    return this.still(name, set);
   }
 
   herBox(st, c = this.cell(st.pose)) {

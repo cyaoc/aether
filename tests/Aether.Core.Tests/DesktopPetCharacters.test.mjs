@@ -6,7 +6,6 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { existsSync, readFileSync, readdirSync } from 'node:fs';
 import { MOOD } from '../../src/Aether.Core/Pages/desktop-pet/engine.mjs';
-import { Pet } from '../../src/Aether.Core/Pages/desktop-pet/pet.mjs';
 import { gamePet } from './Support/DesktopPetGame.mjs';
 import { NAME, ROUTES, STAR, STEP, VIEWERS, drive, frames, walk } from '../../scripts/desktop-pet/routes.mjs';
 
@@ -28,6 +27,13 @@ function everyState(character) {
   for (const mood of ['happy', 'calm', 'bored', 'gloomy', 'sleepy']) for (let t = 0; t < 30000; t += 20) states.push(engine.idleState(t, mood, t));
   states.push(engine.roundState(0, { start: 0, arrivals: [0], wake: false }));
   return states;
+}
+
+// Her 桌宠页 with each of her in-betweens named by its transition, as loading her sheets gives the routes them.
+function routing(character) {
+  const pet = gamePet(character);
+  pet.tweens = Object.fromEntries(Object.keys(character.desktopPet.transitions).map(pair => [pair, [pair, pair]]));
+  return pet;
 }
 
 // Each change of pose in a show the page plays (each 试演 variant), from standing in and back out to it, with the first show
@@ -81,19 +87,15 @@ for (const folder of readdirSync(new URL('characters/', pages), { withFileTypes:
   });
 
   test(`character ${folder} has a way across every change of pose in a show: in-between frames, a cut or a route through them`, () => {
-    const character = read(`characters/${folder}/character.json`), pet = new Pet(null, { currentTime: 0 }, shows, character);
-    // what loading her sheets gives the routes: the in-between frames of each of her transitions
-    pet.tweens = Object.fromEntries(Object.keys(character.desktopPet.transitions).map(pair => [pair, [pair, pair]]));
+    const character = read(`characters/${folder}/character.json`), pet = routing(character);
     const none = Object.entries(poseChanges(character)).filter(([pair]) => pet.route(...pair.split('>')) === null).map(([pair, show]) => `${pair}（${show}）`);
     assert.deepEqual(none, []);
   });
 
   test(`character ${folder}'s 被反超 goes from startled to stomping by her standing, never by way of opening a blind box`, () => {
-    const character = read(`characters/${folder}/character.json`), pet = new Pet(null, { currentTime: 0 }, shows, character), engine = gamePet(character);
-    pet.tweens = Object.fromEntries(Object.keys(character.desktopPet.transitions).map(pair => [pair, [pair, pair]]));
-    const opts = { result: 'Overtaken', seed: 0 }, poses = ['idle'];
-    engine.start('pkSwing', opts);
-    for (let t = 0; t <= engine.cur.dur; t += 20) { const pose = engine.eventState('pkSwing', t, opts, 'x').pose; if (pose !== poses.at(-1)) poses.push(pose); }
+    const pet = routing(read(`characters/${folder}/character.json`)), opts = { result: 'Overtaken', seed: 0 }, poses = ['idle'];
+    pet.start('pkSwing', opts);
+    for (let t = 0; t <= pet.cur.dur; t += 20) { const pose = pet.eventState('pkSwing', t, opts, 'x').pose; if (pose !== poses.at(-1)) poses.push(pose); }
     assert.deepEqual(poses, ['idle', 'surprised', 'idle', 'pout', 'idle']);
     assert.deepEqual(poses.slice(1).flatMap((pose, i) => pet.route(poses[i], pose)).filter(pair => pair.includes('Box')), []);
   });
