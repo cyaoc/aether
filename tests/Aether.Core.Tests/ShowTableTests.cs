@@ -14,11 +14,14 @@ public sealed class ShowTableTests
             ("entry", "entry", "C"), ("gift", "gift", "C"), ("giftStreak", "gift", "C"), ("midGift", "gift", "B"), ("bigGift", "gift", "A"),
             ("blindBoxSmall", "blindBox", "C"), ("blindBoxMedium", "blindBox", "B"), ("blindBoxLarge", "blindBox", "A"), ("castle", "castle", "S"),
             ("captain", "guard", "B"), ("admiral", "guard", "A"), ("governor", "guard", "SS"), ("newFirst", "newFirst", "C"), ("lottery", "lottery", "A"),
-            ("blindBoxQuery", "blindBoxQuery", "D"), ("happy", "mood", "D"), ("calm", "mood", "D"), ("bored", "mood", "D"), ("gloomy", "mood", "D"), ("sleepy", "mood", "D"), ("wake", "mood", "D"),
+            ("blindBoxQuery", "blindBoxQuery", "D"),
+            ("pkOpponent", "pk", "B"), ("pkCondition", "pk", "B"), ("pkChallenge", "pk", "B"), ("pkDouble", "pk", "B"), ("pkDoubleEnding", "pk", "B"),
+            ("pkLastSeconds", "pk", "B"), ("pkSwing", "pk", "C"), ("pkResult", "pk", "B"),
+            ("happy", "mood", "D"), ("calm", "mood", "D"), ("bored", "mood", "D"), ("gloomy", "mood", "D"), ("sleepy", "mood", "D"), ("wake", "mood", "D"),
             ("hum", "daily", "D"), ("gym", "daily", "D"), ("hike", "daily", "D"), ("bike", "daily", "D"), ("ski", "daily", "D"),
             ("pranksterKnocked", "chestGame", "B"), ("chestKept", "chestGame", "B"), ("chestRobbed", "chestGame", "B"),
         ], Table.Shows.Select(show => (show.Id, show.Group, show.Tier)));
-        Assert.Equal(["进场", "礼物", "盲盒", "城堡", "大航海", "新的第一名", "抽奖", "盲盒查询", "心情", "日常", "出事", "小游戏·她", "小游戏·它"],
+        Assert.Equal(["进场", "礼物", "盲盒", "城堡", "大航海", "新的第一名", "抽奖", "盲盒查询", "PK", "心情", "日常", "出事", "小游戏·她", "小游戏·它"],
             Table.Groups.Select(group => group.Label));
         // Moods come of quiet minutes, not of a switch; the chest game's endings are a 来访's, which plays whole (#372).
         Assert.Equal(Table.Shows.Where(show => show.Group is not (ShowGroup.Mood or ShowGroup.ChestGame)), Table.Shows.Where(show => show.CanTurnOff));
@@ -34,11 +37,18 @@ public sealed class ShowTableTests
             ("blindBoxSmall", boxes), ("blindBoxMedium", boxes), ("blindBoxLarge", [.. boxes, "Jackpot"]), ("castle", [null]),
             ("captain", [null]), ("admiral", [null]), ("governor", [null]), ("newFirst", [null]),
             ("lottery", ["EntryOpen", "EntryClosed", "PoolOpen", "PoolCall", "PoolSpin", "RevealGrand", "RevealSecond", "RevealThird", "NoEntries", "End"]),
-            ("blindBoxQuery", ["Gain", "Even", "Loss", "None"]), ("happy", []), ("calm", []), ("bored", [null]), ("gloomy", [null]), ("sleepy", [null]), ("wake", []),
+            ("blindBoxQuery", ["Gain", "Even", "Loss", "None"]),
+            ("pkOpponent", [null]), ("pkCondition", [null]), ("pkChallenge", ["Done", "Failed"]), ("pkDouble", [null]), ("pkDoubleEnding", [null]),
+            ("pkLastSeconds", [null]), ("pkSwing", ["Overtake", "Overtaken", "PullAhead", "FallBehind", "CloseIn", "CaughtUp"]),
+            ("pkResult", ["BigWin", "Win", "NarrowWin", "Draw", "NarrowLoss", "Lose", "BigLoss"]),
+            ("happy", []), ("calm", []), ("bored", [null]), ("gloomy", [null]), ("sleepy", [null]), ("wake", []),
             ("hum", daily), ("gym", daily), ("hike", daily), ("bike", daily), ("ski", daily),
             ("pranksterKnocked", []), ("chestKept", []), ("chestRobbed", []),
         ], Table.Shows.Select(show => (show.Id, (string?[])[.. show.Tests])));
         Assert.All(Table.Shows.SelectMany(show => show.Tests).OfType<string>(), variant => Assert.Contains(variant, Table.Variants.Keys));
+        // A PK's 输 is Lose: Loss is a blind box's 亏了, and a variant has one label whichever row it is a 试演 of.
+        Assert.Equal(["挑战成功", "挑战失败", "反超", "被反超", "拉开", "被拉开", "追近", "被追近", "大胜", "赢", "险胜", "平局", "惜败", "输", "惨败"],
+            Table.Shows.Where(show => show.Group == "pk").SelectMany(show => show.Tests).OfType<string>().Select(variant => Table.Variants[variant]));
     }
 
     [Fact]
@@ -56,6 +66,10 @@ public sealed class ShowTableTests
             ("lotteryGrand", "lottery", "昵称 奖项 奖品"), ("lotterySecond", "lottery", "昵称 奖项 奖品"), ("lotteryThird", "lottery", "昵称 奖项 奖品"),
             ("lotteryNoEntries", "lottery", ""), ("lotteryEnd", "lottery", ""),
             ("queryGain", "blindBoxQuery", ""), ("queryEven", "blindBoxQuery", ""), ("queryLoss", "blindBoxQuery", ""), ("queryNone", "blindBoxQuery", ""),
+            ("pkCondition", "pk", ""), ("pkChallengeDone", "pk", ""), ("pkChallengeFailed", "pk", ""), ("pkChallengeFailedAfter", "pk", ""),
+            ("pkOvertake", "pk", ""), ("pkOvertaken", "pk", ""), ("pkPullAhead", "pk", ""), ("pkFallBehind", "pk", ""), ("pkCloseIn", "pk", ""), ("pkCaughtUp", "pk", ""),
+            ("pkBigWin", "pk", ""), ("pkBigWinAfter", "pk", ""), ("pkWin", "pk", ""), ("pkNarrowWin", "pk", ""), ("pkDraw", "pk", ""),
+            ("pkNarrowLoss", "pk", ""), ("pkNarrowLossAfter", "pk", ""), ("pkLose", "pk", ""), ("pkLoseAfter", "pk", ""), ("pkBigLoss", "pk", ""), ("pkBigLossAfter", "pk", ""),
             ("bored", "mood", ""), ("gloomy", "mood", ""), ("sleepy", "mood", ""), ("jolt", "mood", ""),
             ("hum", "daily", ""), ("gym", "daily", ""), ("hike", "daily", ""), ("bike", "daily", ""), ("ski", "daily", ""),
             ("voiceCrack", "mishap", ""), ("droppedOnFoot", "mishap", ""), ("slipped", "mishap", ""), ("dustOff", "mishap", ""),

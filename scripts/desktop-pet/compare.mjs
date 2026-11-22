@@ -17,7 +17,9 @@ import { NAME, ROUTES, STAR, STEP, VIEWERS, announced, drive, end, frames, items
 const here = new URL('.', import.meta.url).pathname, eval_ = here + '../../docs/design/desktop-pet/tools/cdp-eval.mjs';
 const args = process.argv.slice(2), opt = (k, d) => { const i = args.indexOf(k); return i < 0 ? d : args.splice(i, 2)[1]; };
 const out = opt('--out', '/tmp/desktop-pet-compare'), port = opt('--port', 8820);
-const RESULT = { Gain: '赚', Even: '平', Loss: '亏', Jackpot: '大奖' };
+// A 试演's variant as the board names it: a blind box's ending; a PK's ending, 中途比分 and 双倍挑战.
+const RESULT = { Gain: '赚', Even: '平', Loss: '亏', Jackpot: '大奖', BigWin: '大胜', Win: '赢', NarrowWin: '险胜', Draw: '平局', NarrowLoss: '惜败', Lose: '输',
+  BigLoss: '惨败', Overtake: '反超', Overtaken: '被反超', PullAhead: '拉开', FallBehind: '被拉开', CloseIn: '追近', CaughtUp: '被追近', Done: '成功', Failed: '失败' };
 // A 盲盒查询's 试演 on the board: its result as the board names it, with the page's numbers where they are not the board's own
 // (投入 15, 赚 4.5).
 const QUERY = { Gain: { result: '赚' }, Even: { result: '回本', profit: 0 }, Loss: { result: '亏', spend: 45, profit: -12.5 }, None: { result: '没有记录' } };
@@ -55,6 +57,14 @@ cases.push({ id: 'bigGift-newFirst', ms: at(8600, [6200, 7000, 7700]),
   board: `dc.give([{ gift: '小电视飞船', price: 12450, n: 1, top: true }])`,
   page: `pet.ranked(${ranks([[2, '甲', 5]])}); told(pet, STAR, { items: itemsOf([{ gift: '小电视飞船', price: 12450, n: 1 }]) });
     pet.ranked(${ranks([[1, '星河', 1], [2, '甲', 5]])})` });
+// A 最后10秒 cut short by a big gift: she lets go of her sign, which flies back into her sprite, its words on it.
+cases.push({ id: 'pkLastSeconds-cut', ms: [1900, 2050, 2150, 2250, 2350, 2450, 2550, 2650, 2800],
+  board: `dc.start('PK·最后10秒', {}); later(2000, () => dc.start('大礼物', {}))`,
+  page: `pet.start('pkLastSeconds', {}); later(2000, () => pet.start('bigGift', { nickname: '星河' }))` });
+// The 对手情报卡 cut short by a big gift as it turns over: it rolls itself up where it hung.
+cases.push({ id: 'pkOpponent-cut', ms: [1000, 1400, 3000, 6150, 6250, 6400, 6550, 6700, 6900],
+  board: `dc.start('PK·对手', {}); later(6200, () => dc.start('大礼物', {}))`,
+  page: `pet.start('pkOpponent', {}); later(6200, () => pet.start('bigGift', { nickname: '星河' }))` });
 // The 宝箱小游戏's routes: the board's own steps, which the page plays through drive (routes.mjs).
 for (const [route, steps] of Object.entries(ROUTES)) cases.push({ id: 'game-' + route, steps });
 const chosen = args.length ? cases.filter(c => args.includes(c.id)) : cases;
@@ -102,8 +112,9 @@ const SNAP = `async (c, m, keep, res) => {
   res[c.id][m] = keep.includes(c.id + ':' + m) ? { hash, png: crop.toDataURL('image/png') } : { hash };
 }`;
 // Starting a case afresh: what the board's reset leaves of the case before (the sprite's flight and drawing, her in-betweens,
-// the 捣蛋鬼's, the chest's swing, the hair she had patted and the line she waited to say, the 心情 the game left her in).
-const AFRESH = `reset(); x.sv = x.hv = x.sc = x.orb = x.bubSide = x.pv = x.sw = x.pat = x.lineWait = x.sTarget = x.moodHold = null; x.rt = undefined; x.trail = []; x.nextDaily = Infinity;`;
+// the 捣蛋鬼's, the chest's swing, the hair she had patted and the line she waited to say, the 心情 the game left her in, the PK
+// sign she held and the one flying back, the 对手情报卡 hung and the one rolling up).
+const AFRESH = `reset(); x.sv = x.hv = x.sc = x.orb = x.bubSide = x.pv = x.sw = x.pat = x.lineWait = x.sTarget = x.moodHold = x.signHeld = x.signBack = x.intelHeld = x.intelBack = null; x.rt = undefined; x.trail = []; x.nextDaily = Infinity;`;
 
 // Plays one case from T0 on a grid of 60 frames a second, a gift or a result in the frame at or after its time, and keeps
 // each moment's hash (and picture, for the moments of keep) in the first frame at or after it.

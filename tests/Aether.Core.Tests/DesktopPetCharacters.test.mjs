@@ -5,9 +5,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { existsSync, readFileSync, readdirSync } from 'node:fs';
-import { Engine, MOOD, seeded } from '../../src/Aether.Core/Pages/desktop-pet/engine.mjs';
-import { Pet } from '../../src/Aether.Core/Pages/desktop-pet/pet.mjs';
-import { SETTINGS } from './Support/DesktopPetSettings.mjs';
+import { MOOD } from '../../src/Aether.Core/Pages/desktop-pet/engine.mjs';
 import { gamePet } from './Support/DesktopPetGame.mjs';
 import { NAME, ROUTES, STAR, STEP, VIEWERS, drive, frames, walk } from '../../scripts/desktop-pet/routes.mjs';
 
@@ -16,20 +14,11 @@ const { shows } = read('desktop-pet/shows.json'), prankster = read('desktop-pet/
 // Her sprite's own pictures (the character's sprite section) by the names the shows give them.
 const SINGLES = ['sIdle', 'sBlink', 'sHappy', 'sLook'];
 
-// Her 桌宠页's engine in a connected room, its clock at 0. Pet measures the props the big shows are placed by; any size will
-// do for which poses and drawings she takes.
-function engineOf(character) {
-  const engine = new Engine({ currentTime: 0 }, shows, character.desktopPet), size = { width: 1, height: 1 };
-  Object.assign(engine, { props: { admship: size }, castle: { closed: size, box: { h: 1 } } });
-  engine.reset(seeded(7));
-  engine.receive({ enabled: true, roomConnected: true, settings: SETTINGS, lines: character.lines });
-  return engine;
-}
-
 // Every state she can be in: each show the page plays from its start to its end (each blind box ending, each lottery step,
 // each 日常小动作 with and without its mishap, woken up first), each 心情 for half a minute and a round of blind boxes she shakes.
+// Her 桌宠页 stands in a box for each of her pictures (gamePet): any size will do for which poses and drawings she takes.
 function everyState(character) {
-  const engine = engineOf(character), states = [];
+  const engine = gamePet(character), states = [];
   for (const row of shows.filter(row => row.group !== MOOD)) for (const variant of row.tests) {
     engine.testShow({ show: row.id, variant, nickname: '星河' });
     const { start, dur } = engine.cur = { ...engine.cur, pre: 1000, wakeLine: '' };
@@ -40,10 +29,17 @@ function everyState(character) {
   return states;
 }
 
+// Her 桌宠页 with each of her in-betweens named by its transition, as loading her sheets gives the routes them.
+function routing(character) {
+  const pet = gamePet(character);
+  pet.tweens = Object.fromEntries(Object.keys(character.desktopPet.transitions).map(pair => [pair, [pair, pair]]));
+  return pet;
+}
+
 // Each change of pose in a show the page plays (each 试演 variant), from standing in and back out to it, with the first show
 // it comes in.
 function poseChanges(character) {
-  const engine = engineOf(character), changes = {};
+  const engine = gamePet(character), changes = {};
   for (const row of shows.filter(row => row.group !== MOOD)) for (const variant of row.tests) {
     const opts = { result: variant, mishap: variant === 'Mishap' };
     engine.start(row.id, opts);
@@ -91,11 +87,17 @@ for (const folder of readdirSync(new URL('characters/', pages), { withFileTypes:
   });
 
   test(`character ${folder} has a way across every change of pose in a show: in-between frames, a cut or a route through them`, () => {
-    const character = read(`characters/${folder}/character.json`), pet = new Pet(null, { currentTime: 0 }, shows, character);
-    // what loading her sheets gives the routes: the in-between frames of each of her transitions
-    pet.tweens = Object.fromEntries(Object.keys(character.desktopPet.transitions).map(pair => [pair, [pair, pair]]));
+    const character = read(`characters/${folder}/character.json`), pet = routing(character);
     const none = Object.entries(poseChanges(character)).filter(([pair]) => pet.route(...pair.split('>')) === null).map(([pair, show]) => `${pair}（${show}）`);
     assert.deepEqual(none, []);
+  });
+
+  test(`character ${folder}'s 被反超 goes from startled to stomping by her standing, never by way of opening a blind box`, () => {
+    const pet = routing(read(`characters/${folder}/character.json`)), opts = { result: 'Overtaken', seed: 0 }, poses = ['idle'];
+    pet.start('pkSwing', opts);
+    for (let t = 0; t <= pet.cur.dur; t += 20) { const pose = pet.eventState('pkSwing', t, opts, 'x').pose; if (pose !== poses.at(-1)) poses.push(pose); }
+    assert.deepEqual(poses, ['idle', 'surprised', 'idle', 'pout', 'idle']);
+    assert.deepEqual(poses.slice(1).flatMap((pose, i) => pet.route(poses[i], pose)).filter(pair => pair.includes('Box')), []);
   });
 
   test(`character ${folder} has a way across every change of pose on the 宝箱小游戏's routes, and the 捣蛋鬼 its in-betweens or a cut written down`, async () => {
@@ -113,7 +115,8 @@ for (const folder of readdirSync(new URL('characters/', pages), { withFileTypes:
     const art = read(`characters/${folder}/character.json`).desktopPet;
     assert.equal(typeof art.anchor, 'number');
     for (const [, [sheet, cell]] of Object.entries({ ...art.poses, ...art.sprite })) assert.ok(art.sheets[sheet] && cell >= 0 && cell < 6, sheet);
-    for (const [pose, strip] of Object.entries(art.strips)) assert.ok(art.poses[pose] && art.frames[strip.f] && (strip.ms > 0 || (strip.loop ?? strip.once).length), pose);
+    for (const [pose, strip] of Object.entries(art.strips)) assert.ok(art.poses[pose] && art.frames[strip.f] && (!strip.f2 || art.frames[strip.f2]) && (strip.ms > 0 || (strip.loop ?? strip.once).length), pose);
+    for (const [drawing, places] of Object.entries(art.signs)) assert.ok((art.sheets[drawing] || art.frames[drawing]) && places.every(place => place === null || place.length === 6), drawing);
     for (const [pair, strip] of Object.entries(art.transitions)) assert.ok(pair.split('>').every(pose => art.poses[pose]) && art.frames[strip], pair);
     for (const [drawing, [strip, ms]] of Object.entries(art.spriteStrips)) assert.ok((SINGLES.includes(drawing) || art.sprite[drawing] || /^v[1-3]$/.test(drawing)) && art.frames[strip] && ms > 0, drawing);
     for (const [pose, spot] of Object.entries(art.sameSpot)) assert.equal(art.poses[pose][0], art.poses[spot][0], pose);

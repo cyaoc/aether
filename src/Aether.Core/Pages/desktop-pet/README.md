@@ -14,7 +14,7 @@ character's `character.json`; settings know it by its id and play it unless it i
 | `groups` | `id`, `label` and, for a group of 演出, `note`: the groups the GUI lists 演出 and kinds of lines under, in this order (`mood`, `daily` and `mishap` hold 心情, 日常小动作 and their mishaps' lines; `chestGame` and `prankster` hold hers and the 捣蛋鬼's in a 宝箱小游戏 来访) |
 | `shows` | A row for each 演出, 日常小动作 and 心情: `id`; `group`; `label`; `tier`, its 演出档 (`SS`, `S`, `A`, `B`, `C`, `D`); `lines`, the ids of the kinds of lines it says; `tests`, what a 试演 of it chooses, each a key of `variants` or `null` for the row itself, none for a row that has no 试演; and, for a 演出 the GUI switches by group, `note`, when it plays, where `{mid}`, `{big}` and `{big-1}` stand for the 中礼物 and 大礼物 thresholds in 电池 |
 | `lines` | A row for each kind of line: `id`, which settings and `character.json` key lines by; `group`; `label`; `note`, when she says it; `placeholders`, the names a line may hold in braces |
-| `variants` | The label of each 试演 variant: a blind box's ending (`Gain`, `Even`, `Loss`, as Core tells a 一轮盲盒's result, and `Jackpot`), a 盲盒查询's result (the same three and `None`, no record), a 日常小动作's `Mishap`, a lottery's step |
+| `variants` | The label of each 试演 variant: a blind box's ending (`Gain`, `Even`, `Loss`, as Core tells a 一轮盲盒's result, and `Jackpot`), a 盲盒查询's result (the same three and `None`, no record), a 日常小动作's `Mishap`, a lottery's step, a PK's 双倍挑战 (`Done`, `Failed`), 中途比分 (`Overtake`, `Overtaken` for the lead changing hands, `PullAhead`, `FallBehind` for one side at twice the other's, `CloseIn`, `CaughtUp` for the gap down to a tenth) and ending (`BigWin`, `Win`, `NarrowWin`, `Draw`, `NarrowLoss`, `Lose`, `BigLoss`; its 输 is `Lose`, and its lines `pkLose`, because `Loss` is a blind box's 亏了 and a variant has one label) |
 
 Rows of the group `mood` cannot be turned off: a 心情 comes of how quiet the room has been, and `desktop_pet.*_minutes` of 0
 keeps her out of it. Nor can the group `chestGame`, the endings of a 宝箱小游戏 来访 (`pranksterKnocked` on an empty chest,
@@ -37,7 +37,7 @@ again whenever settings are saved:
 | `settings.pranksterMinutes` | The most minutes between the 捣蛋鬼's own 来访, counted from the last one's end; 0 only when the streamer 叫它来 |
 | `settings.luckyPercent` | The chance, 0 to 100, that a 纸团 thrown in the tug is a 幸运纸团; 0 never |
 | `lines` | The current character's lines by kind: hers, with each kind the streamer changed replaced |
-| `pk` | Whether the streamer is in a PK, by the PK messages' commands alone (`DanmakuProtocol.cs`). One that ends a PK ends it, as do ten minutes without any PK message and a reconnect, which cannot tell |
+| `pk` | Whether the streamer is in a PK, from its match (`PK_BATTLE_PRE_NEW`), 10 seconds before it is fought, by the PK messages' commands (`DanmakuProtocol.cs`) and a `PK_INFO` while its status says one goes on (101, 201, 301). One that ends a PK (`PK_BATTLE_END`, `PK_BATTLE_ABNORMAL`) ends it, as do ten minutes without any PK message and a reconnect, which cannot tell |
 
 A `gift` tells a viewer's 一轮送礼 by the gifts of each message, and once more as it `ended`, with none: the page makes her
 round of those it does not throw at the 捣蛋鬼. Its gifts and a `guard` carry what the 宝箱小游戏 counts, by what the viewer
@@ -55,6 +55,25 @@ recorded) and `spend` and `profit`, the 投入 and the 盈亏 without its sign a
 null for `None`. She shows it only while she is idle, as she waves at an entry: never over a show or blind boxes she shakes,
 never queued, never while the 捣蛋鬼 is here; and any gift cuts it short at once, blind boxes and a round's gift that plays
 nothing too.
+
+A PK is told event by event only while it is 1-on-1: a `PK_INFO`'s `pk_basic.type` 2 (random) or 6 (invited), its `members`
+exactly two and this room one of them, sides told apart by `room_id`. Before a `PK_INFO` says so none is told, and in one of
+more than two (8) none at all, nor in one not matched (`PK_BATTLE_PRE_NEW`) on this connection, joined part way through after
+a reconnect; `pk` above is still told. A message of another PK (its `pk_id`) coming while one goes on, its end never come,
+ends that one. A 胶囊 B站 left a part of out is left out, the others told. Times are B站's, each
+message's `timestamp` measuring from when it came, so a local clock that is off does not matter (`DesktopPetPk.cs`):
+
+| Event | When | Fields |
+|---|---|---|
+| `pkMatch` | Once the 4 questions about the other streamer, asked without the login as the match (`PK_BATTLE_PRE_NEW`) came, are all answered or 3 seconds passed; once a PK | `leftMs`: how long, as it is told, until the PK is fought, 10 seconds after the match; `intel`: `name`; `rank`: `{name, stars (0–3), top, place (0 not on 全站排名)}` or null; `firstWin`: true, false or null; `fans`, `guards`: a number or null; `top3`: `[{score, wealth, guard (0 none, 1 总督, 2 提督, 3 舰长), medal (the level of the other streamer's 灯牌 they wear, 0 none)}]`, `[]` unanswered or with a score left out |
+| `pkCondition` | Our 4 号胶囊 (`capsules_v2`) the first time it is a condition, as “差10票翻倍” or “差1人翻倍” | `text`: B站's words without `<% %>` |
+| `pkChallenge` | Our 5 号胶囊 turning “挑战成功” or “挑战失败”; once a PK | `result`: `Done` or `Failed` |
+| `pkDouble` | Our 4 号胶囊 turning “2倍加成中”; once a PK | — |
+| `pkCountdown` | 10 seconds before the doubling's `end_time` (`double`, by the first `PK_INFO` telling it that has a `timestamp`), and at `PK_BATTLE_START_NEW`'s `pk_countdown`, 10 seconds before scoring stops (`last`). Known only later, at once with less left; not once that moment passed, nor once the PK ended | `kind`: `double` or `last`; `leftMs`: how long to that moment as it is told |
+| `pkScore` | Each `PK_BATTLE_PROCESS_NEW` and `PK_INFO` | `ours`, `theirs`: the votes |
+| `pkEnd` | `PK_BATTLE_END` | `ours`, `theirs` |
+
+Each is told once, as it happens: a page whose events reconnect is told none of them again.
 
 A `danmaku` tells only `uid`, `nickname` and `side`, the 站队 it takes: 1, hers, when all of it is "1", -1, the 捣蛋鬼's, when
 it is "2", else 0 (Core compares it trimmed, as a 报名抽奖 compares its keyword): what a viewer wrote never reaches the
@@ -81,19 +100,23 @@ moment) and its drawing `pet.mjs` and `effects.mjs`, ported function for functio
 event above to the engine's handler of the same name. The board's numbers measured on her pictures are the current
 character's `desktopPet` (`../characters/README.md`); the shows' timings, effects and the sprite's ways stay here, the same for
 every character. The page plays every row of the 演出表: the 心情, the 日常小动作 and their mishaps, entries, gifts, blind boxes,
-castles, 大航海, a new first place on the 礼物榜 (found by the 礼物榜页's `../gift-board/changes.mjs`), each step of a lottery and
-a 盲盒查询's 账单卡;
-and the 宝箱小游戏 (below).
+castles, 大航海, a new first place on the 礼物榜 (found by the 礼物榜页's `../gift-board/changes.mjs`), each step of a lottery,
+a 盲盒查询's 账单卡 and, in a PK, the 对手情报卡 her sprite prints (`pkMatch`, `intelShow`, the card `pk-intel.mjs`, the design
+package's `lib/pk-intel.js`), her 举牌 (`pkCondition`, `pkDouble`, `pkCountdown`: the double bonus's condition, the double on, a
+countdown to the double's end or the PK's; `signShow`, the sign `sign.mjs`, its numbers in 万 as the card writes them), the
+双倍挑战 done or run out (`pkChallenge`, `pkChallengeShow`), the 中途比分 (`pkScore`, `PK_GAP`, `pkGapShow`) and the PK's result
+(`pkEnd`, `PK_RESULT`, `pkEndShow`); and the 宝箱小游戏 (below). In a PK (the state's `pk`) she does no 日常小动作, as on the board.
 
 Her speech bubbles and the effects' marks are in the 礼物榜页's Noto Sans SC (`../gift-board/fonts/noto-sans-sc.css`, `SANS`
 of `../gift-board/paint.mjs`), loaded before she says anything; the stream's PC need not have the board's PingFang SC.
 
 The page is 480 × 640 design px, scaled with the browser source and standing on its bottom edge, and draws her pictures at
-their own resolution. It loads her pictures and props at once but for the sheets of the 日常小动作, the castle, 大航海 and the
-lottery, each with its strips when it first plays (the lottery's too when she first waits through one), and the 宝箱小游戏's,
-hers and the 捣蛋鬼's, when it is first to come: all of them decoded take about 574 MB, the game's more. A pose whose sheet is
-still loading keeps her in the drawing she has. A load that fails, as when the web service restarts, is tried again when next
-asked for, at the soonest a second later: the game's while it is still to come, a sheet's when its show next plays.
+their own resolution. It loads her pictures and props at once but for the sheets of the 日常小动作, the castle, 大航海, the
+lottery and her PK sign, each with its strips when it first plays (the lottery's too when she first waits through one, and with
+a PK's other shows, which have poses of it), and the 宝箱小游戏's, hers and the 捣蛋鬼's, when it is first to come: all of them
+decoded take about 574 MB, the game's more. A pose whose sheet is still loading keeps her in the drawing she has, and her sign
+waits for its sheet to fly. A load that fails, as when the web service restarts, is tried again when next asked for, at the
+soonest a second later: the game's while it is still to come, a sheet's when its show next plays.
 
 ## The 宝箱小游戏
 
@@ -145,6 +168,16 @@ the page beside the board, as the web service serves it, telling it it is on in 
   the viewer's boxes, oldest first, and the rest are shaken on until their own.
 - A gift message, and a 大航海, counts once for 开心. The board counted a round's gifts as they came and its show again when
   it started, so two gifts in a minute made her happy.
+- A PK countdown counts to the moment Core told, `pkCountdown`'s `leftMs` after the page was told, on its clock (Core has it
+  from B站's server time); the board's buttons counted 10 s from when they were pressed, and its 整场 PK played B站's moments on
+  its own clock. Neither the buttons nor the 整场 PK are on the page. A 试演 of a countdown counts from 10, and cut short it is
+  over, as any 试演, not held up again.
+- The 对手情报卡 starts as Core's `pkMatch` comes, once the other streamer is looked up (up to 3 s after the match), and is
+  rolled up as the PK starts, as the board's, cut that much shorter, and more for a show it waited behind or her waking up
+  first (none once the PK has started); the board's started at the match. A countdown she wakes up for ends as soon after
+  its 0 as any. Each `pkScore` is weighed against the one before, and the 20 s between
+  two 中途比分 are on the page's clock, from the last that played; the board's 整场 PK counted them on its PK's clock. A new PK
+  (the state's `pk` turning true) stands at 0 : 0 with none of the 20 s left, as the board's 「PK 开始」.
 - She does no 日常小动作 while she shakes a round's blind boxes. Waiting for the 盲盒播报 takes up to half a minute; the board's
   stand-in took 0.8 s and a 日常小动作 could start in it.
 - The thresholds, the minutes before each 心情 (0 never), the 日常小动作's interval, which of them she does and their chance of a

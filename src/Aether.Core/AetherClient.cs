@@ -71,6 +71,36 @@ public sealed partial class AetherClient : IDisposable
         return Api(credential: null).GetOnlineRankAsync(roomId, broadcasterUid, cancellationToken);
     }
 
+    private static readonly TimeSpan OpponentCardTimeout = TimeSpan.FromSeconds(3);
+
+    /// <summary>Asks B站 about the other streamer of a PK for the 对手情报卡: anonymously, as a viewer who never enters that room,
+    /// and all four at once. What fails, reads wrong or has not answered in 3 s is left out; only the caller's cancelling throws.</summary>
+    internal async Task<OpponentCard> GetOpponentCardAsync(DanmakuProtocol.PkMatched matched, CancellationToken cancellationToken)
+    {
+        var (uid, roomId, name) = matched;
+        using var timeout = new CancellationTokenSource(OpponentCardTimeout, timeProvider);
+        using var asking = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken, timeout.Token);
+        var api = Api(credential: null);
+        var battle = api.GetPkBattleAsync(roomId, uid, asking.Token);
+        var fans = ReadAsync("关注", async () => (long?)await api.GetFansAsync(roomId, asking.Token));
+        var guards = ReadAsync("大航海人数", async () => (long?)await api.GetGuardCountAsync(roomId, uid, asking.Token));
+        var top3 = ReadAsync("在线榜前三", async () => (await api.GetOnlineRankAsync(roomId, uid, asking.Token)).Viewers
+            .Take(3).Select(viewer => OpponentViewer.Of(viewer, uid)).ToArray());
+        return new(name, await ReadAsync("段位", async () => PkRank.Of((await battle).GetProperty("battle_level"))),
+            await ReadAsync("今日首胜", async () => (bool?)OpponentCard.FirstWinOf((await battle).GetProperty("tasks"))),
+            await fans, await guards, await top3 ?? []);
+
+        async Task<T?> ReadAsync<T>(string item, Func<Task<T>> read)
+        {
+            try { return await read(); }
+            catch (Exception error) when (!cancellationToken.IsCancellationRequested)
+            {
+                logger.LogWarning(error, "对手情报卡查{Item}失败，卡上不写这一项：{Error}", item, error.Message);
+                return default;
+            }
+        }
+    }
+
     public IAsyncEnumerable<LoginUpdate> LoginAsync(CancellationToken cancellationToken = default) =>
         EndOnCancellation(LoginCoreAsync(cancellationToken), cancellationToken);
 

@@ -47,7 +47,8 @@ events.addEventListener('state', message => {
   if (connected && pet.gm.visit) visit('start'); else if (connected && pet.gm.due === 'called') visit('called');
   connected = false;
 });
-for (const name of ['gift', 'blindBox', 'blindBoxQuery', 'guard', 'entry', 'danmaku', 'testShow', 'stopTestShow', 'summon'])
+for (const name of ['gift', 'blindBox', 'blindBoxQuery', 'guard', 'entry', 'danmaku', 'pkMatch', 'pkCondition', 'pkChallenge', 'pkDouble',
+  'pkCountdown', 'pkScore', 'pkEnd', 'testShow', 'stopTestShow', 'summon'])
   events.addEventListener(name, message => pet[name](JSON.parse(message.data)));
 // A 试演 that is over is reported, as the video page reports what it played, so the GUI offers another (DesktopPetPage.cs).
 pet.addEventListener('trialended', event => report(`trial=${event.detail}`));

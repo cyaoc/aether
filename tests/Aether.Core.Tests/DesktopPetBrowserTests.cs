@@ -300,6 +300,72 @@ public sealed class DesktopPetBrowserTests
     }
 
     [Fact]
+    public async Task A_first_PK_sign_show_while_her_signs_pictures_still_load_has_her_stand_as_she_was()
+    {
+        await using var page = await StartAsync();
+        await page.OpenAsync(480, 640);
+
+        // (her sign's sheet loads as the show starts, not with the page)
+        var drawn = await page.Browser.EvaluateAsync("""
+            (() => {
+              const loaded = !!pet.cells[pet.art.poses.signUp[0]];
+              pet.start('pkLastSeconds', {}); pet.frame();
+              return JSON.stringify([loaded, pet.hv.pose, pet.signShown]);
+            })()
+            """);
+
+        Assert.Equal("""[false,"idle",false]""", drawn.GetString());
+        Assert.Empty(page.Browser.Errors);
+    }
+
+    [Theory]
+    [InlineData("pkOpponent", "intelHeld", "intelBack")]
+    [InlineData("pkLastSeconds", "signHeld", "signBack")]
+    // behind her sign: her way back to standing goes through in-betweens with the sign in them
+    [InlineData("pkCondition", "signHeld", "signBack")]
+    public async Task The_desktop_pet_turned_off_while_she_holds_a_card_or_her_sign_does_not_bring_it_back_turned_on(string show, string held, string back)
+    {
+        await using var page = await StartAsync();
+        await page.OpenAsync(480, 640);
+        await page.H.Client.WebService.TestShowAsync(show, null, "星河");
+        await page.Browser.WaitAsync($"window.pet.cur?.name === '{show}'");
+        Assert.True((await page.Browser.EvaluateAsync($$"""
+            (async () => {
+              for (let i = 0; i < 40 && !pet.{{held}}; i++) { await Promise.all(Object.values(pet.loads)); {{Clock}}.currentTime += 250; await {{TwoFrames}}; }
+              return !!pet.{{held}};
+            })()
+            """)).GetBoolean());
+
+        await page.ApplyAsync(("desktop_pet.enabled", "false"));
+        await page.ApplyAsync(("desktop_pet.enabled", "true"));
+        await page.Browser.EvaluateAsync(TwoFrames);
+
+        Assert.Equal("[null,null]", (await page.Browser.EvaluateAsync($"JSON.stringify([pet.{held} ?? null, pet.{back} ?? null])")).GetString());
+        Assert.Empty(page.Browser.Errors);
+    }
+
+    [Fact]
+    public async Task Her_PK_sign_fits_the_widest_double_bonus_conditions_at_full_size()
+    {
+        await using var page = await StartAsync();
+        await page.OpenAsync(480, 640);
+
+        // each condition's first row in her sign's fonts, and the width inside its border (the board checks it as it loads)
+        var measured = await page.Browser.EvaluateAsync("""
+            (async () => {
+              const { SIGN } = await import('/desktop-pet/sign.mjs'), { SANS } = await import('/gift-board/paint.mjs'), g = document.createElement('canvas').getContext('2d');
+              const wide = row => row.reduce((width, [text, weight, px]) => (g.font = `${weight} ${px}px ${SANS}`, width + g.measureText(text).width), 0);
+              return [SIGN.W - 2 * SIGN.PAD, ...['差9999票翻倍', '差1.2万票翻倍', '差1人翻倍', '差99999票翻倍', '差12.3万票翻倍'].map(text => wide(SIGN.words('pkCondition', { text })[0]))];
+            })()
+            """);
+
+        var (inside, widths) = (measured[0].GetDouble(), measured.EnumerateArray().Skip(1).Select(width => width.GetDouble()).ToList());
+        Assert.Equal(5, widths.Count);
+        Assert.All(widths, width => Assert.InRange(width, 1, inside));
+        Assert.Empty(page.Browser.Errors);
+    }
+
+    [Fact]
     public async Task A_frame_that_throws_loses_only_itself()
     {
         await using var page = await StartAsync();
