@@ -1,8 +1,9 @@
 // The 桌宠 on the 桌宠页's canvas, drawn as the design package's board draws her (DP-DesktopPet.dc.html), from the current
 // character's Q 版 pictures and the numbers in her manifest (characters/README.md, desktopPet).
 import { canvasOf, loadImage } from '../video/animations/toolkit.mjs';
-import { BALL, BAR, BURST, CHEST, DONE, DROP, Engine, FOOT, GAME, GLOW, H, HANG, HOOK, HOP, LUCK, NOTICE, PAGE, PK_H, SPRITE_H, bump, clamp, ease, k01, seeded, xfade } from './engine.mjs';
+import { BALL, BAR, BURST, CHEST, DONE, DROP, Engine, FOOT, GAME, GLOW, H, HANG, HOOK, HOP, LUCK, NOTICE, PAGE, PK_H, PK_SIGN, SPRITE_H, bump, clamp, ease, k01, seeded, xfade } from './engine.mjs';
 import { BACK, drawFx, drawStar, giftBox } from './effects.mjs';
+import { SIGN } from './sign.mjs';
 import { SANS } from '../gift-board/paint.mjs';
 import { REMOTE } from '../gift-board/images.mjs';
 
@@ -15,7 +16,8 @@ const CARRY = new Set(['crown', 'glow', 'lift', 'lift2', 'lid']);
 // through one, the chest game's when the 捣蛋鬼 is to come), not with the page, which would decode all her pictures at once
 // (design package README 11).
 const SEGMENTS = { hum: ['daily1'], gym: ['gym10'], hike: ['hike11'], bike: ['cycle12'], ski: ['ski9'], castle: ['castleSheet'],
-  captain: ['voyage'], admiral: ['voyage'], governor: ['voyage'], lottery: ['lottery'], game: ['game13', 'game14', 'game15', 'game16', 'game17', 'sp3'] };
+  captain: ['voyage'], admiral: ['voyage'], governor: ['voyage'], lottery: ['lottery'], game: ['game13', 'game14', 'game15', 'game16', 'game17', 'sp3'],
+  pkCondition: ['pkSign'], pkDouble: ['pkSign'], pkDoubleEnding: ['pkSign'], pkLastSeconds: ['pkSign'] };
 // The 捣蛋鬼's drawings and the chest's, the same for every character (prankster/prankster.json).
 const PRANKSTER = '/desktop-pet/prankster/';
 // The tug's two sides, hers 1 and the 捣蛋鬼's -1: B站's own icons of their gifts, 人气票 and 小花花 (giftConfig?platform=pc,
@@ -141,14 +143,19 @@ const box = (im, x, y, w, h) => {
   return x1 < 0 ? null : { x: x + x0, y: y + y0, w: x1 - x0 + 1, h: y1 - y0 + 1, cx: x + sx / sa, cy: y + sy / sa };
 };
 
+// Where codex's PK sign was in a drawing, one of her manifest's signs (characters/README.md), in the px of the picture that has
+// the drawing at ox, oy.
+const signAt = (e, ox, oy) => e && { x: ox + e[0], y: oy + e[1], a: e[2], e: e[3], hold: e[4], h: e[5] };
+
 // A sheet's 3 x 2 cells: each drawing anchors at its row's ground line and its own centre of mass (the figures are not centred
 // in their thirds, so the cell centre would shift her sideways between poses), and every sheet is scaled by its first cell
-// (the idle ruler).
-const sheetCells = im => {
+// (the idle ruler); signs: where her sign is in each cell (signAt).
+const sheetCells = (im, signs = []) => {
   const cw = im.width / 3, ch = im.height / 2, list = [];
   for (let i = 0; i < 6; i++) list.push(box(im, (i % 3) * cw, Math.floor(i / 3) * ch, cw, ch));
   const ground = [0, 1].map(r => Math.max(...list.slice(r * 3, r * 3 + 3).filter(Boolean).map(b => b.y + b.h)));
-  return list.map((b, i) => b && { im, ...b, ox: (i % 3) * cw, oy: Math.floor(i / 3) * ch, ground: ground[Math.floor(i / 3)], ruler: list[0].h });
+  return list.map((b, i) => b && { im, ...b, ox: (i % 3) * cw, oy: Math.floor(i / 3) * ch, ground: ground[Math.floor(i / 3)], ruler: list[0].h,
+    sign: signAt(signs[i], (i % 3) * cw, Math.floor(i / 3) * ch) });
 };
 
 // A strip's four frames drawn from cell c: each keeps its anchor and ruler, so only the moving part moves.
@@ -229,8 +236,8 @@ export class Pet extends Engine {
 
   // A sheet's cells (sheetCells). Her strips drawn from its poses come with it, and only then is it drawn from.
   async measureSheet(k) {
-    const { sheets, poses: POSE, sameSpot: SAME_SPOT, body: BODY, strips: STRIP, transitions: TRANS } = this.art, on = p => POSE[p][0] === k;
-    const cells = sheetCells(await this.picture(sheets[k]));
+    const { sheets, poses: POSE, sameSpot: SAME_SPOT, body: BODY, strips: STRIP, transitions: TRANS, signs: SIGNS } = this.art, on = p => POSE[p][0] === k;
+    const cells = sheetCells(await this.picture(sheets[k]), SIGNS[k]);
     for (const [p, q] of Object.entries(SAME_SPOT)) if (on(p)) {  // the earlier pose's centre, at the same place in this pose's cell
       const c = cells[POSE[p][1]], d = cells[POSE[q][1]];
       c.cx = d.cx - d.ox + c.ox;
@@ -242,10 +249,12 @@ export class Pet extends Engine {
     // a strip's frames keep the anchor, ground and ruler of the cell they were drawn from, so only the moving part moves
     const framesOf = async (f, pose) => {
       const im = await this.picture(this.art.frames[f]), fw = im.width / 4, c = cells[POSE[pose][1]];
-      return [0, 1, 2, 3].map(i => ({ im, ...box(im, i * fw, 0, fw, im.height), cx: c.cx - c.ox + i * fw, ground: c.ground - c.oy, ruler: c.ruler }));
+      return [0, 1, 2, 3].map(i => ({ im, ...box(im, i * fw, 0, fw, im.height), cx: c.cx - c.ox + i * fw, ground: c.ground - c.oy, ruler: c.ruler,
+        sign: signAt(SIGNS[f]?.[i], i * fw, 0) }));
     };
+    // (a loop over two strips, f2 its frames 4-7: her sign swaying to her left and back, then to her right)
     const [strips, tweens] = await Promise.all([
-      Promise.all(Object.entries(STRIP).filter(([pose]) => on(pose)).map(async ([pose, s]) => [pose, await framesOf(s.f, pose)])),
+      Promise.all(Object.entries(STRIP).filter(([pose]) => on(pose)).map(async ([pose, s]) => [pose, [...await framesOf(s.f, pose), ...(s.f2 ? await framesOf(s.f2, pose) : [])]])),
       Promise.all(Object.entries(TRANS).filter(([pair]) => on(pair.split('>')[0])).map(async ([pair, f]) => [pair, (await framesOf(f, pair.split('>')[0])).slice(1, 3)]))
     ]);
     Object.assign(this.strips, Object.fromEntries(strips));
@@ -345,6 +354,13 @@ export class Pet extends Engine {
     if (st.bill?.reveal > 0) this.drawBill(g, st.bill, bill);   // behind her: a long card comes down behind her hair
     if (sp && st.sBehind) this.drawSprite(g, st, sp, now);
     this.drawHer(g, st, now);
+    // her PK sign flying, while her drawing holds none; and let go of, from where she held it, small, into her sprite
+    const flying = (f, words) => { g.save(); g.translate(f.x, f.y); g.rotate(f.a); g.scale(f.k, f.k); g.translate(-SIGN.W / 2, -SIGN.H / 2); SIGN.draw(g, words); g.restore(); };
+    if (st.signFly && !this.signShown) flying(st.signFly, st.sign || []);
+    if (this.signBack) {
+      const f = this.signBack, u = ease(k01(rt - f.at, 0, PK_SIGN.back)), to = sp || this.home(now);
+      if (u >= 1) this.signBack = null; else flying({ x: f.x + (to.x - f.x) * u, y: f.y + (to.y - f.y) * u, a: f.a * (1 - u), k: 1 - 0.85 * u }, f.words);
+    }
     if (sp && !st.sBehind && !st.sOver) this.drawSprite(g, st, sp, now);
     if (st.gift) this.drawGift(g, st.gift);
     for (const f of st.fx) if (!BACK.has(f[0])) drawFx(g, f, st, her, now, this);
@@ -370,6 +386,14 @@ export class Pet extends Engine {
   herBox(st, c = this.cell(st.pose)) {
     const k = H / c.ruler * st.s;
     return { x: st.x + (c.x - c.cx) * k, y: st.y + (c.y - c.ground) * k, w: c.w * k, h: c.h * k, k };
+  }
+
+  // Where the drawing c of a pose has its PK sign on the page (her standing at st): its middle and tilt, for the sign flying to
+  // or from it (a flying sign is laid by its middle: one laid by its bottom edge going into hands that hold it by the top edge
+  // jumped its own height)
+  signSpot(st, c) {
+    const b = this.herBox(st, c), s = c.sign, x = b.x + (s.x - c.x) * b.k, y = b.y + (s.y - c.y) * b.k, d = (s.e === 'b' ? -1 : 1) * SIGN.H / 2;
+    return { x: x - Math.sin(s.a) * d, y: y + Math.cos(s.a) * d, a: s.a };
   }
 
   // In-between frames from pose a to pose b: their own strip; else [] where she simply switches (cuts, that direction);
@@ -418,8 +442,27 @@ export class Pet extends Engine {
     const x = st.x + (st.slide && hv.tween?.[i] ? (hv.fromX - st.x) * (1 - (i + 1) / (hv.tween.length + 1)) : 0), b = this.herBox({ ...st, x }, c);
     hv.x = st.x;
     g.save(); g.translate(x, st.y); g.scale(st.sx / Math.sqrt(s), s); g.translate(-x, -st.y);
-    g.drawImage(c.im, c.x, c.y, c.w, c.h, b.x, b.y, b.w, b.h); g.restore();
+    g.drawImage(c.im, c.x, c.y, c.w, c.h, b.x, b.y, b.w, b.h);
+    // her PK sign keeps its words while she lets it go, whatever made her (her show's end, a bigger show cutting in on the
+    // in-betweens), and once it is out of her hands it flies back into her sprite (draw: signBack)
+    this.signShown = !!c.sign;
+    if (c.sign) { const words = this.signWords = st.sign || this.signWords || []; this.drawSignOn(g, c, b, words); this.signHeld = { ...this.signSpot({ ...st, x }, c), words }; }
+    else if (this.signHeld) { if (!st.signFly) this.signBack = { ...this.signHeld, at: rt }; this.signHeld = null; }   // (signFly: her show carries it on)
+    g.restore();
   }
+
+  // Her PK sign where the drawing c had codex's, and her hands that hold it over it again: her drawing inside the edge of
+  // codex's sign her hands were at (it was wiped there, all but her hands), wherever that edge is on this taller sign.
+  drawSignOn(g, c, b, words) {
+    const s = c.sign, x = b.x + (s.x - c.x) * b.k, y = b.y + (s.y - c.y) * b.k, h = s.h * b.k;
+    const edge = s.e === 'b' ? (s.hold === 'b' ? 0 : -h) : (s.hold === 't' ? 0 : h), band = s.hold === 'b' ? edge - SIGN.HOLD : edge;
+    g.save(); g.translate(x, y); g.rotate(s.a); g.translate(-SIGN.W / 2, s.e === 'b' ? -SIGN.H : 0); SIGN.draw(g, words); g.restore();
+    g.save(); g.translate(x, y); g.rotate(s.a); g.beginPath(); g.rect(-SIGN.W / 2 + 8, band, SIGN.W - 16, SIGN.HOLD);
+    g.rotate(-s.a); g.translate(-x, -y); g.clip(); g.drawImage(c.im, c.x, c.y, c.w, c.h, b.x, b.y, b.w, b.h); g.restore();
+  }
+
+  // Her sign's sheet loads as her first sign show starts (SEGMENTS): until it is there she stands as she was and no sign flies.
+  signShow(name, t, st, opts, say) { if (this.cells[this.art.poses.signUp[0]]) super.signShow(name, t, st, opts, say); }
 
   // The sprite flies to where it is wanted instead of jumping there; its speed decides which way it faces.
   follow(target, dt, st) {

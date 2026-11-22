@@ -648,7 +648,8 @@ test('after the lightning and a PK, with the chest home and her hair still frizz
     play(pet, 3000);
     pet.gm.out = null;   // the chest home (the page's sprite is not drawn here to take it)
     next(pet);
-    play(pet, 10000, st => { if (!pet.cur || pet.now() < pet.cur.start + pet.cur.pre) poses.push(st.pose); });
+    // (the 舰长 plays from 5.3 s to 9.8 s, once her hair is smooth; no 日常小动作 comes after it in the PK)
+    play(pet, 9000, st => { if (!pet.cur || pet.now() < pet.cur.start + pet.cur.pre) poses.push(st.pose); });
     assert.deepEqual([poses[0], poses.includes('cheer'), pet.gm.fix], ['cheerZap', true, null]);
     assert.ok(pet.cur || pet.shaking());
   }

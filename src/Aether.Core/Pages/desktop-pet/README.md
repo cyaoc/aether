@@ -81,18 +81,19 @@ moment) and its drawing `pet.mjs` and `effects.mjs`, ported function for functio
 event above to the engine's handler of the same name. The board's numbers measured on her pictures are the current
 character's `desktopPet` (`../characters/README.md`); the shows' timings, effects and the sprite's ways stay here, the same for
 every character. The page plays every row of the 演出表: the 心情, the 日常小动作 and their mishaps, entries, gifts, blind boxes,
-castles, 大航海, a new first place on the 礼物榜 (found by the 礼物榜页's `../gift-board/changes.mjs`), each step of a lottery and
-a 盲盒查询's 账单卡;
-and the 宝箱小游戏 (below).
+castles, 大航海, a new first place on the 礼物榜 (found by the 礼物榜页's `../gift-board/changes.mjs`), each step of a lottery,
+a 盲盒查询's 账单卡 and, in a PK, her 举牌 (`pkCondition`, `pkDouble`, `pkCountdown`: the double bonus's condition, the double on,
+a countdown to the double's end or the PK's; `signShow`, the sign `sign.mjs`, its numbers in 万 by `pk-intel.mjs`, the design
+package's `lib/pk-intel.js`); and the 宝箱小游戏 (below). In a PK (the state's `pk`) she does no 日常小动作, as on the board.
 
 Her speech bubbles and the effects' marks are in the 礼物榜页's Noto Sans SC (`../gift-board/fonts/noto-sans-sc.css`, `SANS`
 of `../gift-board/paint.mjs`), loaded before she says anything; the stream's PC need not have the board's PingFang SC.
 
 The page is 480 × 640 design px, scaled with the browser source and standing on its bottom edge, and draws her pictures at
-their own resolution. It loads her pictures and props at once but for the sheets of the 日常小动作, the castle, 大航海 and the
-lottery, each with its strips when it first plays (the lottery's too when she first waits through one), and the 宝箱小游戏's,
-hers and the 捣蛋鬼's, when it is first to come: all of them decoded take about 574 MB, the game's more. A pose whose sheet is
-still loading keeps her in the drawing she has. A load that fails, as when the web service restarts, is tried again when next
+their own resolution. It loads her pictures and props at once but for the sheets of the 日常小动作, the castle, 大航海, the
+lottery and her PK sign, each with its strips when it first plays (the lottery's too when she first waits through one), and the
+宝箱小游戏's, hers and the 捣蛋鬼's, when it is first to come: all of them decoded take about 574 MB, the game's more. A pose whose
+sheet is still loading keeps her in the drawing she has, and her sign waits for its sheet to fly. A load that fails, as when the web service restarts, is tried again when next
 asked for, at the soonest a second later: the game's while it is still to come, a sheet's when its show next plays.
 
 ## The 宝箱小游戏
@@ -145,6 +146,10 @@ the page beside the board, as the web service serves it, telling it it is on in 
   the viewer's boxes, oldest first, and the rest are shaken on until their own.
 - A gift message, and a 大航海, counts once for 开心. The board counted a round's gifts as they came and its show again when
   it started, so two gifts in a minute made her happy.
+- A PK countdown counts to the moment Core told, `pkCountdown`'s `leftMs` after the page was told, on its clock (Core has it
+  from B站's server time); the board's buttons counted 10 s from when they were pressed, and its 整场 PK played B站's moments on
+  its own clock. Neither the buttons nor the 整场 PK are on the page. A 试演 of a countdown counts from 10, and cut short it is
+  over, as any 试演, not held up again.
 - She does no 日常小动作 while she shakes a round's blind boxes. Waiting for the 盲盒播报 takes up to half a minute; the board's
   stand-in took 0.8 s and a 日常小动作 could start in it.
 - The thresholds, the minutes before each 心情 (0 never), the 日常小动作's interval, which of them she does and their chance of a
