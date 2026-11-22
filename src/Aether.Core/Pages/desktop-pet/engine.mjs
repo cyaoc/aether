@@ -466,8 +466,10 @@ export class Engine extends EventTarget {
     this.cur = { name, opts, start: now, pre: Math.max(wake ? 1000 : 0, waits || opts.robbed ? FRIZZ : 0), dur, line: this.pick(this.lineKey(name, opts)), wakeLine: wake ? this.pick('wake') : null, carried, held };
     // a round's blind boxes were shaken all the while they came in: the show opens the box right away instead of shaking it again
     if (opts.shaken && BOX_OPEN[name]) this.cur.start -= BOX_OPEN[name];
-    if (opts.until != null) this.cur.dur = Math.min(dur, opts.until - now + PK_SIGN.down);   // a late countdown is shorter
-    if (opts.by != null) this.cur.dur = Math.min(dur, opts.by - now);   // a late 对手情报卡 too: rolled up as the PK starts
+    // a late countdown is shorter, and a late 对手情报卡, rolled up as the PK starts: their moments are on the clock, so what
+    // comes before the show (waking up, the chest going home) is taken off them too
+    if (opts.until != null) this.cur.dur = Math.min(dur, opts.until - now - this.cur.pre + PK_SIGN.down);
+    if (opts.by != null) this.cur.dur = Math.min(dur, opts.by - now - this.cur.pre);
     if (DAILY[name]) this.nextDaily = now + dur + dailyMinSeconds * 1000 + this.rng() * (dailyMaxSeconds - dailyMinSeconds) * 1000;
     // after the chest game: robbed, she is sad until a gift cheers her up (MOOD_HOLD.robbed at most, its own lines); kept, glad
     // for MOOD_HOLD.kept (and no 日常小动作 meanwhile: those come only when she is calm)

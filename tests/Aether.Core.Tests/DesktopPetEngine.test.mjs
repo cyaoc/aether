@@ -2,7 +2,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
-import { DAILY, Engine, seeded } from '../../src/Aether.Core/Pages/desktop-pet/engine.mjs';
+import { DAILY, Engine, PK_SIGN, seeded } from '../../src/Aether.Core/Pages/desktop-pet/engine.mjs';
 import { PK_INTEL } from '../../src/Aether.Core/Pages/desktop-pet/pk-intel.mjs';
 import { SETTINGS } from './Support/DesktopPetSettings.mjs';
 import { MEASURE, box, gamePet, gifts, item, play, playing, round, state } from './Support/DesktopPetGame.mjs';
@@ -795,4 +795,10 @@ test('the 对手情报卡 turns over only when it has both sides, one alone show
 test('the 对手情报卡 is rolled up as the PK starts: so much shorter as its lookup took, and not played once the PK has started', () => {
   const [late, started] = [7000, 0].map(leftMs => { const engine = inPk(); engine.pkMatch({ intel: opponent({ fans: 34613 }), leftMs }); return engine; });
   assert.deepEqual([playing(late), late.cur.dur, playing(started)], ['pkOpponent', 7000, null]);
+});
+
+test('a 对手情报卡 or a countdown she wakes up for keeps to its moment all the same, her waking up taken off it', () => {
+  const [card, count] = [e => e.pkMatch({ intel: opponent({ fans: 34613 }), leftMs: 7000 }), e => e.pkCountdown({ kind: 'last', leftMs: 10000 })]
+    .map(tell => { const engine = inPk(); advance(engine, 41 * MINUTE); tell(engine); return engine; });
+  assert.deepEqual([card, count].map(e => [playing(e), e.cur.pre, e.cur.pre + e.cur.dur]), [['pkOpponent', 1000, 7000], ['pkLastSeconds', 1000, 10000 + PK_SIGN.down]]);
 });
