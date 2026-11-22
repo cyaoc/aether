@@ -321,6 +321,8 @@ public sealed class DesktopPetBrowserTests
     [Theory]
     [InlineData("pkOpponent", "intelHeld", "intelBack")]
     [InlineData("pkLastSeconds", "signHeld", "signBack")]
+    // behind her sign: her way back to standing goes through in-betweens with the sign in them
+    [InlineData("pkCondition", "signHeld", "signBack")]
     public async Task The_desktop_pet_turned_off_while_she_holds_a_card_or_her_sign_does_not_bring_it_back_turned_on(string show, string held, string back)
     {
         await using var page = await StartAsync();
