@@ -89,7 +89,7 @@ internal sealed class BilibiliApi
         {
             var (_, data) = await GetAsync(FormattableString.Invariant(
                 $"https://api.live.bilibili.com/xlive/general-interface/v1/rank/queryContributionRank?ruid={broadcasterUid}&room_id={roomId}&page=1&page_size=100&type=online_rank&switch=contribution_rank&platform=web&web_location=444.8"),
-                FormattableString.Invariant($"{LiveReferer}{roomId}"), "读取在线榜", cancellationToken);
+                RoomReferer(roomId), "读取在线榜", cancellationToken);
             // An empty rank may come back as null rather than [], which is still 在线榜上还没有人.
             var viewers = data.TryGetProperty("item", out var items) && items.ValueKind == JsonValueKind.Array
                 ? items.EnumerateArray()
@@ -109,6 +109,25 @@ internal sealed class BilibiliApi
             throw new InvalidOperationException($"读取在线榜失败：{error.Message}", error);
         }
     }
+
+    /// <summary>A streamer's PK 段位 and today's PK tasks: GetPkBattleMain's data.</summary>
+    public async Task<JsonElement> GetPkBattleAsync(long roomId, long broadcasterUid, CancellationToken cancellationToken) =>
+        (await GetAsync(FormattableString.Invariant(
+            $"https://api.live.bilibili.com/xlive/pk-interface/v1/battle/GetPkBattleMain?ruid={broadcasterUid}&room_id={roomId}"),
+            RoomReferer(roomId), "读取 PK 段位", cancellationToken)).Data;
+
+    /// <summary>How many follow the room's streamer (关注).</summary>
+    public async Task<long> GetFansAsync(long roomId, CancellationToken cancellationToken) =>
+        (await GetAsync(FormattableString.Invariant($"https://api.live.bilibili.com/room/v1/Room/get_info?room_id={roomId}"),
+            RoomReferer(roomId), "读取关注数", cancellationToken)).Data.GetProperty("attention").GetInt64();
+
+    /// <summary>How many 大航海 the streamer has; guardTab answers nothing without roomid, ruid and page.</summary>
+    public async Task<long> GetGuardCountAsync(long roomId, long broadcasterUid, CancellationToken cancellationToken) =>
+        (await GetAsync(FormattableString.Invariant(
+            $"https://api.live.bilibili.com/xlive/app-room/v2/guardTab/topListNew?roomid={roomId}&ruid={broadcasterUid}&page=1"),
+            RoomReferer(roomId), "读取大航海人数", cancellationToken)).Data.GetProperty("info").GetProperty("num").GetInt64();
+
+    private static string RoomReferer(long roomId) => FormattableString.Invariant($"{LiveReferer}{roomId}");
 
     /// <summary>An 在线榜 item. What only the 对手情报卡 shows is 0 when B站 leaves it out, so picking a viewer never fails on it.</summary>
     private static OnlineRankViewer RankViewer(JsonElement item)
