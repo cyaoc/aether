@@ -9,8 +9,8 @@ namespace Aether.Core.Tests;
 /// made-up other streamer.</summary>
 public sealed class DesktopPetPkTests : IAsyncDisposable
 {
-    // The room the harness watches.
-    private const long Ours = 7734200;
+    // The room the harness watches; B站's pk_id of the PK its messages are of, and of the next.
+    private const long Ours = 7734200, PkId = 100001, NextPk = 100002;
     private readonly WatchHarness h = new();
     // The room watched and the 桌宠页 opened (WatchAsync), gone before the harness.
     private IAsyncEnumerator<WatchUpdate>? watch;
@@ -94,12 +94,29 @@ public sealed class DesktopPetPkTests : IAsyncDisposable
     {
         Answer(h.Http);
         var (updates, pet) = await WatchAsync();
-        await h.PushAndSyncAsync(updates, PreNew(), Info());
+        await h.PushAndSyncAsync(updates, PreNew(), Info(), PreNew());
         Assert.Equal(OpponentName, (await pet.NextAsync(DesktopPet.PkMatch)).GetProperty("name").GetString());
 
-        await h.PushAndSyncAsync(updates, PreNew("月亮"), Info());
+        await h.PushAndSyncAsync(updates, PreNew("月亮", NextPk), Info(pk: NextPk));
 
         Assert.Equal("月亮", (await pet.NextAsync(DesktopPet.PkMatch)).GetProperty("name").GetString());
+    }
+
+    [Fact]
+    public async Task A_pk_joined_part_way_through_whose_end_never_came_leaves_the_next_pk_its_doubling_and_countdown()
+    {
+        var (updates, pet) = await WatchAsync();
+        await h.Server.DisconnectAsync();
+        Assert.IsType<Reconnecting>(await h.NextAsync(updates));
+        await h.AdvanceRetryAsync(updates, 1);
+        string Doubling(long pk) => Info(pk: pk, members: [Member(Ours, capsules: Capsules((4, "2倍加成中", Now() + 20))), Member(OpponentRoom)]);
+
+        await h.PushAndSyncAsync(updates, Doubling(PkId), PreNew(pk: NextPk), Doubling(NextPk));
+        h.Time.Advance(TimeSpan.FromSeconds(10));
+        await h.PushAndSyncAsync(updates);
+        Assert.Equal(["pkDouble {}"], await ToldAsync(pet, DesktopPet.PkDouble));
+
+        Assert.Equal(["pkCountdown {\"kind\":\"double\",\"leftMs\":10000}"], await ToldAsync(pet, DesktopPet.PkCountdown));
     }
 
     [Fact]
@@ -273,12 +290,12 @@ public sealed class DesktopPetPkTests : IAsyncDisposable
 
     private long Now() => h.Time.GetUtcNow().ToUnixTimeSeconds();
 
-    private static string PreNew(string name = OpponentName) =>
-        $$"""{"cmd":"PK_BATTLE_PRE_NEW","pk_status":101,"pk_id":100001,"timestamp":1702204169,"data":{"battle_type":1,"match_type":1,"uname":"{{name}}","face":"","uid":{{OpponentUid}},"room_id":{{OpponentRoom}},"season_id":61,"pre_timer":10,"pk_votes_name":"PK值","end_win_task":null},"roomid":{{Ours}}}""";
+    private static string PreNew(string name = OpponentName, long pk = PkId) =>
+        $$"""{"cmd":"PK_BATTLE_PRE_NEW","pk_status":101,"pk_id":{{pk}},"timestamp":1702204169,"data":{"battle_type":1,"match_type":1,"uname":"{{name}}","face":"","uid":{{OpponentUid}},"room_id":{{OpponentRoom}},"season_id":61,"pre_timer":10,"pk_votes_name":"PK值","end_win_task":null},"roomid":{{Ours}}}""";
 
     /// <summary>A PK_INFO sent now by B站's clock, by default of a random 1-on-1 PK with no votes yet.</summary>
-    private string Info(int type = 2, int status = 201, params string[] members) =>
-        $$$"""{"cmd":"PK_INFO","data":{"members":[{{{string.Join(",", members is [] ? [Member(Ours), Member(OpponentRoom)] : members)}}}],"pk_basic":{"pk_id":100001,"status":{{{status}}},"type":{{{type}}},"sub_type":0,"start_time":{{{Now()}}},"end_time":{{{Now() + 300}}}},"pk_play":{},"timestamp":{{{Now()}}}}}""";
+    private string Info(int type = 2, int status = 201, long pk = PkId, params string[] members) =>
+        $$$"""{"cmd":"PK_INFO","data":{"members":[{{{string.Join(",", members is [] ? [Member(Ours), Member(OpponentRoom)] : members)}}}],"pk_basic":{"pk_id":{{{pk}}},"status":{{{status}}},"type":{{{type}}},"sub_type":0,"start_time":{{{Now()}}},"end_time":{{{Now() + 300}}}},"pk_play":{},"timestamp":{{{Now()}}}}}""";
 
     private string WithoutTimestamp(string info) => info.Replace($",\"timestamp\":{Now()}", "", StringComparison.Ordinal);
 
@@ -291,7 +308,7 @@ public sealed class DesktopPetPkTests : IAsyncDisposable
     /// <summary>A PK_BATTLE_PROCESS_NEW or PK_BATTLE_END with these votes, init_info's then match_info's.</summary>
     private static string Votes(string command, (long Room, long Votes) init, (long Room, long Votes) match) => JsonSerializer.Serialize(new
     {
-        cmd = command, pk_id = 100001, pk_status = 201, timestamp = 1702204469,
+        cmd = command, pk_id = PkId, pk_status = 201, timestamp = 1702204469,
         data = new
         {
             battle_type = 1, init_info = new { room_id = init.Room, votes = init.Votes, best_uname = "" },
@@ -333,7 +350,7 @@ public sealed class DesktopPetPkTests : IAsyncDisposable
     /// <paramref name="countdown"/>.</summary>
     private static string Started(long sent, long countdown) => JsonSerializer.Serialize(new
     {
-        cmd = "PK_BATTLE_START_NEW", pk_id = 100001, pk_status = 201, timestamp = sent,
+        cmd = "PK_BATTLE_START_NEW", pk_id = PkId, pk_status = 201, timestamp = sent,
         data = new
         {
             battle_type = 1, final_hit_votes = 0, pk_start_time = sent, pk_frozen_time = countdown + 10, pk_end_time = countdown + 20,

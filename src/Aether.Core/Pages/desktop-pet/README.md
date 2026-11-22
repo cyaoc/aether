@@ -59,8 +59,8 @@ nothing too.
 A PK is told event by event only while it is 1-on-1: a `PK_INFO`'s `pk_basic.type` 2 (random) or 6 (invited), its `members`
 exactly two and this room one of them, sides told apart by `room_id`. Before a `PK_INFO` says so none is told, and in one of
 more than two (8) none at all, nor in one not matched (`PK_BATTLE_PRE_NEW`) on this connection, joined part way through after
-a reconnect; `pk` above is still told. A match coming while one matched goes on, its end never come, ends that one: it is
-a new PK. A 胶囊 B站 left a part of out is left out, the others told. Times are B站's, each
+a reconnect; `pk` above is still told. A message of another PK (its `pk_id`) coming while one goes on, its end never come,
+ends that one. A 胶囊 B站 left a part of out is left out, the others told. Times are B站's, each
 message's `timestamp` measuring from when it came, so a local clock that is off does not matter (`DesktopPetPk.cs`):
 
 | Event | When | Fields |

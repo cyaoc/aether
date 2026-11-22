@@ -31,9 +31,9 @@ internal static class DanmakuProtocol
         public Func<Gift, long?> PeriodOf { get; init; } = _ => null;
     }
     internal sealed record EntryReceived(Entry Entry, long ReceivedTimestamp) : RoomEvent;
-    /// <summary>A PK message: whether the streamer is in a PK, by its command or a PK_INFO's status, and what else it says that
-    /// the 桌宠 plays, none when B站 left that out or wrote it otherwise.</summary>
-    internal sealed record PkReceived(bool InPk, long ReceivedTimestamp, PkNews? News) : RoomEvent;
+    /// <summary>A PK message: whether the streamer is in a PK, by its command or a PK_INFO's status, which PK it is of (pk_id),
+    /// and what else it says that the 桌宠 plays; none of those two when B站 left it out or wrote it otherwise.</summary>
+    internal sealed record PkReceived(bool InPk, long ReceivedTimestamp, long? PkId, PkNews? News) : RoomEvent;
 
     /// <summary>What a PK message says besides whether the streamer is in a PK; its times are seconds by B站's clock.</summary>
     internal abstract record PkNews;
@@ -208,7 +208,7 @@ internal static class DanmakuProtocol
 
         private PkReceived? Pk(string command, JsonElement root, long receivedTimestamp) =>
             PkCommands.TryGetValue(command, out var pk) && pk.InPk(root) is { } inPk
-                ? new(inPk, receivedTimestamp, News(command, pk.News, root)) : null;
+                ? new(inPk, receivedTimestamp, PkIdOf(root), News(command, pk.News, root)) : null;
 
         /// <summary>What the 桌宠 plays of a PK message, as <paramref name="read"/> reads it: one with a part B站 left out or wrote
         /// otherwise only says whether the streamer is in a PK.</summary>
@@ -226,6 +226,15 @@ internal static class DanmakuProtocol
 
     private static bool Unreadable(Exception error) => error is JsonException or KeyNotFoundException
         or InvalidOperationException or IndexOutOfRangeException or FormatException or OverflowException;
+
+    /// <summary>The pk_id a PK message is of, a PK_INFO's in its pk_basic.</summary>
+    private static long? PkIdOf(JsonElement root)
+    {
+        var id = root.TryGetProperty("pk_id", out var top) ? top
+            : root.TryGetProperty("data", out var data) && data.ValueKind == JsonValueKind.Object && data.TryGetProperty("pk_basic", out var basic)
+                && basic.ValueKind == JsonValueKind.Object && basic.TryGetProperty("pk_id", out var inner) ? inner : default;
+        return id.ValueKind == JsonValueKind.Number && id.TryGetInt64(out var pk) ? pk : null;
+    }
 
     private static PkMatched Matched(JsonElement data) => new(data.GetProperty("uid").GetInt64(), data.GetProperty("room_id").GetInt64(),
         data.GetProperty("uname").GetString() ?? throw new JsonException("缺少对面主播昵称。"));

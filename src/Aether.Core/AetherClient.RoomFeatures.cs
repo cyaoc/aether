@@ -201,8 +201,8 @@ public sealed partial class AetherClient
     }
 
     /// <summary>Tells the 桌宠 whether the streamer is in a PK, as the last PK message said, and what happens in one
-    /// (DesktopPetPk). Ten minutes without any end it too, so a missed end does not hold one on all night, and so does the next
-    /// match, which is a new PK; and a reconnect cannot tell whether one went on meanwhile, so it is off.</summary>
+    /// (DesktopPetPk). Ten minutes without any end it too, so a missed end does not hold one on all night, and so does a message
+    /// of another PK (pk_id); and a reconnect cannot tell whether one went on meanwhile, so it is off.</summary>
     private sealed class PkFeature : IRoomFeature
     {
         private static readonly TimeSpan MaxSilence = TimeSpan.FromMinutes(10);
@@ -225,8 +225,8 @@ public sealed partial class AetherClient
             switch (e)
             {
                 case DanmakuProtocol.PkReceived { InPk: true } received:
-                    if (received.News is DanmakuProtocol.PkMatched && pk is { Matched: true }) End();
-                    pk ??= new(roomId, timers, service.TellDesktopPet, lookUp);
+                    if (pk is { Id: { } id } && received.PkId is { } next && next != id) End();
+                    pk ??= new(received.PkId, roomId, timers, service.TellDesktopPet, lookUp);
                     service.SetDesktopPetPk(true);
                     pk.Take(received);
                     silence.Reset(received.ReceivedTimestamp);

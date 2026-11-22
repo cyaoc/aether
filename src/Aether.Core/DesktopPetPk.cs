@@ -6,7 +6,8 @@ namespace Aether.Core;
 /// (ADR 0017). Only a 1-on-1 PK is told, once a PK_INFO says it is one: the other streamer, looked up as the PK is matched,
 /// waits for that. One not matched on this connection, joined part way through after a reconnect, is not told at all: its
 /// 胶囊 and score would play as new.</summary>
-internal sealed class DesktopPetPk(long roomId, StepTimers timers, Action<string, object> tell, Func<PkMatched, Task<OpponentCard>> lookUp)
+/// <param name="id">B站's pk_id of the PK, none when its first message left it out.</param>
+internal sealed class DesktopPetPk(long? id, long roomId, StepTimers timers, Action<string, object> tell, Func<PkMatched, Task<OpponentCard>> lookUp)
 {
     // pk_basic.type: 2 a random PK, 6 one the streamer was invited to; 8, a PK of more, and any other is no 1-on-1.
     private const int RandomPk = 2, InvitedPk = 6;
@@ -29,17 +30,18 @@ internal sealed class DesktopPetPk(long roomId, StepTimers timers, Action<string
     // Looked up, waiting for a PK_INFO to say whether the PK is 1-on-1.
     private OpponentCard? card;
     private bool over;
+    // Whether its match (PK_BATTLE_PRE_NEW) came on this connection: only then is it told.
+    private bool matched;
 
-    /// <summary>Whether its match (PK_BATTLE_PRE_NEW) came on this connection: only then is it told.</summary>
-    public bool Matched { get; private set; }
+    public long? Id => id;
 
     public void Take(PkReceived received)
     {
         switch (received.News)
         {
-            case PkMatched matched:
-                Matched = true;
-                LookUp(matched);
+            case PkMatched match when !matched:
+                matched = true;
+                LookUp(match);
                 break;
             case PkStarted started:
                 Countdown("last", started.Countdown + LastSeconds, started.Timestamp, received.ReceivedTimestamp);
@@ -137,6 +139,6 @@ internal sealed class DesktopPetPk(long roomId, StepTimers timers, Action<string
 
     private void Tell(string name, object data)
     {
-        if (oneOnOne == true && Matched && !over) tell(name, data);
+        if (oneOnOne == true && matched && !over) tell(name, data);
     }
 }
