@@ -474,7 +474,7 @@ export class Pet extends Engine {
   }
 
   // Her sign's sheet loads as her first sign show starts (SEGMENTS): until it is there she stands as she was and no sign flies.
-  signShow(name, t, st, opts, say) { if (this.cells[this.art.poses.signUp[0]]) super.signShow(name, t, st, opts, say); }
+  signShow(name, t, st, opts, say) { if (SEGMENTS[name].every(k => this.cells[k])) super.signShow(name, t, st, opts, say); }
 
   // The sprite flies to where it is wanted instead of jumping there; its speed decides which way it faces.
   follow(target, dt, st) {
