@@ -129,7 +129,8 @@ public sealed partial class AetherClient
                         : (BlindBoxResult boxes) => client.WebService.TellDesktopPet(DesktopPet.BlindBox, boxes))));
                 features.Add(new EntryAnimationFeature(client.WebService, animationStop));
                 features.Add(new DesktopPetFeature(client.WebService));
-                features.Add(new PkFeature(timers, client.WebService));
+                features.Add(new PkFeature(timers, client.WebService, realRoomId,
+                    matched => client.GetOpponentCardAsync(matched.RoomId, matched.Uid, matched.Name, animationStop)));
             }
             if (Settings.WelcomeEnabled.Value) features.Add(new WelcomeFeature(Settings, sendQueue));
             return new(sendQueue, features);

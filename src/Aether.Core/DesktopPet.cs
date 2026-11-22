@@ -7,7 +7,9 @@ internal sealed class DesktopPet(WebService service, Character character)
 {
     /// <summary>What happens, by the name the page is told it under.</summary>
     public const string Gift = "gift", BlindBox = "blindBox", BlindBoxQuery = "blindBoxQuery", Guard = "guard", Entry = "entry",
-        Danmaku = "danmaku", Test = "testShow", StopTest = "stopTestShow", Summon = "summon";
+        Danmaku = "danmaku", Test = "testShow", StopTest = "stopTestShow", Summon = "summon", PkMatch = "pkMatch",
+        PkCondition = "pkCondition", PkChallenge = "pkChallenge", PkDouble = "pkDouble", PkCountdown = "pkCountdown",
+        PkScore = "pkScore", PkEnd = "pkEnd";
 
     private bool roomConnected;
     private bool pk;

@@ -200,28 +200,55 @@ public sealed partial class AetherClient
         }
     }
 
-    /// <summary>Tells the 桌宠 whether the streamer is in a PK, as the last PK message said. Ten minutes without any end it too,
-    /// so a missed end does not hold one on all night; and a reconnect cannot tell whether one went on meanwhile, so it is off.</summary>
-    private sealed class PkFeature(StepTimers timers, WebServiceFacade service) : IRoomFeature
+    /// <summary>Tells the 桌宠 whether the streamer is in a PK, as the last PK message said, and what happens in one
+    /// (DesktopPetPk). Ten minutes without any end it too, so a missed end does not hold one on all night; and a reconnect cannot
+    /// tell whether one went on meanwhile, so it is off.</summary>
+    private sealed class PkFeature : IRoomFeature
     {
         private static readonly TimeSpan MaxSilence = TimeSpan.FromMinutes(10);
-        private readonly QuietTimer silence = new(timers, MaxSilence, () => service.SetDesktopPetPk(false));
+        private readonly StepTimers timers;
+        private readonly WebServiceFacade service;
+        private readonly long roomId;
+        private readonly Func<DanmakuProtocol.PkMatched, Task<OpponentCard>> lookUp;
+        private readonly QuietTimer silence;
+        private DesktopPetPk? pk;
+
+        /// <param name="lookUp">Asks B站 about the other streamer for the 对手情报卡.</param>
+        public PkFeature(StepTimers timers, WebServiceFacade service, long roomId, Func<DanmakuProtocol.PkMatched, Task<OpponentCard>> lookUp)
+        {
+            (this.timers, this.service, this.roomId, this.lookUp) = (timers, service, roomId, lookUp);
+            silence = new(timers, MaxSilence, End);
+        }
 
         public void Handle(RoomEvent e)
         {
             switch (e)
             {
-                case DanmakuProtocol.PkReceived { InPk: var inPk, ReceivedTimestamp: var timestamp }:
-                    service.SetDesktopPetPk(inPk);
-                    silence.Reset(timestamp);
+                case DanmakuProtocol.PkReceived { InPk: true } received:
+                    pk ??= new(roomId, timers, service.TellDesktopPet, lookUp);
+                    service.SetDesktopPetPk(true);
+                    pk.Take(received);
+                    silence.Reset(received.ReceivedTimestamp);
+                    break;
+                case DanmakuProtocol.PkReceived received:
+                    pk?.Take(received);
+                    End();
+                    silence.Reset(received.ReceivedTimestamp);
                     break;
                 case TransportDisconnected:
-                    service.SetDesktopPetPk(false);
+                    End();
                     break;
                 case RoomConnectionEnded:
                     silence.Dispose();
                     break;
             }
+        }
+
+        private void End()
+        {
+            pk?.End();
+            pk = null;
+            service.SetDesktopPetPk(false);
         }
     }
 
