@@ -27,12 +27,16 @@ internal sealed class DesktopPetPk(long roomId, StepTimers timers, Action<string
     private OpponentCard? card;
     private bool over;
 
+    /// <summary>Whether its match (PK_BATTLE_PRE_NEW) came on this connection: only then is it told.</summary>
+    public bool Matched { get; private set; }
+
     public void Take(PkReceived received)
     {
         switch (received.News)
         {
             case PkMatched matched:
-                if (once.Add(DesktopPet.PkMatch)) LookUp(matched);
+                Matched = true;
+                LookUp(matched);
                 break;
             case PkStarted started:
                 Countdown("last", started.Countdown + LastSeconds, started.Timestamp, received.ReceivedTimestamp);
@@ -130,6 +134,6 @@ internal sealed class DesktopPetPk(long roomId, StepTimers timers, Action<string
 
     private void Tell(string name, object data)
     {
-        if (oneOnOne == true && once.Contains(DesktopPet.PkMatch) && !over) tell(name, data);
+        if (oneOnOne == true && Matched && !over) tell(name, data);
     }
 }

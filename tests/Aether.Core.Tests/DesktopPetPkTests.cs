@@ -91,6 +91,19 @@ public sealed class DesktopPetPkTests : IAsyncDisposable
     }
 
     [Fact]
+    public async Task A_match_after_a_pk_whose_end_never_came_is_a_new_pk_its_other_streamer_told()
+    {
+        Answer(h.Http);
+        var (updates, pet) = await WatchAsync();
+        await h.PushAndSyncAsync(updates, PreNew(), Info());
+        Assert.Equal(OpponentName, (await pet.NextAsync(DesktopPet.PkMatch)).GetProperty("name").GetString());
+
+        await h.PushAndSyncAsync(updates, PreNew("月亮"), Info());
+
+        Assert.Equal("月亮", (await pet.NextAsync(DesktopPet.PkMatch)).GetProperty("name").GetString());
+    }
+
+    [Fact]
     public async Task A_pk_joined_part_way_through_after_a_reconnect_only_puts_the_streamer_in_one()
     {
         var (updates, pet) = await WatchAsync();
