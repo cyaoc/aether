@@ -5,6 +5,7 @@
 import { k, smooth as ease } from '../video/animations/toolkit.mjs';
 import { Changes } from '../gift-board/changes.mjs';
 import { viewerName } from '../lottery/viewer.mjs';
+import { SIGN } from './sign.mjs';
 
 export const seeded = seed => () => { seed |= 0; seed = seed + 0x6D2B79F5 | 0; let t = Math.imul(seed ^ seed >>> 15, 1 | seed); t = t + Math.imul(t ^ t >>> 7, 61 | t) ^ t; return ((t ^ t >>> 14) >>> 0) / 4294967296; };
 export const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
@@ -86,8 +87,22 @@ const EVENTS = {
   admiral: { dur: 8000 }, governor: { dur: 15000 }, castle: { dur: 11500 }, newFirst: { dur: 2600 }, lottery: { steps: LOTTERY },
   // the chest game's: the 捣蛋鬼 knocked away, beaten off (zapDur: the longer show after the lightning), gone with the chest
   pranksterKnocked: { dur: 4300 }, chestKept: { dur: 4800, zapDur: 7200 }, chestRobbed: { dur: 5600 },
-  blindBoxQuery: { dur: 6000 }
+  blindBoxQuery: { dur: 6000 },
+  // B站 PK (design package README 15): she holds up her sign when it is time to act (PK_SIGN)
+  pkCondition: { dur: 7600 }, pkDouble: { dur: 6900 }, pkDoubleEnding: { dur: 10900 }, pkLastSeconds: { dur: 10900 }
 };
+// Her sign shows (ms). The page moves the sign itself wherever it goes far: it flies out of her sprite to over her head (fly)
+// as she raises her empty hands to take it (raise, the last part of fly), and when she lowers them it flies back into her
+// sprite (back, drawn by Pet for whatever made her let go). The double bonus's condition opens with her hiding behind it
+// (hide: it flies into her hands in front of her and she ducks behind it, peeks over it, a line; lift: she brings it down to
+// her chest and it glides up in front of her as she raises her arms). 2倍 jumps twice as she bobs (jump: from, ms, px up; in
+// the air her jumping drawing, lifted so her hands and the sign go on where they were).
+// A countdown counts to the moment Core told (until): one that waited behind another show counts what is left, and one with
+// under least left is not held up at all; it ends down after it reaches 0 (down).
+export const PK_SIGN = { fly: 450, raise: 260, back: 420, hide: [450, 1500], lift: 180, least: 3000, down: 900, lower: { pkCondition: 6900, pkDouble: 6200, count: 10000 },
+  jump: [[800, 420, 30], [1500, 420, 30]], pose: { pkCondition: 'signUp', pkDouble: 'signCheer', count: 'signUrge' } };
+// The countdowns by what they count to, as Core tells them (pkCountdown): the double bonus's end, or the PK's.
+const COUNTDOWNS = { double: 'pkDoubleEnding', last: 'pkLastSeconds' };
 // Shown only while she is idle: never over a show, a 日常小动作 or blind boxes she shakes, never queued, and not while the
 // 捣蛋鬼 is here, which they do not scare off (fire).
 const IDLE_ONLY = ['entry', 'blindBoxQuery'];
@@ -382,7 +397,11 @@ export class Engine extends EventTarget {
 
   start(name, opts) {
     const now = this.now(), c = this.cur, gm = this.gm, { dailyMinSeconds, dailyMaxSeconds } = this.settings;
+    if (opts.until != null && opts.until - now < PK_SIGN.least) return;
     this.trialOver(c);
+    // a PK countdown cut off goes back to the head of the queue: once the bigger show is over it is held up again for what is
+    // left, if PK_SIGN.least or more (the check above); every other show cut off is gone
+    if (c?.opts.until != null && c.name !== name) this.queue.unshift({ name: c.name, opts: c.opts });
     // one that comes while the chest is still going home, or her hair is still to be patted smooth, waits for them, whether the
     // show it takes over had them still to do or none played (a PK scared the 捣蛋鬼 off); the game's own shows play the chest home
     // (only a 试演 still comes so, and has a line carried and a pose held below: what happened waits its turn, wrapping in fire)
@@ -402,6 +421,7 @@ export class Engine extends EventTarget {
     this.cur = { name, opts, start: now, pre: Math.max(wake ? 1000 : 0, waits || opts.robbed ? FRIZZ : 0), dur, line: this.pick(this.lineKey(name, opts)), wakeLine: wake ? this.pick('wake') : null, carried, held };
     // a round's blind boxes were shaken all the while they came in: the show opens the box right away instead of shaking it again
     if (opts.shaken && BOX_OPEN[name]) this.cur.start -= BOX_OPEN[name];
+    if (opts.until != null) this.cur.dur = Math.min(dur, opts.until - now + PK_SIGN.down);   // a late countdown is shorter
     if (DAILY[name]) this.nextDaily = now + dur + dailyMinSeconds * 1000 + this.rng() * (dailyMaxSeconds - dailyMinSeconds) * 1000;
     // after the chest game: robbed, she is sad until a gift cheers her up (MOOD_HOLD.robbed at most, its own lines); kept, glad
     // for MOOD_HOLD.kept (and no 日常小动作 meanwhile: those come only when she is calm)
@@ -522,6 +542,15 @@ export class Engine extends EventTarget {
   // it is kept out of opts.spend, which goes in her chest (fire).
   blindBoxQuery({ nickname, result, period, spend, profit }) { this.fire('blindBoxQuery', { nickname, result, bill: { period, spend, profit } }); }
 
+  // B站 PK's moments to act on, our side's alone (DesktopPet.cs): the double bonus's condition in B站's words, the double on,
+  // and a countdown to the double's end or the PK's, which she counts to the moment Core told, leftMs from now on her clock
+  // (PK_SIGN), however late she gets to it.
+  pkCondition({ text }) { this.fire('pkCondition', { text }); }
+
+  pkDouble() { this.fire('pkDouble'); }
+
+  pkCountdown({ kind, leftMs }) { if (COUNTDOWNS[kind]) this.fire(COUNTDOWNS[kind], { until: this.now() + leftMs }); }
+
   // a danmaku is not played (README 10), it tells her someone is there (犯困 needs an hour with nothing at all), and is its
   // viewer's in the 宝箱小游戏 (gameDanmaku): the 站队 it takes is Core's to tell (side), what it says never leaves Core
   danmaku(d) {
@@ -640,9 +669,9 @@ export class Engine extends EventTarget {
     if (gm.top && !this.cur && !gm.visit && !gm.out && !gm.fix && !this.shaking()) { this.crowned(gm.top); gm.top = null; }
     // not while she shakes a round's blind boxes either: that lasts until the 盲盒播报 goes out, which may take half a minute;
     // nor while she waits through a lottery, nor while the 捣蛋鬼 is here or the sprite still takes the chest home or pats her
-    // hair smooth
+    // hair smooth; nor in a PK: humming or skiing right after the score swung makes no sense
     const kinds = Object.keys(DAILY).filter(kind => !this.settings.off.includes(kind));
-    if (!this.cur && !this.shaking() && !this.lot && !gm.visit && !gm.out && !gm.fix && this.mood(now) === 'calm' && now >= this.nextDaily && kinds.length) {
+    if (!this.cur && !this.shaking() && !this.lot && !gm.visit && !gm.out && !gm.fix && !gm.pk && this.mood(now) === 'calm' && now >= this.nextDaily && kinds.length) {
       const kind = kinds[Math.floor(this.rng() * kinds.length)], mishap = this.rng() * 100 < this.settings.mishapPercent;
       this.start(kind, { mishap });
     }
@@ -1438,7 +1467,7 @@ export class Engine extends EventTarget {
     }
     else if (c && now < c.start + c.pre) { st = this.base(); st.pose = 'awake'; st.sprite = 'surprised'; st.fx.push(['bang', c.start], ['shock', c.start], ['sweat', c.start + 200]); st.y -= 10 * bump(now - c.start, 0, 300); st.bubble = { text: this.fill(c.wakeLine), t: now - c.start }; }
     else if (c) {
-      st = this.eventState(c.name, now - c.start - c.pre, { ...c.opts, seed: Math.floor(c.start) }, this.fill(c.line, c.name, c.opts));
+      st = this.eventState(c.name, now - c.start - c.pre, { ...c.opts, seed: Math.floor(c.start), at: now }, this.fill(c.line, c.name, c.opts));
       // she says her line at the castle's gate once she gets there
       if (c.name === 'castle' && st.bubble?.at) st.bubble.text = this.fill(c.gateLine ??= this.pick('castleGate'), c.name, c.opts);
       if (c.opts.game && st.bubble?.text) this.speaking = { c, text: st.bubble.text, from: now - st.bubble.t };
@@ -1588,6 +1617,7 @@ export class Engine extends EventTarget {
         break;
       }
       case 'blindBoxQuery': this.queryShow(t, st, opts, line, hop); break;
+      case 'pkCondition': case 'pkDouble': case 'pkDoubleEnding': case 'pkLastSeconds': this.signShow(name, t, st, opts, say); break;
       case 'hum': case 'gym': case 'hike': case 'bike': case 'ski': return this.daily(t, st, { ...opts, kind: name }, line);
     }
     const extra = EVENT_FX[key];
@@ -1612,6 +1642,52 @@ export class Engine extends EventTarget {
     const reveal = t < q.print[0] ? 0 : t < q.print[1] ? ease(k01(t, q.print[0], q.print[1])) : 1 - ease(k01(t, q.roll[0], q.roll[1]));
     st.bill = { result: r, name: opts.nickname ?? '', line, ...(opts.bill ?? QUERY_TRIAL[r]), reveal,
       dy: 2 * Math.sin(t / 500) + 3 * bump(t, q.stamp, q.stamp + 200), stampT: stamped && t >= q.stamp ? t - q.stamp : null };
+  }
+
+  // B站 PK (PK_SIGN): her sprite glows and the sign flies out of it, small to full size, to over her head as she raises her empty
+  // hands for it (the double bonus's condition: into her hands in front of her, she ducks behind it, peeks over it, says her
+  // line, brings it down to her chest and it glides up as she raises her arms); she lowers her arms and it flies back into her
+  // sprite. The words are on it all the time; a countdown's number pops at each second. Her drawings with a sign draw it
+  // themselves (Pet's drawHer); signFly is the sign anywhere else, drawn while her drawing has none. Where it is in each of
+  // her drawings is Pet's to measure (signSpot).
+  signShow(name, t, st, opts, say) {
+    // a countdown: what was left as it began (until, at: the clock now), else the whole of it (a 试演)
+    const q = PK_SIGN, count = Object.values(COUNTDOWNS).includes(name), key = count ? 'count' : name, up = q.pose[key];
+    const begun = count ? (opts.until != null && opts.at != null ? opts.until - opts.at + t : q.lower.count) : 0, lower = count ? Math.min(q.lower.count, begun) : q.lower[key];
+    const left = count ? begun - t : 0, n = Math.max(0, Math.ceil(left / 1000)), pop = count ? 1 - k01(1000 - (left % 1000 || 1000), 0, 220) : 0;
+    st.sign = SIGN.words(name, opts, n, pop);
+    const hide = name === 'pkCondition', lift = q.hide[1], raised = hide ? lift + q.lift + q.raise : q.fly;
+    const sprite = { x: FOOT.x - SIGN.W / 2 - 30, y: FOOT.y - H * 0.55 };   // beside the sign's left edge, never over its words
+    const glide = (from, to, u) => { const e = ease(u); return { x: from.x + (to.x - from.x) * e, y: from.y + (to.y - from.y) * e, a: from.a + (to.a - from.a) * e, k: from.k + (to.k - from.k) * e }; };
+    const spot = c => ({ ...this.signSpot(st, c), k: 1 }), from = { ...sprite, a: 0, k: 0.15 };
+    if (hide) {
+      // into her hands in front of her (the first in-between of ducking behind it), then, lifting, down to her chest (the
+      // last of them going back) and up over her head as her arms go up
+      const duck = this.hop('idle', 'signHide') || [], chest = duck[0] || this.cell('signHide');
+      st.pose = t < q.fly ? 'idle' : t < lift ? 'signHide' : t < lift + q.lift ? 'idle' : t < lower ? up : 'idle';
+      if (t < q.fly) st.signFly = glide(from, spot(chest), k01(t, 0, q.fly));
+      else if (t >= lift + q.lift && t < raised + 60) st.signFly = glide(spot(chest), spot(this.cell(up)), k01(t, lift + q.lift, raised));
+      if (t >= q.hide[0] && t < lift) { st.fx.push(['sweat', q.hide[0] + 200]); say(q.hide[0] + 150); }
+    } else {
+      st.pose = t < q.fly - q.raise ? 'idle' : t < lower ? up : 'idle';
+      if (t < q.fly + 60) st.signFly = glide(from, spot(this.cell(up)), k01(t, 0, q.fly));
+    }
+    // it waits beside the sign while she hides behind it, goes home under it once it is up, and is back beside it for her
+    // to give it back
+    if (t < q.fly + 150) { st.sprite = 'glow'; st.sp = ['at', sprite.x, sprite.y]; }
+    else if (t >= lower) { st.sprite = t < lower + q.raise + q.back ? 'glow' : 'sHappy'; st.sp = ['at', sprite.x, sprite.y]; }
+    else { st.sprite = 'sLook'; if (hide && t < lift + q.lift) st.sp = ['at', sprite.x, sprite.y]; }
+    if (name === 'pkDouble' && t >= raised && t < lower) {
+      st.fx.push(['sparkles', q.jump[0][0]]);
+      // (the board measures the lift from the sign in her drawing holding it up, signUp, to the one in her jumping drawing)
+      const [c, j] = ['signUp', 'signJump'].map(p => this.cells[this.art.poses[p][0]][this.art.poses[p][1]]), k = H / c.ruler, drop = ((j.sign.y - j.ground) - (c.sign.y - c.ground)) * k;
+      for (const [a, ms, h] of q.jump) {
+        const lifted = h * Math.sin(Math.PI * k01(t, a, a + ms));
+        if (t < a || t >= a + ms) continue;
+        st.y -= lifted;
+        if (lifted > h * 0.35) { st.pose = 'signJump'; st.y -= drop; }   // in the air: her legs tuck up, her hands and the sign go on
+      }
+    }
   }
 
   // line: the show's own line; what she says as it goes wrong is a line of its kind (key).
