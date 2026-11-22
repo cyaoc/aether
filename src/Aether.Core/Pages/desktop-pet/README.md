@@ -58,8 +58,9 @@ nothing too.
 
 A PK is told event by event only while it is 1-on-1: a `PK_INFO`'s `pk_basic.type` 2 (random) or 6 (invited), its `members`
 exactly two and this room one of them, sides told apart by `room_id`. Before a `PK_INFO` says so none is told, and in one of
-more than two (8) none at all; `pk` above is still told. Times are B站's, each message's `timestamp` measuring from when it came,
-so a local clock that is off does not matter (`DesktopPetPk.cs`):
+more than two (8) none at all, nor in one not matched (`PK_BATTLE_PRE_NEW`) on this connection, joined part way through after
+a reconnect; `pk` above is still told. A 胶囊 B站 left a part of out is left out, the others told. Times are B站's, each
+message's `timestamp` measuring from when it came, so a local clock that is off does not matter (`DesktopPetPk.cs`):
 
 | Event | When | Fields |
 |---|---|---|
@@ -67,7 +68,7 @@ so a local clock that is off does not matter (`DesktopPetPk.cs`):
 | `pkCondition` | Our 4 号胶囊 (`capsules_v2`) the first time it is a condition, as “差10票翻倍” or “差1人翻倍” | `text`: B站's words without `<% %>` |
 | `pkChallenge` | Our 5 号胶囊 turning “挑战成功” or “挑战失败”; once a PK | `result`: `Done` or `Failed` |
 | `pkDouble` | Our 4 号胶囊 turning “2倍加成中”; once a PK | — |
-| `pkCountdown` | 10 seconds before the doubling's `end_time` (`double`), and at `PK_BATTLE_START_NEW`'s `pk_countdown`, 10 seconds before scoring stops (`last`). Known only later, at once with less left; not once that moment passed, nor once the PK ended | `kind`: `double` or `last`; `leftMs`: how long to that moment as it is told |
+| `pkCountdown` | 10 seconds before the doubling's `end_time` (`double`; none when its `PK_INFO` has no `timestamp`), and at `PK_BATTLE_START_NEW`'s `pk_countdown`, 10 seconds before scoring stops (`last`). Known only later, at once with less left; not once that moment passed, nor once the PK ended | `kind`: `double` or `last`; `leftMs`: how long to that moment as it is told |
 | `pkScore` | Each `PK_BATTLE_PROCESS_NEW` and `PK_INFO` | `ours`, `theirs`: the votes |
 | `pkEnd` | `PK_BATTLE_END` | `ours`, `theirs` |
 
