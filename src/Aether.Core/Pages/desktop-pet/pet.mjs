@@ -3,6 +3,7 @@
 import { canvasOf, loadImage } from '../video/animations/toolkit.mjs';
 import { BALL, BAR, BURST, CHEST, DONE, DROP, Engine, FOOT, GAME, GLOW, H, HANG, HOOK, HOP, LUCK, NOTICE, PAGE, PK_H, PK_SIGN, SPRITE_H, bump, clamp, ease, k01, seeded, xfade } from './engine.mjs';
 import { BACK, drawFx, drawStar, giftBox } from './effects.mjs';
+import { wrap } from './pk-intel.mjs';
 import { SIGN } from './sign.mjs';
 import { SANS } from '../gift-board/paint.mjs';
 import { REMOTE } from '../gift-board/images.mjs';
@@ -34,17 +35,6 @@ const ROW = [BAR.y + BAR.h + 22, BAR.y + BAR.h + 62], HUD = BAR.y + BAR.h + 82;
 // half toward the line and its gift's icon under the bar beats in its countdown ring; the last DOUBLE.hurry both blink
 // faster, and at the end the ×2 shrinks away in DOUBLE.out.
 const DOUBLE = { fly: 450, pop: 220, flash: 260, hurry: 3000, out: 200 };
-// text's lines in g's font, maxW wide and broken at its line breaks (her bubble's, the 账单卡's): a line never starts with
-// closing punctuation, which stays on the line before, a little over the width
-const wrap = (g, text, maxW) => {
-  const lines = [];
-  let cur = '';
-  for (const ch of [...text]) {
-    if (ch === '\n') { lines.push(cur); cur = ''; } else if (cur && g.measureText(cur + ch).width > maxW && !'！？。，、…～）」’”'.includes(ch)) { lines.push(cur); cur = ch; } else cur += ch;
-  }
-  lines.push(cur);
-  return lines;
-};
 // A 盲盒查询's 账单卡 (design package README 14: the board's BILL, which DP-BlindBoxCard.dc.html draws too), in page px, 1 : 1 at
 // 1080p: a receipt W wide and as tall as its words (layout), the 投入 and 盈亏 as the reply wrote them (Core's text), and her
 // line at its foot where a receipt says 谢谢惠顾. stampT: ms since the sprite stamped it, null before (or none, no record).

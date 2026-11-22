@@ -3,8 +3,21 @@
 // 今日首胜, 关注, 大航海) and 对面在线榜前三 (each one's 本场消费, with their 荣耀等级, 大航海 and 灯牌 as tags; never their
 // names: they are the other room's viewers). What B站 did not answer is left out, a side with nothing on it too.
 // Page px (1080p stream, 1:1), Noto Sans SC 500/800, drawn as the 账单卡 is. The design package's lib/pk-intel.js, ported
-// whole; its self-check is the page's tests' (DesktopPetEngine.test.mjs).
+// whole; its self-check is the page's tests' (DesktopPetEngine.test.mjs), and its wrap the page's one (pet.mjs breaks her
+// bubble and the 账单卡 with it).
 import { SANS } from '../gift-board/paint.mjs';
+
+// text's lines in g's font, maxW wide and broken at its line breaks (her bubble's, the 账单卡's, this card's): a line never
+// starts with closing punctuation, which stays on the line before, a little over the width
+export const wrap = (g, text, maxW) => {
+  const lines = [];
+  let cur = '';
+  for (const ch of [...text]) {
+    if (ch === '\n') { lines.push(cur); cur = ''; } else if (cur && g.measureText(cur + ch).width > maxW && !'！？。，、…～）」’”'.includes(ch)) { lines.push(cur); cur = ch; } else cur += ch;
+  }
+  lines.push(cur);
+  return lines;
+};
 
 export const PK_INTEL = (() => {
   const W = 400, PAD = 20, IN = W - 2 * PAD, HEAD = 52;
@@ -16,8 +29,6 @@ export const PK_INTEL = (() => {
 
   // how many: as written up to 9999, then in 万, one decimal under 10万 (1.2万, 3万), whole above (12万)
   const count = v => v < 10000 ? String(Math.round(v)) : v < 100000 ? `${Math.round(v / 1000) / 10}万` : `${Math.round(v / 10000)}万`;
-  // as the 账单卡: a line never starts with closing punctuation
-  const wrap = (g, text, maxW) => { const lines = []; let cur = ''; for (const ch of [...text]) { if (cur && g.measureText(cur + ch).width > maxW && !'！？。，、…～）」’”'.includes(ch)) { lines.push(cur); cur = ch; } else cur += ch; } lines.push(cur); return lines; };
   const star = (g, x, y, r, color, points = 5) => {
     g.save(); g.fillStyle = color; g.beginPath();
     for (let i = 0; i < points * 2; i++) { const a = i * Math.PI / points - Math.PI / 2, d = i % 2 ? r * (points === 5 ? 0.45 : 0.32) : r; g.lineTo(x + Math.cos(a) * d, y + Math.sin(a) * d); }
