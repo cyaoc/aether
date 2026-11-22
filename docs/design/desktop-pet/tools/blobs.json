@@ -227,5 +227,15 @@
  "65ea507af41884cedb6fff103002f609": "textures/frames/gameReachKneel.webp",
  "bdff47d79cf61d6dd614b19073af2f83": "textures/frames/pkPeerLaugh.webp",
  "f5c1542d45330452c122c7d29b266ce3": "textures/frames/pkShrugLaugh.webp",
- "dd20cba4b9c72c0f31325c9e53530303": "textures/frames/pkLift.webp"
+ "dd20cba4b9c72c0f31325c9e53530303": "textures/frames/pkLift.webp",
+ "c15daf813967f3d29a48b21cb9bbded5": "textures/pose-18-sign.webp",
+ "411292937b43b02dde8444156c81174b": "textures/frames/signBounce.webp",
+ "997e8452722c5b403185f0c4e3dd0649": "textures/frames/signHideIn.webp",
+ "65407912e7f26dad0b705765abdd63ff": "textures/frames/signPump.webp",
+ "f6274606e839a209f51870c8fef9cdd3": "textures/frames/signSwayL.webp",
+ "cbd9d6ff4599cecbf8e24963d080326d": "textures/frames/signSwayR.webp",
+ "7f9b83f4aa5b09558b10f805079ca3ed": "textures/frames/signCheerRaise.webp",
+ "f3fe2faaab8cd698eac4319241b41c94": "textures/frames/signRaise.webp",
+ "4f244a0dce9409026118040938c4bf57": "textures/frames/signUrgeRaise.webp",
+ "ea344d2c81956f70cf3b08e123dd766d": "lib/pk-intel.js"
 }

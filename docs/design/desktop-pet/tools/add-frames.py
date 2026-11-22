@@ -2,10 +2,13 @@
 
 python add-frames.py <strip.png> [<strip.png> ...]
 python add-frames.py --texture <board key> <picture.png> <textures/name.webp>
+python add-frames.py --script <lib/name.js>
 
 Each <name>-strip.png (from frame-patch.py) becomes textures/frames/<name>.webp; blobs.json maps its md5 to it (dropping
 the entry of the file it replaces) and the board's FRAMES line gets <name>: '<md5>'. --texture does the same for one
 picture under the board's BLOB (a pose sheet from gen-sheet.py, a prop from gen-prop.py), adding the key if it is new.
+--script registers a script the boards share (lib/pk-intel.js) under its new md5 and puts that md5 into the
+<script src="/_blob/..."> of every board that loaded the old one.
 Restart server.mjs afterwards: it reads blobs.json once.
 """
 import hashlib
@@ -19,6 +22,23 @@ pkg = Path(__file__).resolve().parent.parent
 blobs_path, board_path = pkg / "tools/blobs.json", pkg / "boards/DP-DesktopPet.dc.html"
 blobs = json.loads(blobs_path.read_text())
 board = board_path.read_text()
+if sys.argv[1] == "--script":
+    rel = sys.argv[2]
+    md5 = hashlib.md5((pkg / rel).read_bytes()).hexdigest()
+    old = [k for k, v in blobs.items() if v == rel]
+    blobs = {k: v for k, v in blobs.items() if v != rel}
+    blobs[md5] = rel
+    blobs_path.write_text(json.dumps(blobs, indent=1, ensure_ascii=False))
+    for b in sorted((pkg / "boards").glob("*.dc.html")):
+        text = b.read_text()
+        new = text
+        for o in old:
+            new = new.replace(f'<script src="/_blob/{o}"></script>', f'<script src="/_blob/{md5}"></script>')
+        if new != text:
+            b.write_text(new)
+            print(f"{b.name}: {md5}")
+    print(f"{rel}: {md5}")
+    sys.exit()
 if sys.argv[1] == "--texture":
     key, src, rel = sys.argv[2:5]
     Image.open(src).save(pkg / rel, quality=92, method=6, exact=True)

@@ -4,6 +4,7 @@
 <meta charset="utf-8">
 <title>DP 桌宠</title>
 <script src="./support.js"></script>
+<script src="/_blob/ea344d2c81956f70cf3b08e123dd766d"></script>
 </head>
 <body>
 <x-dc>
@@ -16,7 +17,7 @@
   <canvas id="dp-cv" width="1920" height="1080" aria-hidden="true" style="position: absolute; inset: 0; width: 1920px; height: 1080px"></canvas>
 </div>
 </x-dc>
-<script type="text/x-dc" data-dc-script data-props='{"scene":{"editor":"enum","options":["手动","演示","平时","心情","进场","普通礼物","连着送","中礼物","大礼物","大礼物+新第一","盲盒·小","盲盒·中","盲盒·大","舰长","提督","总督","城堡","报名抽奖","奖池抽奖","没人报名"],"default":"手动"},"env":{"editor":"enum","options":["右下角","左下角","小页面"],"default":"右下角"},"room":{"editor":"enum","options":["明亮画面","深色房间","透明"],"default":"明亮画面"},"name":{"editor":"enum","options":["普通昵称","长昵称","中英混排"],"default":"普通昵称"},"speed":{"editor":"enum","options":["1 倍","0.5 倍","0.25 倍"],"default":"1 倍"},"caption":{"editor":"enum","options":["显示","隐藏"],"default":"显示"},"controls":{"editor":"enum","options":["显示","隐藏"],"default":"显示"},"game":{"editor":"enum","options":["关","开"],"default":"关"},"$preview":{"width":1920,"height":1080}}'>
+<script type="text/x-dc" data-dc-script data-props='{"scene":{"editor":"enum","options":["手动","演示","整场 PK","平时","心情","进场","普通礼物","连着送","中礼物","大礼物","大礼物+新第一","盲盒·小","盲盒·中","盲盒·大","舰长","提督","总督","城堡","报名抽奖","奖池抽奖","没人报名"],"default":"手动"},"env":{"editor":"enum","options":["右下角","左下角","小页面"],"default":"右下角"},"room":{"editor":"enum","options":["明亮画面","深色房间","透明"],"default":"明亮画面"},"name":{"editor":"enum","options":["普通昵称","长昵称","中英混排"],"default":"普通昵称"},"speed":{"editor":"enum","options":["1 倍","0.5 倍","0.25 倍"],"default":"1 倍"},"caption":{"editor":"enum","options":["显示","隐藏"],"default":"显示"},"controls":{"editor":"enum","options":["显示","隐藏"],"default":"显示"},"game":{"editor":"enum","options":["关","开"],"default":"关"},"$preview":{"width":1920,"height":1080}}'>
 // The desktop pet in a live-stream corner (design package desktop-pet, README sections 1–7). The page itself is
 // transparent; the board draws a stand-in stream behind it. Everything is drawn from the pose sheets on one 2D canvas.
 const BLOB = {
@@ -53,7 +54,9 @@ const BLOB = {
   // the chest game's paper ball (tools/props/paperball.txt), and the 礼物榜's sample avatars for the board's viewers
   paperball: 'bf18d936f13071d14cb4edf4cebfb3d7',
   av0: 'c620d7f4bc5af562ce5ffd444676ff76', av1: 'fe74bf47e64cdfb2bcb9e7b82e0b5fb9', av2: '0f4430b615cac01b7810b7521a933def', av3: 'b983e6ae5179fd006a444e444faa6b9f',
-  av4: '6d0f7caff30f5aeb137edd01a4566882', av5: 'e6fca7276cf94c054a7f9f49c542d0c9', av6: '8a343577fdd5c70379a9198a27823463', av7: '9a8ff6273af0377beb655e5a706329d3'
+  av4: '6d0f7caff30f5aeb137edd01a4566882', av5: 'e6fca7276cf94c054a7f9f49c542d0c9', av6: '8a343577fdd5c70379a9198a27823463', av7: '9a8ff6273af0377beb655e5a706329d3',
+  // her PK sign poses (README 15): the board draws the sign itself over codex's, at the place SIGN gives
+  pkSign: 'c15daf813967f3d29a48b21cb9bbded5'
 };
 // Every sheet's first cell is the same everyday standing drawing at the same size (gen-sheet.py draws the other cells
 // beside it), so it is every sheet's ruler and one scale fits them all.
@@ -74,6 +77,7 @@ const POSE = {
   startled: ['game15', 1], robbed: ['game15', 3], robbedZap: ['game15', 4], cheerZap: ['game15', 5],
   lunge: ['game16', 1], tug: ['game16', 2], tugZap: ['game16', 3], dragged: ['game16', 4], draggedZap: ['game16', 5],
   reachUp: ['game17', 1],
+  signHide: ['pkSign', 1], signUp: ['pkSign', 2], signCheer: ['pkSign', 3], signUrge: ['pkSign', 4], signJump: ['pkSign', 5],
   capSalute: ['voyage', 1], govJump: ['voyage', 4], spyglass: ['voyage', 2], admSalute: ['voyage', 3], govPoint: ['voyage', 4], govWave: ['voyage', 5]
 };
 // What she drops stays where it lands: these poses have the things lying on the ground exactly where the earlier pose
@@ -86,7 +90,7 @@ const SAME_SPOT = { gymRub: 'gymHurt', gymWipe: 'gymHurt', skiShake: 'skiPopOut'
 // skiDown with skiShake, so the poles lying by the snow heap do not jump either.
 const BODY = { bikeReady: -15, bikeUp: 29, gymWipe: 17, skiShake: 19, skiDown: 19 };
 // Frame strips (textures/frames/<name>.webp, four frames in a row; tools/gen-frames.sh, tools/frame-patch.py), by blob.
-const FRAMES = {admOut: '91e056de5cd4063deb27f4109039d48a', admRaise: 'd2d4ed17ed52087444df30293d2696b0', announceIn: '67bd8c1e8793dc668515454c831f01f3', announceOut: '727cbd8779e3cfbeb66e63aea6d52986', awake: '7dff45f96f8afa599948e836d08db5ee', bikeIn: '9e22c561d15ec993fe800b8bc9c06b3c', bikeOut: 'e2297c45766af454d4883e8db6cc933b', bored: '9bde503d05645406b3874e7ce7c5e6f7', boredGloomy: '89b25f72028ce12e9ce60b50d2b2adf3', bowIn: '6c5a81a6ff12cc92171b1ee6a83dd3a6', boxOpen: 'fa71447b831ac81ca742010ff8b7ec57', brushUp: 'd7320ffbfefff45ca29f5c5979046635', capOut: '8017c7d6bdc433418c074ccc0844c3e9', capRaise: '30d30532e32f4da3275ce3bd0d329d73', cheer: 'bbc46902a152a76619875191c6d32442', cheerOut: '7aba5acd537b9c4f4b4517831cceaee3', clap: 'c5a840b398245670381c6e41cc24e575', clapOut: '0b358a767fbf33d45a4cf73452436b28', crackIn: '01cb1a37cda171945ad5ed38c58685b3', crackOut: 'bd2791d816ef5a7ec28baf9e63b75ed6', crashKnee: 'b42d092f81da2c465d6d1d572d521eb0', crouchGloomy: '6dbf0a4983ab31b965aac41bdb8b2766', crownIn: 'aee77cc52647f785b17083bb8710ba70', curl: '4fb4dbdcdf8e689580a0b94d01496ece', curlDrop: '9d37cc7e509a218ab9d99bd6fec8e134', curlIn: 'cc1f3ee7a5a09af127ff69269dc61be3', curtsy: 'b90cd277e9f93a6e86d355bfd826e163', curtsyTurn: 'a0a880992fc33da52ca23c5097aafaf0', dejectedIn: '6c6565c56c617d26e938b33823a77b62', doze: '27f1f7d258dae9cd8c1a4f0fb4c34d1b', dragPull: '492f38c8f828816dc515cc4d749739ce', dragPullZap: 'f880e504575602f022897908c7f654ae', gameBonk: 'eae3432f002303f1e8ba32a620846757', gameBonkZap: '039110d316febf9a83aae81dd3fbbc47', gameCheer: 'b3ac0659914339562f7acc3f55b1ccb5', gameCheerZap: 'd6e547817905d40608edb1ed665f4205', gameDraggedUp: 'e88b4ef06a5e43377e5069bf0391026e', gameDraggedUpZap: '377d86b4ed1c73678dd17291703a10b1', gameFlat: 'aee9a626cd4e46b38c11eeac9a33dfaf', gameFlatGrab: '3fa820579fe439433048940134811690', gameFlatGrabZap: 'fe3095b8437c6321fccc631abcb832b5', gameFlatZap: '96e5055bed281acc3753eda32fb1d863', gameKneel: 'c47d6a8ce2dd8bfc51c0cd0d56a998e1', gameKneelZap: 'a94842ef699ff8c3ab75bdf5f276a80b', gameLetGo: 'e2d2e281b192f4d6a1395e3b97cc1196', gameLetGoStand: '97981617b3703213ec50791651349644', gameLetGoZap: '1d71f4fa91f9f5a1d5022f86656ad7ef', gameLookUp: '1a355610d0bff306a902d2fc6bd3456b', gameLunge: 'a3d7bad153ff6cb51afd45432610e681', gameReachKneel: '65ea507af41884cedb6fff103002f609', gameReachUp: '4b425527c21339261b1373dd15f238fa', gameSorry: '8ecbfa420e89b927459c58ef6a97099c', gameSorryOut: '231ce44291e55e737461f4eed07b18a1', gameSorrySurprise: 'ce3a322b40049d0e89ee632c951fdbfe', gameStartle: 'a9fb83c5e59a5feffc5abdf1d48c0bb1', gameTugIn: '7e721c943f781de3748314a2ee71b8dc', gameZapOut: '22b91257fe1d447b801ae9f86426eb4a', giftCheer: 'df0da21e74f2474f56868021a91fe58f', giftIn: '8664b6e7ebe4ef626cfcbaff7fd0eb2a', gloomy: '1ae6abc54fbb45127e4a865fd4ff92cd', gloomyDoze: '1d569f125c7cdf706445c14c0e5ab860', govIn: 'f0bce8e160a21d3193d7603201ec6649', govOut: 'def1ececd3228c9dc4b87769d633d2df', govPointWave: 'b39715eab29752d0c852deec88f1c14e', govWave: '23e285a2e68d30056546709df3889024', gymHop: '411357d96cdf7929b3fd56df3eb98734', gymIn: '23317f355510b01999908ebce5c2c1db', gymOut: 'a845ed1aab7d6f83b9f35aedccc54df9', hairSmoothCheer: '4537aeecbf13f0f335c7c1a3c0110aff', hairSmoothCry: '9e226b44aa43eb0dac6563b61d629995', hikeIn: '4e1c3d30d195ee5d86e39f3fba7a7968', hikeOut: '59cc9c8cead9e441af98f41d37481c11', hopSit: 'f0265ab734e46dadad5b6c69aca109a2', hopeAnnounce: 'da03442a1df016febf5bc0d9cd27fcec', hopeCheer: 'd28ad9fc86c1e59dee6ac8b51d4dfd5d', hopeClap: 'a44decb7a7ed962d2cee38b91d243ac1', hopeIn: 'f608564e06e6cf0dda108cf0868a2d87', hopeNod: '25a897673f65574d54537b345029850c', hum: '037c3bf8f7fadbc5c2adaf0305899cf0', humIn: '76560ad0f962070a720ab211d69364d3', humWave: 'e8a2661f4ffbfacc50d77d3159160fdb', idle: '528beadfc04d1d591ee7057771afab95', jump: '46835a523d27d7b82fc2f2673657f47a', kneeRise: 'df5012f4f710a8bd367b03139f6cd062', lookBackIn: 'fa859bb03ddf93d584c8e21b4d92545f', lookBackOut: 'e3539733da0c2b59f79eaea6866a7a37', mount: 'a9a36a95a67221dc016c50fc4ff14223', nod: '8d49e528bcd2aaa8bcd5e7d8fbe94aa5', nodOut: '4f274071432533a4f44522dd4b8baf89', openPout: 'f67dfabdde4d19fa468aecf56d8414d3', openSurprised: '708c47a6d8891f95daea06391cea0e48', pedal: '42c962e45330ceda6acffbc41ccf3069', pedalCrash: '9309dfb1f48d0826e46ab427b8603680', pkBolt: 'bbbad6efaed5a1b6e180c3f4e9f7049f', pkDeflate: '6a9cc5cb8ed7894264cb420d99e8c38a', pkGrab: '9812f4e37f5d21d9b6d61b573567ebc0', pkHaul: 'f1d2b0835fa0bf7f2636723cd53e7fd9', pkHaulFlat: '5c70e7d3716d4ce5084ce21202892d57', pkHaulIn: 'e9df47d473e87a1b28e20a44c50e460b', pkHaulOuch: '7eed22425aa2b9205be44a785cc35812', pkLaugh: '94b09e91a7c09f385751ea76298ad818', pkLaughOut: 'ce8b6907b269b8ebbeac1970ee6fdc07', pkLetGo: 'bd05014303eb4cb660d8c0512b5c0d6f', pkLetGoTug: '08ca4c772fc7fc37c5fe2fe5c3446fad', pkLift: 'dd20cba4b9c72c0f31325c9e53530303', pkOuch: '34bdc8683cf560994a4864cf2d4c8d59', pkPeer: 'b63a5b950ea4bf6591ebe5fccfb00469', pkPeerLaugh: 'bdff47d79cf61d6dd614b19073af2f83', pkShrug: '76f905c2ff79afe2b5211986b3ad09e8', pkShrugLaugh: 'f5c1542d45330452c122c7d29b266ce3', pkSit: '91b54f8c302be3a742c15ec897d3b986', pkSitDown: 'fcf259f2da8f91db57e1dd40ba489b30', pkSitLaugh: 'e997c6c7f62df2e87c43ebaa4f46dd70', pkThrow: 'cb7f75ad408709fb17fbf2a750a801a7', pkThrowLaugh: 'b6d72d6d92b52c56f83b5a3d44ed9b3f', pkThunder: '3ef17acdf3282a7919cea366498d7796', pkThunderFlat: 'fa2690852b1ffc3e83509f30f55538bb', pkThunderHaul: 'b4347ed3d41d244c200f6c9e4805451e', pkTug: '24cc34a1ec5580506aea71c9ae73f4ef', pointIn: '1041f290497098db17e710fcffed6bbc', poutOut: 'f67ef4f471ea9058de6265f65e40a890', robbedGloomy: '7e63873789b76ba43f5260ef7aa95e5f', rubUp: '2b41ac673f265add50298a8f142702a5', shakeBox: 'f4c6800928af98603e36db6314956857', shakeIn: '78ccb0fbac701231cf87785e5c5ecfe4', shakeSnow: '09a43889115c318f28c176c6d7a2cdcb', shy: 'a3abdceddc4d81cb31c39a7708617762', shyIn: '6e4c3085211198ef846005f9e527a08d', sitBored: '5d634deb99fd563d95762aae109de924', sitDoze: 'a95b681a7aa43c48df2861587b5bfae5', skiFall: '76512d024c568bd3bd97ffeed0a05b52', skiGlide: '2f6ea8efa98be75327342cce66054414', skiGo: 'f40b9977dcb4bcf241eac37a574c2d54', skiIn: 'f60b51987ea38e68ba0f346d92d1a4e3', skiOut: '4c984499f6067970f582a73d8c2399d1', skiPop: '6238ed2d55742a53bcd35bcac40c669d', skiUp: '97ff2e1aa8496fda3ba13fbf4532659e', slipUp: 'd24e5aa8cd55e86e8e58ad8028233ed3', spFlag: '2e0e9fb19d5a8be126b12532f67cb877', spFly1: '83a5a48403903d4f39f9da51e0012294', spFly2: '87600b97c197c44a1cb9fc55cc76b84d', spFly3: '2f06f4e2aba9c2855b1c2fee22f6a1f4', spGlow: '0ae9d33e8e08c4cb20797bd64fcaeb0a', spHappy: '6fea3a2cde9432871a2a4a7b4b3a3b05', spHide: 'b3b7a681028216547fced194378e4642', spIdle: '70d620c5f164e57bd46e95154a9c8396', spNod: '631236e3cb235cf6e45d906ac4f70b41', spPat: '2e897fd4048e4fb2ba4e2fa9832931dd', spSleep: '5415e0a5fc476a9ac06e7427a3a9627c', spSurprised: '2a71af2381fb09f67fce34682a09c9e3', spYawn: '5dfd246affdea738a053630d72d7a726', spin: 'e4878b3f26f95745cc23b73f1ec071be', spinCurtsy: '9975e9a6a1a1968b344a8bf188423d91', spyRaise: '2d3ce641a512560c97e080a3cc39ce28', spySalute: 'b56e9494c23d8d3cd789e00f4ea9c907', surprisedCheer: '4da2805c40ccb8c90d12c1accec7f216', surprisedIn: '0d735d9fcd308c75bfe8adf66cff59d8', surprisedOut: 'a5776b0a77dc8a3b8d2f058d580a8956', trek: '7aef8a528ed9640410f134f38d867ab0', trekIn: '0b9588db4b41791779771558e8b5064d', trekSlip: '7ad34d7a11106e89075340758874dd47', tugPull: '563c260a7bd607affe2bf214708eca68', tugPullZap: '010bc17cfac2fa5f8be3188b4b5a056f', walk: '6431ef43dbef6befe72a158e5cccdce7', wave: '273270295ba8e757e80c6e511b3955aa', waveIn: '45b35bc2f45fa3bf60405f8d5f4b20e6', wipe: '3aac87354721601e5c22ad31876fcb68', wipeIn: '8dbc55fe74cf8ad449dbf508ebeb1e5c'};
+const FRAMES = {admOut: '91e056de5cd4063deb27f4109039d48a', admRaise: 'd2d4ed17ed52087444df30293d2696b0', announceIn: '67bd8c1e8793dc668515454c831f01f3', announceOut: '727cbd8779e3cfbeb66e63aea6d52986', awake: '7dff45f96f8afa599948e836d08db5ee', bikeIn: '9e22c561d15ec993fe800b8bc9c06b3c', bikeOut: 'e2297c45766af454d4883e8db6cc933b', bored: '9bde503d05645406b3874e7ce7c5e6f7', boredGloomy: '89b25f72028ce12e9ce60b50d2b2adf3', bowIn: '6c5a81a6ff12cc92171b1ee6a83dd3a6', boxOpen: 'fa71447b831ac81ca742010ff8b7ec57', brushUp: 'd7320ffbfefff45ca29f5c5979046635', capOut: '8017c7d6bdc433418c074ccc0844c3e9', capRaise: '30d30532e32f4da3275ce3bd0d329d73', cheer: 'bbc46902a152a76619875191c6d32442', cheerOut: '7aba5acd537b9c4f4b4517831cceaee3', clap: 'c5a840b398245670381c6e41cc24e575', clapOut: '0b358a767fbf33d45a4cf73452436b28', crackIn: '01cb1a37cda171945ad5ed38c58685b3', crackOut: 'bd2791d816ef5a7ec28baf9e63b75ed6', crashKnee: 'b42d092f81da2c465d6d1d572d521eb0', crouchGloomy: '6dbf0a4983ab31b965aac41bdb8b2766', crownIn: 'aee77cc52647f785b17083bb8710ba70', curl: '4fb4dbdcdf8e689580a0b94d01496ece', curlDrop: '9d37cc7e509a218ab9d99bd6fec8e134', curlIn: 'cc1f3ee7a5a09af127ff69269dc61be3', curtsy: 'b90cd277e9f93a6e86d355bfd826e163', curtsyTurn: 'a0a880992fc33da52ca23c5097aafaf0', dejectedIn: '6c6565c56c617d26e938b33823a77b62', doze: '27f1f7d258dae9cd8c1a4f0fb4c34d1b', dragPull: '492f38c8f828816dc515cc4d749739ce', dragPullZap: 'f880e504575602f022897908c7f654ae', gameBonk: 'eae3432f002303f1e8ba32a620846757', gameBonkZap: '039110d316febf9a83aae81dd3fbbc47', gameCheer: 'b3ac0659914339562f7acc3f55b1ccb5', gameCheerZap: 'd6e547817905d40608edb1ed665f4205', gameDraggedUp: 'e88b4ef06a5e43377e5069bf0391026e', gameDraggedUpZap: '377d86b4ed1c73678dd17291703a10b1', gameFlat: 'aee9a626cd4e46b38c11eeac9a33dfaf', gameFlatGrab: '3fa820579fe439433048940134811690', gameFlatGrabZap: 'fe3095b8437c6321fccc631abcb832b5', gameFlatZap: '96e5055bed281acc3753eda32fb1d863', gameKneel: 'c47d6a8ce2dd8bfc51c0cd0d56a998e1', gameKneelZap: 'a94842ef699ff8c3ab75bdf5f276a80b', gameLetGo: 'e2d2e281b192f4d6a1395e3b97cc1196', gameLetGoStand: '97981617b3703213ec50791651349644', gameLetGoZap: '1d71f4fa91f9f5a1d5022f86656ad7ef', gameLookUp: '1a355610d0bff306a902d2fc6bd3456b', gameLunge: 'a3d7bad153ff6cb51afd45432610e681', gameReachKneel: '65ea507af41884cedb6fff103002f609', gameReachUp: '4b425527c21339261b1373dd15f238fa', gameSorry: '8ecbfa420e89b927459c58ef6a97099c', gameSorryOut: '231ce44291e55e737461f4eed07b18a1', gameSorrySurprise: 'ce3a322b40049d0e89ee632c951fdbfe', gameStartle: 'a9fb83c5e59a5feffc5abdf1d48c0bb1', gameTugIn: '7e721c943f781de3748314a2ee71b8dc', gameZapOut: '22b91257fe1d447b801ae9f86426eb4a', giftCheer: 'df0da21e74f2474f56868021a91fe58f', giftIn: '8664b6e7ebe4ef626cfcbaff7fd0eb2a', gloomy: '1ae6abc54fbb45127e4a865fd4ff92cd', gloomyDoze: '1d569f125c7cdf706445c14c0e5ab860', govIn: 'f0bce8e160a21d3193d7603201ec6649', govOut: 'def1ececd3228c9dc4b87769d633d2df', govPointWave: 'b39715eab29752d0c852deec88f1c14e', govWave: '23e285a2e68d30056546709df3889024', gymHop: '411357d96cdf7929b3fd56df3eb98734', gymIn: '23317f355510b01999908ebce5c2c1db', gymOut: 'a845ed1aab7d6f83b9f35aedccc54df9', hairSmoothCheer: '4537aeecbf13f0f335c7c1a3c0110aff', hairSmoothCry: '9e226b44aa43eb0dac6563b61d629995', hikeIn: '4e1c3d30d195ee5d86e39f3fba7a7968', hikeOut: '59cc9c8cead9e441af98f41d37481c11', hopSit: 'f0265ab734e46dadad5b6c69aca109a2', hopeAnnounce: 'da03442a1df016febf5bc0d9cd27fcec', hopeCheer: 'd28ad9fc86c1e59dee6ac8b51d4dfd5d', hopeClap: 'a44decb7a7ed962d2cee38b91d243ac1', hopeIn: 'f608564e06e6cf0dda108cf0868a2d87', hopeNod: '25a897673f65574d54537b345029850c', hum: '037c3bf8f7fadbc5c2adaf0305899cf0', humIn: '76560ad0f962070a720ab211d69364d3', humWave: 'e8a2661f4ffbfacc50d77d3159160fdb', idle: '528beadfc04d1d591ee7057771afab95', jump: '46835a523d27d7b82fc2f2673657f47a', kneeRise: 'df5012f4f710a8bd367b03139f6cd062', lookBackIn: 'fa859bb03ddf93d584c8e21b4d92545f', lookBackOut: 'e3539733da0c2b59f79eaea6866a7a37', mount: 'a9a36a95a67221dc016c50fc4ff14223', nod: '8d49e528bcd2aaa8bcd5e7d8fbe94aa5', nodOut: '4f274071432533a4f44522dd4b8baf89', openPout: 'f67dfabdde4d19fa468aecf56d8414d3', openSurprised: '708c47a6d8891f95daea06391cea0e48', pedal: '42c962e45330ceda6acffbc41ccf3069', pedalCrash: '9309dfb1f48d0826e46ab427b8603680', pkBolt: 'bbbad6efaed5a1b6e180c3f4e9f7049f', pkDeflate: '6a9cc5cb8ed7894264cb420d99e8c38a', pkGrab: '9812f4e37f5d21d9b6d61b573567ebc0', pkHaul: 'f1d2b0835fa0bf7f2636723cd53e7fd9', pkHaulFlat: '5c70e7d3716d4ce5084ce21202892d57', pkHaulIn: 'e9df47d473e87a1b28e20a44c50e460b', pkHaulOuch: '7eed22425aa2b9205be44a785cc35812', pkLaugh: '94b09e91a7c09f385751ea76298ad818', pkLaughOut: 'ce8b6907b269b8ebbeac1970ee6fdc07', pkLetGo: 'bd05014303eb4cb660d8c0512b5c0d6f', pkLetGoTug: '08ca4c772fc7fc37c5fe2fe5c3446fad', pkLift: 'dd20cba4b9c72c0f31325c9e53530303', pkOuch: '34bdc8683cf560994a4864cf2d4c8d59', pkPeer: 'b63a5b950ea4bf6591ebe5fccfb00469', pkPeerLaugh: 'bdff47d79cf61d6dd614b19073af2f83', pkShrug: '76f905c2ff79afe2b5211986b3ad09e8', pkShrugLaugh: 'f5c1542d45330452c122c7d29b266ce3', pkSit: '91b54f8c302be3a742c15ec897d3b986', pkSitDown: 'fcf259f2da8f91db57e1dd40ba489b30', pkSitLaugh: 'e997c6c7f62df2e87c43ebaa4f46dd70', pkThrow: 'cb7f75ad408709fb17fbf2a750a801a7', pkThrowLaugh: 'b6d72d6d92b52c56f83b5a3d44ed9b3f', pkThunder: '3ef17acdf3282a7919cea366498d7796', pkThunderFlat: 'fa2690852b1ffc3e83509f30f55538bb', pkThunderHaul: 'b4347ed3d41d244c200f6c9e4805451e', pkTug: '24cc34a1ec5580506aea71c9ae73f4ef', pointIn: '1041f290497098db17e710fcffed6bbc', poutOut: 'f67ef4f471ea9058de6265f65e40a890', robbedGloomy: '7e63873789b76ba43f5260ef7aa95e5f', rubUp: '2b41ac673f265add50298a8f142702a5', shakeBox: 'f4c6800928af98603e36db6314956857', shakeIn: '78ccb0fbac701231cf87785e5c5ecfe4', shakeSnow: '09a43889115c318f28c176c6d7a2cdcb', shy: 'a3abdceddc4d81cb31c39a7708617762', shyIn: '6e4c3085211198ef846005f9e527a08d', signBounce: '411292937b43b02dde8444156c81174b', signCheerRaise: '7f9b83f4aa5b09558b10f805079ca3ed', signHideIn: '997e8452722c5b403185f0c4e3dd0649', signPump: '65407912e7f26dad0b705765abdd63ff', signRaise: 'f3fe2faaab8cd698eac4319241b41c94', signSwayL: 'f6274606e839a209f51870c8fef9cdd3', signSwayR: 'cbd9d6ff4599cecbf8e24963d080326d', signUrgeRaise: '4f244a0dce9409026118040938c4bf57', sitBored: '5d634deb99fd563d95762aae109de924', sitDoze: 'a95b681a7aa43c48df2861587b5bfae5', skiFall: '76512d024c568bd3bd97ffeed0a05b52', skiGlide: '2f6ea8efa98be75327342cce66054414', skiGo: 'f40b9977dcb4bcf241eac37a574c2d54', skiIn: 'f60b51987ea38e68ba0f346d92d1a4e3', skiOut: '4c984499f6067970f582a73d8c2399d1', skiPop: '6238ed2d55742a53bcd35bcac40c669d', skiUp: '97ff2e1aa8496fda3ba13fbf4532659e', slipUp: 'd24e5aa8cd55e86e8e58ad8028233ed3', spFlag: '2e0e9fb19d5a8be126b12532f67cb877', spFly1: '83a5a48403903d4f39f9da51e0012294', spFly2: '87600b97c197c44a1cb9fc55cc76b84d', spFly3: '2f06f4e2aba9c2855b1c2fee22f6a1f4', spGlow: '0ae9d33e8e08c4cb20797bd64fcaeb0a', spHappy: '6fea3a2cde9432871a2a4a7b4b3a3b05', spHide: 'b3b7a681028216547fced194378e4642', spIdle: '70d620c5f164e57bd46e95154a9c8396', spNod: '631236e3cb235cf6e45d906ac4f70b41', spPat: '2e897fd4048e4fb2ba4e2fa9832931dd', spSleep: '5415e0a5fc476a9ac06e7427a3a9627c', spSurprised: '2a71af2381fb09f67fce34682a09c9e3', spYawn: '5dfd246affdea738a053630d72d7a726', spin: 'e4878b3f26f95745cc23b73f1ec071be', spinCurtsy: '9975e9a6a1a1968b344a8bf188423d91', spyRaise: '2d3ce641a512560c97e080a3cc39ce28', spySalute: 'b56e9494c23d8d3cd789e00f4ea9c907', surprisedCheer: '4da2805c40ccb8c90d12c1accec7f216', surprisedIn: '0d735d9fcd308c75bfe8adf66cff59d8', surprisedOut: 'a5776b0a77dc8a3b8d2f058d580a8956', trek: '7aef8a528ed9640410f134f38d867ab0', trekIn: '0b9588db4b41791779771558e8b5064d', trekSlip: '7ad34d7a11106e89075340758874dd47', tugPull: '563c260a7bd607affe2bf214708eca68', tugPullZap: '010bc17cfac2fa5f8be3188b4b5a056f', walk: '6431ef43dbef6befe72a158e5cccdce7', wave: '273270295ba8e757e80c6e511b3955aa', waveIn: '45b35bc2f45fa3bf60405f8d5f4b20e6', wipe: '3aac87354721601e5c22ad31876fcb68', wipeIn: '8dbc55fe74cf8ad449dbf508ebeb1e5c'};
 // Poses that move: the strip f, drawn from the pose's own cell, as a loop at ms per frame, a loop of [frame, ms] steps, or
 // once: [frame, ms] steps from when the pose begins, holding the last.
 const STRIP = {
@@ -101,7 +105,13 @@ const STRIP = {
   // the chest game: she heaves at the ring, her feet shuffling back; lying, she is dragged along, legs kicking (her fists
   // and the ring stay put in every frame: they are on the chest's link)
   tug: { f: 'tugPull', ms: 190 }, tugZap: { f: 'tugPullZap', ms: 190 }, dragged: { f: 'dragPull', ms: 160 }, draggedZap: { f: 'dragPullZap', ms: 160 },
-  govJump: { f: 'jump', once: [[0, 60], [1, 140], [2, 300], [3, 160], [0, 0]] }
+  govJump: { f: 'jump', once: [[0, 60], [1, 140], [2, 300], [3, 160], [0, 0]] },
+  // holding up her PK sign (README 15): swaying shyly, bobbing for joy, pushing it up on tiptoe as time runs out. Each
+  // frame only a little from the one before, played there and back (each loop's frames go one way: bent a little, more,
+  // up on her toes); the sway is two strips, f to her left and f2 to her right (frames 4-7), through the middle each time
+  signUp: { f: 'signSwayL', f2: 'signSwayR', loop: [[0, 130], [1, 110], [2, 220], [1, 110], [3, 130], [5, 110], [6, 220], [5, 110]] },
+  signCheer: { f: 'signBounce', loop: [[0, 90], [1, 90], [2, 120], [1, 90], [0, 90], [3, 120]] },
+  signUrge: { f: 'signPump', loop: [[3, 100], [0, 80], [1, 80], [2, 110], [1, 80], [0, 80]] }
 };
 // The sprite's drawings that move, [strip, ms per frame]; v1–v3 are its turnaround views flying.
 const SSTRIP = {
@@ -115,6 +125,9 @@ const TRANS = {
   'robbedZap>robbed': 'hairSmoothCry', 'cheerZap>cheer': 'hairSmoothCheer',
   // having cried over the stolen chest she wipes her tears and curls up to sulk (the chest game, played slowly)
   'robbed>gloomy': 'robbedGloomy',
+  // B站 PK: she raises her empty hands for her sign (the board moves the sign); it comes into her hands in front of her
+  // and she ducks behind it (README 15)
+  'idle>signHide': 'signHideIn', 'idle>signUp': 'signRaise', 'idle>signCheer': 'signCheerRaise', 'idle>signUrge': 'signUrgeRaise',
   // the chest game's routes: the crash, the tug and its tricks, letting go, crying, cheering (tools/check-game.mjs finds them)
   'idle>startled': 'gameStartle', 'startled>lunge': 'gameLunge', 'tug>lunge': 'gameTugIn', 'tug>bonk': 'gameBonk',
   'tug>flat': 'gameFlat', 'flat>dragged': 'gameFlatGrab', 'tug>dragged': 'gameDraggedUp', 'tugZap>bonkZap': 'gameBonkZap',
@@ -151,7 +164,8 @@ const TRANS = {
 // pose stays (the captain's and admiral's raise strips start standing; the princess gown back to her uniform) or where
 // she is mid-twirl (into the gown at the castle). The way back from the captain's salute has its own in-betweens.
 const CUT = new Set(['govPoint>govJump', 'govJump>govPoint', 'idle>capSalute', 'idle>spyglass', 'pIdle>idle', 'idle>spin',
-  'tug>tugZap']);   // (the chest game: her hair frizzes in the lightning's flash)
+  'tug>tugZap',   // (the chest game: her hair frizzes in the lightning's flash)
+  'signCheer>signJump', 'signJump>signCheer']);   // (B站 PK: in the air her legs tuck up; her hands and the sign go on where they were)
 const SPRITE = { flag: ['sp1', 1], nod: ['sp1', 2], surprised: ['sp1', 3], yawn: ['sp1', 4], sleep: ['sp1', 5], pat: ['sp2', 1], crown: ['sp2', 2], sailor: ['sp2', 3], glow: ['sp2', 4], hide: ['sp2', 5], hold: ['sp3', 1], hold2: ['sp3', 2], lift: ['sp3', 3], lift2: ['sp3', 4], lid: ['sp3', 5] };
 // The sprite keeps these drawings while it flies, since they carry something.
 const CARRY = new Set(['crown', 'glow', 'lift', 'lift2', 'lid']);
@@ -222,7 +236,9 @@ const OFF = { won: 3400, knocked: 2600, fled: 2400 };
 const PATS = 900, GATHER = 500, SETTLE = 1000, HAIR = { robbed: [0.5, 0.27], cheer: [0.47, 0.24] };
 // In-betweens played slower than the 90 ms a frame of the rest: her hair settling under the sprite's magic; her
 // curling up to sulk after crying over the chest.
-const SLOW = { 'robbedZap>robbed': 300, 'cheerZap>cheer': 300, 'robbed>gloomy': 260 };
+const SLOW = { 'robbedZap>robbed': 300, 'cheerZap>cheer': 300, 'robbed>gloomy': 260,
+  // B站 PK: her arms go up for her sign and down as it flies back (PK_SIGN.raise)
+  'idle>signUp': 130, 'signUp>idle': 130, 'idle>signCheer': 130, 'signCheer>idle': 130, 'idle>signUrge': 130, 'signUrge>idle': 130 };
 // A gift falls DROP ms before it lands; a disguise holds FREEZE ms; the lightning set piece lasts ZAP ms (the countdown
 // waits), its bolt hitting her BOLT ms in; it and the chest fall FALL ms when it can hold the chest up no longer; the sprite flies the chest home in HOME ms, or in TIDY before a show
 // that scared the prankster off (the show waits that long). Of that time the sprite flies to the chest for GO ms, presses
@@ -381,7 +397,20 @@ const EVENTS = {
   奖池转动: { tier: 'A', dur: 2000 }, '揭晓·大奖': { tier: 'A', dur: 5200, glow: 'SS' }, '揭晓·二奖': { tier: 'A', dur: 4600 }, '揭晓·三奖': { tier: 'A', dur: 4600 },
   没人报名: { tier: 'A', dur: 2800 }, 抽奖结束: { tier: 'A', dur: 2600 }, 日常: { tier: 'D' },
   // a viewer's 盲盒查询: only while she is idle, never queued, and any gift cuts in (DP-BlindBoxCard.dc.html is its card)
-  盲盒查询: { tier: 'D', dur: 6000, results: ['赚', '回本', '亏', '没有记录'] }
+  盲盒查询: { tier: 'D', dur: 6000, results: ['赚', '回本', '亏', '没有记录'] },
+  // B站 PK (README 15): she holds up her sign when it is time to act. B: a gift's thank-you does not cut it short, a big
+  // gift does; the countdowns count to the server's moment however late they start (PK_SIGN)
+  // the other side's card (PK_INTEL, lib/pk-intel.js), the 10 s between the match and the start
+  'PK·对手': { tier: 'B', dur: 10000 },
+  // the PK's result by its score (PK_RESULT.of), as long as each ending plays (durs)
+  'PK·结果': { tier: 'B', dur: 5000, results: ['大胜', '赢', '险胜', '平局', '惜败', '输', '惨败'],
+    durs: { 大胜: 5000, 赢: 4000, 险胜: 4400, 平局: 3600, 惜败: 4400, 输: 4400, 惨败: 5000 } },
+  // a change in how the PK stands, while it is on (PK_GAP); C: never over a sign or a thank-you, 20 s apart at least
+  'PK·比分': { tier: 'C', dur: 2800, results: ['反超', '被反超', '拉开', '被拉开', '追近', '被追近'],
+    durs: { 反超: 2800, 被反超: 2800, 拉开: 2600, 被拉开: 2600, 追近: 2400, 被追近: 2400 } },
+  // our side's double bonus challenge done (挑战成功) or run out (挑战失败), from B站's capsule; B, as her viewers made it
+  'PK·挑战': { tier: 'B', dur: 3400, results: ['成功', '失败'], durs: { 成功: 3200, 失败: 3400 } },
+  'PK·双倍条件': { tier: 'B', dur: 7600 }, 'PK·2倍': { tier: 'B', dur: 6900 }, 'PK·双倍还剩10秒': { tier: 'B', dur: 10900 }, 'PK·最后10秒': { tier: 'B', dur: 10900 }
 };
 const LINES = {
   进场: ['{昵称}来啦…欢、欢迎！', '啊，是{昵称}！你好呀～', '又见到{昵称}了，嘿嘿', '{昵称}，欢迎光临…（小声）'],
@@ -422,6 +451,23 @@ const LINES = {
   // 盲盒查询: no bubble, her words are at the foot of the 账单卡, where a receipt says 谢谢惠顾
   '账单·赚': ['欧、欧气满满！', '今天的你闪闪发光～'], '账单·回本': ['刚刚好…稳！', '稳稳的，也很棒～'],
   '账单·亏': ['呜…下次一定！', '可恶的盲盒！抱抱你…'], '账单·没有记录': ['要、要开一个试试吗？', '还没开过哦…'],
+  // B站 PK: only while she hides behind her sign, before she dares to hold it up (the sign says the rest)
+  'PK·双倍条件': ['那、那个…', '我、我有话说…'],
+  // the PK's result: her first words, and for some endings what she says once she has calmed down (·二); shy, never
+  // gloating over the other side, always thanking her viewers
+  'PK·大胜': ['赢、赢啦！大家好厉害！', '大获全胜！谢谢大家！'], 'PK·大胜·二': ['…刚、刚才太大声了', '…好、好害羞'],
+  'PK·赢': ['赢了！谢、谢谢大家～', '赢、赢了！大家辛苦啦～'], 'PK·险胜': ['好、好险…赢了！', '心、心脏要跳出来了…赢了！'],
+  'PK·平局': ['诶…平局？也、也挺好～', '平、平手…大家辛苦啦～'],
+  'PK·惜败': ['就、就差一点点…', '只差一点…好不甘心…'], 'PK·惜败·二': ['谢谢大家！下次一定！', '下、下次赢回来！'],
+  'PK·输': ['输、输了…', '呜…没赢…'], 'PK·输·二': ['谢谢大家陪我～', '大家辛苦了…谢谢！'],
+  // while it is on, how it stands has changed: what she feels, never asking for gifts (用户 on the chest game: 催票 no)
+  'PK·反超': ['反、反超了！', '追、追过去了！大家好厉害！'], 'PK·被反超': ['诶！被、被反超了…', '呜…被追过去了…'],
+  'PK·拉开': ['领、领先好多了…！', '大家好厉害…！'], 'PK·被拉开': ['对、对面好猛…', '差、差了好多…'],
+  'PK·追近': ['快、快追上了…！', '只差一点点了…！'], 'PK·被追近': ['被、被追上来了…', '好、好紧张…'],
+  // the double bonus challenge: done, the double starts at 190 s (the 2倍 sign says so then); run out, she picks herself up
+  'PK·挑战成功': ['挑、挑战成功！谢谢大家！', '达成了！等一下就翻倍～'], 'PK·挑战失败': ['呜…翻倍没了…', '没、没达成…'],
+  'PK·挑战失败·二': ['没、没关系！', '下次一定！'],
+  'PK·惨败': ['呜…对面好强…', '被、被打得好惨…'], 'PK·惨败·二': ['谢谢大家陪我～', '我、我会加油的…'],
   举哑铃: ['今天也要锻炼！'], 哼歌: ['♪啦啦啦～'], 爬山: ['下次一起去爬山吧！', '山顶的风好舒服～'], 骑车: ['叮铃叮铃～', '骑车去兜风！'],
   砸到脚: ['好痛痛痛！', '又、又砸到了…'], 破音: ['咳、咳…刚才不算！', '破、破音了…'], 摔屁股墩: ['哎呦…屁股好痛…', '山路好滑…'],
   骑车摔倒: ['车、车子不听话…', '呜…又摔了…'],
@@ -523,6 +569,136 @@ const BILL = (() => {
   }
   return { W, layout, draw, danmaku };
 })();
+// B站 PK (README 15): her sign. Codex draws her holding a blank one; tools/sign.py wipes it out of her drawings and
+// SIGN_AT says where it was in each, [x, y, tilt, edge, hold, h] in that drawing's own pixels (a cell of the pose sheet,
+// a frame of a strip): the middle of the edge the board lays its sign along ('b' its bottom edge when it is up over her
+// head, 't' its top edge when her head shows over it, so the taller sign reaches down over her legs, not up over her
+// face), the edge her hands are at (hold: 'b' under it, 't' fingertips over its top edge) and codex's sign's height. The
+// board draws this one there, bigger than codex's every way (so it covers what was wiped), with the words: paper and a
+// pink marker border as her 账单卡 has, a little uneven, as she cut it out herself. Page px.
+const SIGN_AT = {
+  pkSign: [null, [255.5, 252.0, 0.0, 't', 't', 162], [243.1, 171.2, -0.002, 'b', 'b', 160], [263.1, 165.8, -0.002, 'b', 'b', 161], [255.7, 163.4, -0.003, 'b', 'b', 160], [244.5, 202.0, 0.0, 'b', 'b', 159]],
+  signSwayL: [[242.7, 171.4, -0.003, 'b', 'b', 160], [229.4, 171.5, -0.039, 'b', 'b', 161], [223.3, 170.8, -0.105, 'b', 'b', 160], [238.8, 179.4, 0.003, 'b', 'b', 162]],
+  signSwayR: [[242.7, 171.3, -0.003, 'b', 'b', 160], [248.6, 173.6, 0.047, 'b', 'b', 162], [251.5, 176.1, 0.105, 'b', 'b', 162], [243.9, 180.9, 0.01, 'b', 'b', 160]],
+  signBounce: [[263.1, 165.8, -0.002, 'b', 'b', 161], [259.5, 175.1, 0.0, 'b', 'b', 161], [262.5, 191.0, -0.0, 'b', 'b', 161], [260.4, 159.3, 0.003, 'b', 'b', 161]],
+  signPump: [[255.5, 163.1, 0.001, 'b', 'b', 159], [255.5, 154.1, -0.001, 'b', 'b', 156], [255.1, 152.2, -0.001, 'b', 'b', 155], [255.5, 174.9, -0.001, 'b', 'b', 161]],
+  signHideIn: [null, [255.4, 283.8, 0.004, 't', 't', 150], [255.6, 251.9, 0.001, 't', 't', 162], [255.4, 249.9, -0.001, 't', 't', 164]],
+};
+const SIGN = (() => {
+  // 252 wide: 差9999票 and 差9.9万票 fit at full size (user: “有的时候是差几千票、这时候放不下”; it was 206)
+  const W = 252, H = 140, R = 13, HOLD = 21, PAD = 16, INK = '#5B3A4B', RED = '#E23A5E';
+  // a rounded rectangle, its outline pushed in or out by under a pixel along the way
+  const path = new Path2D(), n = 240, P = 2 * (W - 2 * R) + 2 * (H - 2 * R) + 2 * Math.PI * R;
+  const segs = [['t', W - 2 * R], ['tr', Math.PI * R / 2], ['r', H - 2 * R], ['br', Math.PI * R / 2], ['b', W - 2 * R], ['bl', Math.PI * R / 2], ['l', H - 2 * R], ['tl', Math.PI * R / 2]];
+  const CORNER = { tr: [W - R, R, -90], br: [W - R, H - R, 0], bl: [R, H - R, 90], tl: [R, R, 180] };
+  for (let i = 0; i < n; i++) {
+    let s = i / n * P, k = 't', x, y, nx, ny;
+    for ([k, ] of segs) { const L = segs.find(q => q[0] === k)[1]; if (s <= L) break; s -= L; }
+    if (k === 't') [x, y, nx, ny] = [R + s, 0, 0, -1]; else if (k === 'r') [x, y, nx, ny] = [W, R + s, 1, 0];
+    else if (k === 'b') [x, y, nx, ny] = [W - R - s, H, 0, 1]; else if (k === 'l') [x, y, nx, ny] = [0, H - R - s, -1, 0];
+    else { const [cx, cy, a0] = CORNER[k], a = (a0 + s / (Math.PI * R / 2) * 90) * Math.PI / 180; [x, y, nx, ny] = [cx + R * Math.cos(a), cy + R * Math.sin(a), Math.cos(a), Math.sin(a)]; }
+    const u = i / n * 2 * Math.PI, d = (Math.sin(3 * u + 0.7) * 0.5 + Math.sin(7 * u + 2.1) * 0.3) * 0.9;
+    path[i ? 'lineTo' : 'moveTo'](x + nx * d, y + ny * d);
+  }
+  path.closePath();
+  // lines: rows of [text, weight, px, red]; centred, rows 4 px apart; a run's pop (0..1) makes it a little bigger
+  function draw(g, lines) {
+    g.save(); g.shadowColor = 'rgba(60,30,45,0.24)'; g.shadowBlur = 6; g.shadowOffsetX = 2; g.shadowOffsetY = 4; g.fillStyle = '#FFF7EC'; g.fill(path); g.restore();
+    g.save(); g.lineWidth = 6; g.lineJoin = 'round'; g.strokeStyle = '#F0A3C0'; g.stroke(path); g.restore();
+    const F = (w, px) => `${w} ${px}px "Noto Sans SC"`, rows = lines.map(r => ({ r, h: Math.max(...r.map(q => q[2])) }));
+    g.save(); g.textBaseline = 'alphabetic'; g.textAlign = 'left';
+    for (const row of rows) row.w = row.r.reduce((a, [s, w, px]) => (g.font = F(w, px), a + g.measureText(s).width), 0);
+    let y = H / 2 - (rows.reduce((a, r) => a + r.h, 0) + 4 * (rows.length - 1)) / 2 + 2;
+    for (const { r, h, w: rw } of rows) {
+      let x = W / 2 - rw / 2;
+      for (const [s, w, px, red, pop = 0] of r) {
+        g.font = F(w, px); const tw = g.measureText(s).width, k = 1 + 0.18 * pop;
+        g.save(); g.translate(x + tw / 2, y + h * 0.86 - px * 0.36); g.scale(k, k); g.fillStyle = red ? RED : INK; g.fillText(s, -tw / 2, px * 0.36); g.restore();
+        x += tw;
+      }
+      y += h + 4;
+    }
+    g.restore();
+  }
+  // the words on it: the double bonus's condition from B站's own (差10票翻倍, 差1人翻倍, 差3000票翻倍, maybe 差1.2万票翻倍),
+  // 2倍, a countdown. What it cannot read it shows as B站 wrote it, on one line.
+  const words = (kind, opts, n, pop) => {
+    if (kind === 'PK·2倍') return [[['2倍', 800, 64, true]], [['加成中！', 500, 36]]];
+    if (kind !== 'PK·双倍条件') return [[[kind === 'PK·最后10秒' ? '最后' : '双倍还剩', 500, 36]], [[String(n), 800, 72, true, pop]]];
+    const m = /差\s*([\d.]+)\s*(万?)\s*(票|人)/.exec(opts.text || '差10票翻倍');
+    if (!m) return [[[(opts.text || '').replace(/翻倍.*$/, ''), 800, 36]], [['翻倍！', 500, 36]]];
+    // how many as the 对手情报卡 writes it: up to 9999 as it is, then in 万 (PK_INTEL.count)
+    return [[['差', 800, 44], [PK_INTEL.count(Math.round(parseFloat(m[1]) * (m[2] ? 10000 : 1))), 800, 52, true], [m[3], 800, 44]], [['翻倍！', 500, 36]]];
+  };
+  return { W, H, HOLD, PAD, draw, words };
+})();
+// Her sign shows (ms). The board moves the sign itself wherever it goes far (user: “没有过度帧、她的动作一闪一闪的”: drawn
+// in-betweens carried it 50-150 px a frame): it flies out of her sprite to over her head (fly) as she raises her empty
+// hands to take it (raise, the last part of fly), and when she lowers them it flies back into her sprite (back, drawn by
+// frame for whatever made her let go). The double bonus's condition opens with her hiding behind it (hide: it flies into
+// her hands in front of her and she ducks behind it, peeks over it, a line; lift: she brings it down to her chest and it
+// glides up in front of her as she raises her arms). 2倍 jumps twice as she bobs (jump: from, ms, px up; in the air her
+// jumping drawing, lifted so her hands and the sign go on where they were).
+// A countdown counts to the moment B站 gave (until, set when it fires): one that waited behind another show counts what
+// is left, and one with under least left is not held up at all; it ends down after it reaches 0 (down).
+const PK_SIGN = { fly: 450, raise: 260, back: 420, hide: [450, 1500], lift: 180, least: 3000, down: 900, lower: { 'PK·双倍条件': 6900, 'PK·2倍': 6200, count: 10000 },
+  jump: [[800, 420, 30], [1500, 420, 30]], pose: { 'PK·双倍条件': 'signUp', 'PK·2倍': 'signCheer', count: 'signUrge' } };
+// B站 PK's 对手情报卡 (ms): her sprite prints it over her head as it does the 账单卡, turns it over (only when it has both
+// sides), and it rolls itself up as the PK starts. The front, who the other streamer is, shows 4.5 s, its back, three
+// rows of the same kind to glance at, 2.9 s (user: “一般对手信息可以显示时间长点、前3显示的短点”; it was 3.5 and 3.9); all
+// of it before the start, when the gifts come thickest (首次送礼翻倍) and a show still on would drop their thank-yous.
+// She is startled at the match, then nervous over the front, and clenches her fist for her viewers over the back.
+const INTEL = { print: [800, 1500], turn: [6000, 6400], roll: [9300, 9800], done: 9700 };
+// B站 PK's result from PK_BATTLE_END's votes, ours and theirs: the same is 平局 (none on either side too); winning, they
+// had half ours or less 大胜, within a tenth of the larger 险胜, else 赢; losing the same the other way: 惨败, 惜败, 输.
+// (The first list had no plain 输: a 5000 : 8000 loss would have said 就差一点点 or 被打得好惨.)
+const PK_RESULT = {
+  of: (ours, theirs) => {
+    if (ours === theirs) return '平局';
+    const [hi, lo] = ours > theirs ? [ours, theirs] : [theirs, ours], close = hi - lo <= hi * 0.1, rout = lo * 2 <= hi;
+    return ours > theirs ? (rout ? '大胜' : close ? '险胜' : '赢') : (rout ? '惨败' : close ? '惜败' : '输');
+  },
+  // the board's buttons: a score for each ending
+  samples: { 大胜: [12000, 3000], 赢: [8000, 5000], 险胜: [5200, 5000], 平局: [3000, 3000], 惜败: [4800, 5000], 输: [5000, 8000], 惨败: [1000, 12000] }
+};
+// While a PK is on, how it stands (from each score B站 sends) and the 比分 show a change calls for: who leads (the last
+// side ahead: a tie between does not end a lead), far (one side twice the other or more) and close (within a tenth of
+// the larger), the same yardstick as PK_RESULT. Nothing before either side has MIN votes (10 : 0 is no lead worth a
+// show); a change within COOL of the last show is let go, its standing still kept (README 15).
+const PK_GAP = {
+  MIN: 100, COOL: 20000,
+  stand(ours, theirs, was = {}) {
+    // under MIN nothing is far or close yet: 50 : 0 counted as far, and 300 : 0 then had no 拉开
+    const hi = Math.max(ours, theirs), lo = Math.min(ours, theirs), lead = ours > theirs ? 1 : ours < theirs ? -1 : was.lead || 0, on = hi >= PK_GAP.MIN;
+    return { ours, theirs, lead, far: on && lo * 2 <= hi, close: on && hi - lo <= hi * 0.1 };
+  },
+  show(a, b) {
+    if (Math.max(b.ours, b.theirs) < PK_GAP.MIN) return null;
+    if (a.lead && b.lead && a.lead !== b.lead) return b.lead > 0 ? '反超' : '被反超';
+    if (b.far && !a.far) return b.lead > 0 ? '拉开' : '被拉开';
+    if (b.close && !a.close && a.lead) return a.lead > 0 ? '被追近' : '追近';
+    return null;
+  }
+};
+{ const go = (...pairs) => { let s = PK_GAP.stand(0, 0), out = []; for (const [o, t] of pairs) { const n = PK_GAP.stand(o, t, s); out.push(PK_GAP.show(s, n)); s = n; } return out.join(','); };
+  console.assert(go([10, 0]) === '' && go([50, 0], [300, 0]) === ',拉开' && go([300, 100], [300, 600]) === '拉开,被反超' && go([500, 400], [500, 500], [500, 600]) === ',被追近,被反超'
+    && go([1000, 2500], [1000, 1050]) === '被拉开,追近', 'PK_GAP'); }
+console.assert(Object.entries(PK_RESULT.samples).every(([r, [a, b]]) => PK_RESULT.of(a, b) === r) && PK_RESULT.of(0, 0) === '平局' && PK_RESULT.of(10, 0) === '大胜', 'PK_RESULT');
+// 整场 PK: one 1-on-1 PK as B站 would send it, [PK seconds (the match is 10 s before the start), the fast demo's ms, what
+// happens, …]. Fast, the quiet stretches are cut, every show still plays out and both countdowns run at real speed (their
+// 10 s are 10 s of demo too); the 20 s between 比分 shows count PK seconds (pkClock). It loses the lead and wins it back,
+// does the challenge, gets the double, and ends close: 7670 : 7300, 险胜. In the last 10 s two swings are let go: she is
+// holding up her sign.
+const PK_DEMO = [
+  [-10, 0, 'match'], [0, 10500, 'start'], [5, 11500, 'score', 520, 0], [12, 14800, 'score', 520, 900],
+  [30, 16000, 'capsule', '差10票翻倍'], [38, 24200, 'score', 820, 900], [50, 27400, 'challenge', '成功'], [60, 31200, 'gift', '小花花'],
+  [75, 34500, 'score', 1270, 900], [120, 38500, 'score', 1270, 3400], [160, 42000, 'score', 3070, 3400], [190, 45500, 'double'],
+  [200, 53000, 'score', 7070, 3400], [215, 56500, 'gift', '舰长'], [240, 62000, 'doubleEnd'], [250, 72000, 'doubleOver'],
+  [262, 73500, 'score', 7070, 6400], [290, 77000, 'last10'], [293, 80000, 'score', 7070, 7300], [296, 83000, 'score', 7670, 7300],
+  [300, 87000, 'end'], [315, 93000, 'done']
+];
+// (fast, each countdown's 10 s are 10 s of demo: 240 → 250 s and 290 → 300 s)
+console.assert([[240, 250], [290, 293], [293, 296], [296, 300]].every(([a, b]) => { const [x, y] = [a, b].map(s => PK_DEMO.find(d => d[0] === s)[1]); return y - x === (b - a) * 1000; }), 'PK_DEMO');
 const GIFT = { 普通礼物: '小花花', 连着送: '小花花', 中礼物: '告白气球', 大礼物: '小电视飞船', '盲盒·小': '棉花糖', '盲盒·中': '爱心抱枕', '盲盒·大': '爱心抱枕', 城堡: '浪漫城堡' };
 // A viewer's gift round ends after this much silence (README 2); the 中礼物 and 大礼物 thresholds, in 电池 (the GUI defaults).
 const ROUND_GAP = 3000, MID = 1000, BIG = 10000;
@@ -600,6 +776,10 @@ class Component extends DCLogic {
     await Promise.all([...Object.entries(BLOB), ...Object.entries(FRAMES).map(([k, id]) => ['f:' + k, id])].map(async ([k, id]) => { img[k] = await load(id); }),
       // her lines and the effects' marks are in the 礼物榜页's Noto Sans SC, which the stream PC has whatever its fonts
       ...['500', '800'].map(weight => document.fonts.load(`${weight} 18px "Noto Sans SC"`)));
+    { // her PK sign (README 15): the widest condition fits inside its border at full size, big numbers go into 万
+      const g = document.createElement('canvas').getContext('2d'), wide = r => r.reduce((a, [s, w, px]) => (g.font = `${w} ${px}px "Noto Sans SC"`, a + g.measureText(s).width), 0);
+      console.assert(['差9999票翻倍', '差99999票翻倍', '差12.3万票翻倍'].every(s => wide(SIGN.words('PK·双倍条件', { text: s })[0]) <= SIGN.W - 2 * SIGN.PAD), 'PK sign: the widest condition does not fit');
+    }
     const box = (im, x, y, w, h) => {
       const c = document.createElement('canvas'); c.width = w; c.height = h;
       const g = c.getContext('2d'); g.drawImage(im, x, y, w, h, 0, 0, w, h);
@@ -615,11 +795,13 @@ class Component extends DCLogic {
     // centred in their thirds, so the cell centre would shift her sideways between poses), and every sheet is scaled by its
     // first cell (the idle ruler).
     this.cells = {};
-    for (const k of ['common', 'lottery', 'daily1', 'moods', 'gifts', 'castleSheet', 'voyage', 'gym10', 'hike11', 'cycle12', 'ski9', 'sp1', 'sp2', 'sp3', 'game13', 'game14', 'game15', 'game16', 'game17', 'pk1', 'pk2', 'pk3', 'pk4', 'pk5', 'pk6']) {
+    const signAt = (e, ox, oy) => e && { x: ox + e[0], y: oy + e[1], a: e[2], e: e[3], hold: e[4], h: e[5] };   // SIGN_AT in the image's pixels
+    for (const k of ['common', 'lottery', 'daily1', 'moods', 'gifts', 'castleSheet', 'voyage', 'gym10', 'hike11', 'cycle12', 'ski9', 'sp1', 'sp2', 'sp3', 'game13', 'game14', 'game15', 'game16', 'game17', 'pkSign', 'pk1', 'pk2', 'pk3', 'pk4', 'pk5', 'pk6']) {
       const im = img[k], cw = im.width / 3, ch = im.height / 2, list = [];
       for (let i = 0; i < 6; i++) list.push(box(im, (i % 3) * cw, Math.floor(i / 3) * ch, cw, ch));
       const ground = [0, 1].map(r => Math.max(...list.slice(r * 3, r * 3 + 3).filter(Boolean).map(b => b.y + b.h)));
-      this.cells[k] = list.map((b, i) => b && { im, ...b, ox: (i % 3) * cw, oy: Math.floor(i / 3) * ch, ground: ground[Math.floor(i / 3)], ruler: list[0].h });
+      this.cells[k] = list.map((b, i) => b && { im, ...b, ox: (i % 3) * cw, oy: Math.floor(i / 3) * ch, ground: ground[Math.floor(i / 3)], ruler: list[0].h,
+        sign: signAt(SIGN_AT[k]?.[i], (i % 3) * cw, Math.floor(i / 3) * ch) });
     }
     for (const [p, q] of Object.entries(SAME_SPOT)) {  // the earlier pose's centre, at the same place in this pose's cell
       const [k, i] = POSE[p], [, j] = POSE[q], c = this.cells[k][i], d = this.cells[k][j];
@@ -637,7 +819,8 @@ class Component extends DCLogic {
     // a strip's frames keep the anchor, ground and ruler of the cell they were drawn from, so only the moving part moves
     const framesOf = (f, pose) => {
       const im = img['f:' + f], fw = im.width / 4, [k, n] = POSE[pose], c = this.cells[k][n];
-      return [0, 1, 2, 3].map(i => ({ im, ...box(im, i * fw, 0, fw, im.height), cx: c.cx - c.ox + i * fw, ground: c.ground - c.oy, ruler: c.ruler }));
+      return [0, 1, 2, 3].map(i => ({ im, ...box(im, i * fw, 0, fw, im.height), cx: c.cx - c.ox + i * fw, ground: c.ground - c.oy, ruler: c.ruler,
+        sign: signAt(SIGN_AT[f]?.[i], i * fw, 0) }));
     };
     this.strips = {}; this.tweens = {}; this.sstrips = {}; this.pkstrips = {}; this.pkTweens = {}; this.pkCut = PKCUT;
     // the prankster's loops, each frame lined up on its cell's centre like her strips
@@ -650,7 +833,7 @@ class Component extends DCLogic {
       const im = img['f:' + f], c = this.pkCell(pair.split('>')[0]);
       if (im) this.pkTweens[pair] = [1, 2].map(i => ({ im, ...box(im, i * im.width / 4, 0, im.width / 4, im.height), cx: c.cx - c.ox + i * im.width / 4, cy: c.cy - c.oy, ruler: c.ruler }));
     }
-    for (const [pose, s] of Object.entries(STRIP)) if (img['f:' + s.f]) this.strips[pose] = framesOf(s.f, pose);
+    for (const [pose, s] of Object.entries(STRIP)) if (img['f:' + s.f] && (!s.f2 || img['f:' + s.f2])) this.strips[pose] = [...framesOf(s.f, pose), ...(s.f2 ? framesOf(s.f2, pose) : [])];
     for (const [pair, f] of Object.entries(TRANS)) if (img['f:' + f]) this.tweens[pair] = framesOf(f, pair.split('>')[0]).slice(1, 3);
     for (const [key, [f]] of Object.entries(SSTRIP)) {
       const im = img['f:' + f], c = key[0] === 'v' ? this.cells.views[+key[1]] : key in SPRITE ? this.cells[SPRITE[key][0]][SPRITE[key][1]] : this.cells[key][0];
@@ -729,6 +912,8 @@ class Component extends DCLogic {
 
   fire(name, opts = {}) {
     const now = this.now(), ev = EVENTS[name], vis = this.gm.visit, live = !!vis && !DONE.has(vis.phase);
+    // a PK countdown's end is the moment it fires for, however long it then waits (PK_SIGN)
+    if (name.endsWith('10秒') && opts.until == null) opts = { ...opts, until: now + (opts.left ?? 10000) };
     // a gift while the prankster is here (not on its way off): its light goes out from her first, and it is scared off,
     // and the show goes on, once the light reaches it (gameUpdate fires it again, burst); what comes meanwhile waits behind
     if (this.cfg.game && ev.gift && !opts.burst && !opts.game && live) {
@@ -773,12 +958,17 @@ class Component extends DCLogic {
 
   start(name, opts) {
     const now = this.now();
+    if (opts.until != null && opts.until - now < PK_SIGN.least) return this.note(`${name}：只剩 ${Math.max(0, (opts.until - now) / 1000).toFixed(1)} 秒，不举牌`);
     if (this.cur) this.note(`${this.cur.name} 被 ${name} 打断`);
-    const wake = !!opts.wake, dur = name === '日常' ? DAILY[opts.kind][0] + (opts.mishap ? DAILY[opts.kind][1] : 0) : (opts.zap && EVENTS[name].zapDur) || EVENTS[name].dur;   // zapDur: the longer show after the lightning
+    // a PK countdown cut off goes back to the head of the queue: once the bigger show is over it is held up again for
+    // what is left, if PK_SIGN.least or more (the check above); every other show cut off is gone
+    if (this.cur?.opts.until != null && this.cur.name !== name) this.queue.unshift({ name: this.cur.name, opts: this.cur.opts });
+    const wake = !!opts.wake, dur = name === '日常' ? DAILY[opts.kind][0] + (opts.mishap ? DAILY[opts.kind][1] : 0) : (opts.zap && EVENTS[name].zapDur) || EVENTS[name].durs?.[opts.result] || EVENTS[name].dur;   // zapDur: the longer show after the lightning
     // (robbed: 被偷了 waits while it makes off with the chest, the visit's last moments; endVisit starts it)
     this.cur = { name, opts, start: now, pre: Math.max(wake ? 1000 : 0, opts.tidy || opts.robbed ? FRIZZ : 0), dur, line: this.pick(this.lineKey(name, opts)), wakeLine: wake ? this.pick('冷场后来了人') : null };
     // a round's blind boxes were shaken all the while they came in: the show opens the box right away instead of shaking it again
     if (opts.shaken && BOX_OPEN[name]) this.cur.start -= BOX_OPEN[name];
+    if (opts.until != null) this.cur.dur = Math.min(dur, opts.until - now + PK_SIGN.down);   // a late countdown is shorter
     if (name === '日常') this.nextDaily = now + dur + 20000 + this.rng() * 20000;
     // after the chest game: robbed, she is sad until a gift cheers her up (MOOD_HOLD.robbed at most, its own lines); kept,
     // glad for MOOD_HOLD.kept (and no 日常 meanwhile: those come only when she is 平静)
@@ -797,7 +987,7 @@ class Component extends DCLogic {
   note(s) { this.log = [s, ...this.log].slice(0, 4); }
 
   // A blind box says the lines of its ending, a 日常 its kind's; every other show its own.
-  lineKey(name, opts = {}) { return name === '盲盒查询' ? '账单·' + (opts.result || '赚') : EVENTS[name]?.results ? BOX_LINES[opts.result || '赚'] : name === '日常' ? opts.kind : name === '守住了' && opts.buzzer ? '绝杀守住' : name; }
+  lineKey(name, opts = {}) { return name === '盲盒查询' ? '账单·' + (opts.result || '赚') : name === 'PK·结果' || name === 'PK·比分' ? 'PK·' + (opts.result || '赢') : name === 'PK·挑战' ? 'PK·挑战' + (opts.result || '成功') : EVENTS[name]?.results ? BOX_LINES[opts.result || '赚'] : name === '日常' ? opts.kind : name === '守住了' && opts.buzzer ? '绝杀守住' : name; }
 
   // The endings a show can have, for checking every pose change (tools/check-board.mjs).
   eventVariants(name) { return (EVENTS[name]?.results || [null]).map(r => (r ? { result: r } : {})); }
@@ -923,7 +1113,9 @@ class Component extends DCLogic {
     // (README 2 has it after the main show: a gift thrown at the prankster plays none, so it waits for it to be gone and
     // the chest home; 用户 review: it was lost)
     if (this.gm.top && !this.cur && !this.gm.visit && !this.gm.out && !this.gm.fix && !this.shaking()) { this.gm.top = false; this.start('新的第一名', { chained: true }); }
-    if (!this.cur && this.mood(now) === '平静' && !this.lot && !this.gm.visit && !this.gm.out && !this.gm.fix && now >= this.nextDaily) {   // (nor while the sprite is still taking the chest home or to pat her hair smooth)
+    // (nor while the sprite is still taking the chest home or to pat her hair smooth, nor in a PK: humming or skiing
+    // through it, right after the score swung, made no sense)
+    if (!this.cur && this.mood(now) === '平静' && !this.lot && !this.gm.visit && !this.gm.out && !this.gm.fix && !this.gm.pk && now >= this.nextDaily) {
       const kinds = Object.keys(DAILY), kind = kinds[Math.floor(this.rng() * kinds.length)], mishap = this.rng() < 0.25;
       this.start('日常', { kind, mishap });
     }
@@ -2112,6 +2304,11 @@ class Component extends DCLogic {
       // it looks up at her first, then waves its flag with her
       case '进场': st.pose = 'wave'; hop(0, 8); st.sprite = t < 350 ? 'sLook' : 'flag'; say(100); break;
       case '盲盒查询': this.queryShow(t, st, opts, line, hop); break;
+      case 'PK·双倍条件': case 'PK·2倍': case 'PK·双倍还剩10秒': case 'PK·最后10秒': this.signShow(name, t, st, opts, say); break;
+      case 'PK·对手': this.intelShow(t, st, opts); break;
+      case 'PK·结果': this.pkEndShow(t, st, opts, say, hop); break;
+      case 'PK·比分': this.pkGapShow(t, st, opts, say, hop); break;
+      case 'PK·挑战': this.pkChallengeShow(t, st, opts, say); break;
       // they bow together
       case '普通礼物': st.pose = t < 1500 ? 'bow' : 'idle'; st.sprite = t < 1500 ? 'nod' : 'sHappy'; st.fx.push(['hearts', 200, 3]); say(150); break;
       // it copies her: up beside her shoulder, hiding its face too
@@ -2372,6 +2569,196 @@ class Component extends DCLogic {
     if (reveal > 0) st.bill = { c, x: spot.x, y: spot.y + 2 * Math.sin(t / 500) + 3 * bump(t, q.stamp, q.stamp + 200), h: spot.h, reveal, stampT: stamped && t >= q.stamp ? t - q.stamp : null };
   }
 
+  // B站 PK (PK_SIGN): her sprite glows and the sign flies out of it, small to full size, to over her head as she raises
+  // her empty hands for it (the double bonus's condition: into her hands in front of her, she ducks behind it, peeks over
+  // it, says her line, brings it down to her chest and it glides up as she raises her arms); she lowers her arms and it
+  // flies back into her sprite. The words are on it all the time; a countdown's number pops at each second. Her drawings
+  // with a sign draw it themselves (drawHer); signFly is the sign anywhere else, drawn while her drawing has none.
+  signShow(name, t, st, opts, say) {
+    // a countdown: what was left as it began (until, at: the board's clock now), else the whole of it (the checks' tools)
+    const q = PK_SIGN, count = name.endsWith('10秒'), key = count ? 'count' : name, up = q.pose[key];
+    const begun = count ? (opts.until != null && opts.at != null ? opts.until - opts.at + t : opts.left ?? 10000) : 0, lower = count ? Math.min(q.lower.count, begun) : q.lower[key];
+    const left = count ? begun - t : 0, n = Math.max(0, Math.ceil(left / 1000)), pop = count ? 1 - k01(1000 - (left % 1000 || 1000), 0, 220) : 0;
+    st.sign = SIGN.words(name, opts, n, pop);
+    const hide = name === 'PK·双倍条件', lift = q.hide[1], raised = hide ? lift + q.lift + q.raise : q.fly;
+    const sprite = { x: FOOT.x - SIGN.W / 2 - 30, y: FOOT.y - H * 0.55 };   // beside the sign's left edge, never over its words
+    const glide = (from, to, u) => { const e = ease(u); return { x: from.x + (to.x - from.x) * e, y: from.y + (to.y - from.y) * e, a: from.a + (to.a - from.a) * e, k: from.k + (to.k - from.k) * e }; };
+    const spot = c => ({ ...this.signSpot(st, c), k: 1 }), from = { ...sprite, a: 0, k: 0.15 };
+    if (hide) {
+      // into her hands in front of her (the first in-between of ducking behind it), then, lifting, down to her chest (the
+      // last of them going back) and up over her head as her arms go up
+      const duck = this.hop('idle', 'signHide') || [], chest = duck[0] || this.cell('signHide');
+      st.pose = t < q.fly ? 'idle' : t < lift ? 'signHide' : t < lift + q.lift ? 'idle' : t < lower ? up : 'idle';
+      if (t < q.fly) st.signFly = glide(from, spot(chest), k01(t, 0, q.fly));
+      else if (t >= lift + q.lift && t < raised + 60) st.signFly = glide(spot(chest), spot(this.cell(up)), k01(t, lift + q.lift, raised));
+      if (t >= q.hide[0] && t < lift) { st.fx.push(['sweat', q.hide[0] + 200]); say(q.hide[0] + 150); }
+    } else {
+      st.pose = t < q.fly - q.raise ? 'idle' : t < lower ? up : 'idle';
+      if (t < q.fly + 60) st.signFly = glide(from, spot(this.cell(up)), k01(t, 0, q.fly));
+    }
+    // it waits beside the sign while she hides behind it, goes home under it once it is up, and is back beside it for her
+    // to give it back
+    if (t < q.fly + 150) { st.sprite = 'glow'; st.sp = ['at', sprite.x, sprite.y]; }
+    else if (t >= lower) { st.sprite = t < lower + q.raise + q.back ? 'glow' : 'sHappy'; st.sp = ['at', sprite.x, sprite.y]; }
+    else { st.sprite = 'sLook'; if (hide && t < lift + q.lift) st.sp = ['at', sprite.x, sprite.y]; }
+    if (name === 'PK·2倍' && t >= raised && t < lower) {
+      st.fx.push(['sparkles', q.jump[0][0]]);
+      const [c, j] = [this.cells.pkSign[2], this.cells.pkSign[5]], k = H / c.ruler, drop = ((j.sign.y - j.ground) - (c.sign.y - c.ground)) * k;
+      for (const [a, ms, h] of q.jump) {
+        const lifted = h * Math.sin(Math.PI * k01(t, a, a + ms));
+        if (t < a || t >= a + ms) continue;
+        st.y -= lifted;
+        if (lifted > h * 0.35) { st.pose = 'signJump'; st.y -= drop; }   // in the air: her legs tuck up, her hands and the sign go on
+      }
+    }
+  }
+
+  // B站 PK's 对手情报卡 (INTEL): as the 账单卡, the sprite flies to the card's top right corner and prints it out of
+  // itself, glowing; it taps the card over (a nod) where it has two sides, and goes home down beside the card's right
+  // edge. The card hangs over her head on the side shown, as tall as that side; it turns over edge on, its height too.
+  intelShow(t, st, opts) {
+    const q = INTEL, c = opts.intel || PK_INTEL.SAMPLES['普通'], L = PK_INTEL.layout(this.measureG ??= document.createElement('canvas').getContext('2d'), c);
+    const both = L.front && L.back, turn = both ? ease(k01(t, q.turn[0], q.turn[1])) : L.front ? 0 : 1, h = L[turn < 0.5 ? 'front' : 'back'].h;
+    const x = FOOT.x - PK_INTEL.W / 2, y = Math.max(40, FOOT.y - H - 4 - h);
+    st.pose = at(t, [[0, 'surprised'], [600, 'hope'], ...(both ? [[q.turn[1], 'announce']] : []), [q.done, 'idle']]);
+    if (t >= 1700 && t < q.turn[0]) st.fx.push(['sweat', 1700]);
+    // between its trips to the card's corner it waits at her right, below the card, inside the page; it goes home only
+    // after the turn, low in front of her (never across her face)
+    const corner = ['at', x + PK_INTEL.W - 6, Math.max(SPRITE_H / 2 + 4, y - 4)], side = ['at', Math.min(x + PK_INTEL.W + 22, PAGE.w - 34), FOOT.y - 0.34 * H];
+    if (t < q.print[1]) { st.sprite = t < q.print[0] ? 'sLook' : 'glow'; st.sp = corner; }
+    else if (both && t >= q.turn[0] - 600 && t < q.turn[1] + 300) { st.sprite = t >= q.turn[0] - 100 ? 'nod' : 'sLook'; st.sp = corner; }
+    else if (t < (both ? q.turn[1] + 1100 : q.print[1] + 800)) { st.sprite = 'sLook'; st.sp = side; }
+    else st.sprite = both ? 'sHappy' : 'sLook';
+    const reveal = t < q.print[0] ? 0 : t < q.print[1] ? ease(k01(t, q.print[0], q.print[1])) : 1 - ease(k01(t, q.roll[0], q.roll[1]));
+    if (reveal > 0) st.intel = { c, x, y: y + 2 * Math.sin(t / 500), h, turn, reveal };
+  }
+
+  // B站 PK's result (PK_RESULT), with poses she has. Winning she cheers and thanks her viewers: 大胜 with confetti and
+  // two jumps, then, calming down, she hides her face at how loud she was; 险胜 startled first (that close!). 平局: a
+  // surprised blink, then a nod. Losing: 惜败 she stomps (so close), 输 she droops and her sprite pats her head, 惨败
+  // she squats drawing circles under a little rain cloud (输 and 惨败 looked the same when both drooped); each then bows
+  // her thanks, a second line (·二). Never gloating, never fierce.
+  pkEndShow(t, st, opts, say, hop) {
+    const r = opts.result || '赢', two = LINES[`PK·${r}·二`] && this.saying(`PK·${r}·二`, opts.seed ?? 0), end = EVENTS['PK·结果'].durs[r] - 400;
+    say(150);
+    const steps = {
+      大胜: [[0, 'cheer'], [2800, 'shy']], 赢: [[0, 'cheer'], [1900, 'bow']], 险胜: [[0, 'surprised'], [700, 'cheer'], [2600, 'bow']],
+      平局: [[0, 'surprised'], [800, 'nod']], 惜败: [[0, 'pout'], [1900, 'bow']], 输: [[0, 'dejected'], [2000, 'bow']], 惨败: [[0, 'gloomy'], [2700, 'bow']]
+    }[r];
+    st.pose = at(t, [...steps, [end, 'idle']]);
+    const second = { 大胜: 2900, 惜败: 2000, 输: 2100, 惨败: 2800 }[r];
+    if (two && t >= second) say(second, two);
+    if (r === '大胜') { hop(0, 16); hop(480, 16); st.fx.push(['confetti', 100], ['sparkles', 100]); if (t >= 2900) st.fx.push(['sweat', 3000, 1400]); }
+    if (r === '赢') { hop(0, 12); st.fx.push(['sparkles', 100]); }
+    if (r === '险胜') { st.fx.push(['shock', 0], ['sweat', 100, 1400]); hop(700, 10); if (t >= 700) st.fx.push(['sparkles', 800]); }
+    if (r === '惜败' && t < 1300) { st.y -= 4 * Math.abs(Math.sin(t / 90)); st.fx.push(['anger', 100, 900]); }
+    if (r === '惨败') st.fx.push(['gloom', 0, 2600], ['rain', 200, 2400]);
+    // its sprite: waves its flag for a win, looks up at a 平局, hides its face with hers, pats her head when she lost
+    const win = ['大胜', '赢', '险胜'].includes(r), down = ['dejected', 'gloomy', 'pout'].includes(st.pose);
+    if (st.pose === 'shy') { st.sprite = 'hide'; st.sp = ['rel', -0.04, 0.42]; }
+    else if (st.pose === 'bow' || st.pose === 'nod') st.sprite = 'nod';
+    else if (win) st.sprite = r === '险胜' && t < 700 ? 'surprised' : 'flag';
+    else if (down && r !== '惜败') { st.sprite = 'pat'; st.sp = 'head'; }
+    else st.sprite = down ? 'hide' : 'sLook';
+  }
+
+  // While a PK is on, how it stands has changed (PK_GAP): a short show with poses she has. 反超 she is startled and
+  // cheers with a jump; 被反超 startled, then a frustrated stomp, never fierce; 拉开 she claps under hearts; 被拉开 she
+  // droops and her sprite pats her head; 追近 hands together, hoping, a few sparkles; 被追近 nervous, sweating.
+  pkGapShow(t, st, opts, say, hop) {
+    const r = opts.result || '反超', end = EVENTS['PK·比分'].durs[r] - 300;
+    say(150);
+    // (被反超 goes from startled to stomping by her standing: the shortest way the board found went through opening a
+    // blind box, a box in her hands for a moment)
+    const steps = { 反超: [[0, 'surprised'], [400, 'cheer']], 被反超: [[0, 'surprised'], [1020, 'idle'], [1200, 'pout']], 拉开: [[0, 'clap']],
+      被拉开: [[0, 'dejected']], 追近: [[0, 'hope']], 被追近: [[0, 'hope']] }[r];
+    st.pose = at(t, [...steps, [end, 'idle']]);
+    if (r === '反超') { st.fx.push(['shock', 0]); hop(400, 14); if (t >= 400) st.fx.push(['sparkles', 450]); st.sprite = t < 400 ? 'surprised' : 'flag'; }
+    if (r === '被反超') { st.fx.push(['shock', 0], ['sweat', 200, 1000]); if (t >= 1200 && t < 2200) st.y -= 3 * Math.abs(Math.sin((t - 1200) / 90)); st.sprite = t < 1200 ? 'surprised' : 'hide'; }
+    if (r === '拉开') { st.fx.push(['hearts', 200, 3]); st.sprite = 'sHappy'; }
+    if (r === '被拉开') { st.sprite = 'pat'; st.sp = 'head'; }
+    if (r === '追近') { st.fx.push(['sparkles', 300]); st.sprite = 'sLook'; }
+    if (r === '被追近') { st.fx.push(['sweat', 100, 1800]); st.sprite = 'sLook'; }
+    if (t >= end) { st.sprite = 'sIdle'; st.sp = null; }
+  }
+
+  // Our double bonus challenge (from B站's capsule). Done: a surprised blink, then she claps for her viewers under
+  // sparkles and hearts, her sprite waving its flag. Run out: she droops and her sprite pats her head, then she nods,
+  // picking herself up (·二); never asking for more gifts.
+  pkChallengeShow(t, st, opts, say) {
+    const ok = (opts.result || '成功') === '成功', end = EVENTS['PK·挑战'].durs[ok ? '成功' : '失败'] - 300;
+    say(150);
+    if (ok) {
+      st.pose = at(t, [[0, 'surprised'], [400, 'clap'], [end, 'idle']]);
+      st.sprite = t < 400 ? 'surprised' : 'flag';
+      if (t >= 400) st.fx.push(['sparkles', 450], ['hearts', 600, 3]);
+    } else {
+      st.pose = at(t, [[0, 'dejected'], [1600, 'nod'], [end, 'idle']]);
+      const two = this.saying('PK·挑战失败·二', opts.seed ?? 0);
+      if (t >= 1700) say(1700, two);
+      if (t < 1600) { st.sprite = 'pat'; st.sp = 'head'; } else st.sprite = 'nod';
+    }
+    if (t >= end) { st.sprite = 'sIdle'; st.sp = null; }
+  }
+
+  // The scores of a PK on the board: each change checked against how it stood (PK_GAP), the show fired if one is due and
+  // the last was COOL ago; the caption says the score and what came of it.
+  pkScore(ours, theirs) {
+    const now = this.now(), clock = this.pkClock(now) ?? now, a = this.pkGap || PK_GAP.stand(0, 0), b = PK_GAP.stand(ours, theirs, a), show = PK_GAP.show(a, b);
+    this.pkGap = b;
+    const cool = show && this.pkGapAt != null && clock - this.pkGapAt < PK_GAP.COOL;
+    this.note(`PK 比分 ${ours} : ${theirs}` + (show ? `：${show}` + (cool ? `（离上次不到 20 秒，不演）` : '') : ''));
+    // the 20 s count from a show that played, not one let go because she was busy
+    if (show && !cool) { this.fire('PK·比分', { result: show }); if (this.cur?.name === 'PK·比分' && this.cur.start === now) this.pkGapAt = clock; }
+  }
+
+  // 整场 PK (PK_DEMO): from the match, in real time or fast; what happens is fired as B站 would set it off.
+  pkDemoStart(fast) {
+    Object.assign(this, { cur: null, queue: [], pkGap: null, pkGapAt: null, pkDemo: { at: this.now(), fast, i: 0, ours: 0, theirs: 0, cap: '' } });
+    this.note(`整场 PK 开始（${fast ? '快进' : '真实时间'}）`);
+  }
+  // The PK's own clock (ms from its start; the match is at -10 s), while 整场 PK plays; fast, read off PK_DEMO's pairs.
+  pkClock(now) {
+    const d = this.pkDemo; if (!d) return null;
+    const e = now - d.at; if (!d.fast) return e - 10000;
+    const k = Math.max(0, PK_DEMO.findLastIndex(s => s[1] <= e)), [s0, d0] = PK_DEMO[k], [s1, d1] = PK_DEMO[Math.min(k + 1, PK_DEMO.length - 1)];
+    return 1000 * (d1 > d0 ? s0 + (s1 - s0) * Math.min(1, (e - d0) / (d1 - d0)) : s0);
+  }
+  pkDemoStep(now) {
+    const d = this.pkDemo, e = now - d.at;
+    while (d.i < PK_DEMO.length && (d.fast ? PK_DEMO[d.i][1] : (PK_DEMO[d.i][0] + 10) * 1000) <= e) {
+      const [, , what, a, b] = PK_DEMO[d.i++];
+      // in a PK from the match on (PK_BATTLE_PRE_NEW), not from its start: in the 0.5 s between the card and the start
+      // she went off on a daily action
+      if (what === 'match') { this.pkOn(true); this.fire('PK·对手', { intel: PK_INTEL.SAMPLES['普通'] }); d.cap = '匹配上，10 秒后开打'; }
+      if (what === 'start') d.cap = '首次送礼翻倍中';
+      if (what === 'score') { d.ours = a; d.theirs = b; this.pkScore(a, b); }
+      if (what === 'capsule') { this.fire('PK·双倍条件', { text: a }); d.cap = a; }
+      if (what === 'challenge') { this.fire('PK·挑战', { result: a }); d.cap = a === '成功' ? '挑战成功，190 秒翻倍' : '挑战失败'; }
+      if (what === 'gift') { if (a === '舰长') this.fire('舰长', { price: 1980 }); else this.give([{ gift: a, price: 10, n: 1 }]); }
+      if (what === 'double') { this.fire('PK·2倍'); d.cap = '2倍加成中（到 250 秒）'; }
+      if (what === 'doubleEnd') this.fire('PK·双倍还剩10秒', { left: 10000 });
+      if (what === 'doubleOver') d.cap = '双倍结束';
+      if (what === 'last10') this.fire('PK·最后10秒', { left: 10000 });
+      if (what === 'end') {
+        const result = PK_RESULT.of(d.ours, d.theirs); this.pkOn(false); this.pkGap = null;
+        this.note(`PK 结束：我们 ${d.ours} : 对面 ${d.theirs} → ${result}`); this.fire('PK·结果', { result, ours: d.ours, theirs: d.theirs }); d.cap = '结束：' + result;
+      }
+      if (what === 'done') { this.pkDemo = null; if (this.cfg.scene === '整场 PK') this.pkDemoNext = now + 3000; return; }
+    }
+  }
+
+  // The 对手情报卡 as far as it has come out (reveal), its top first, with the curl of paper at the edge (as drawBill).
+  drawIntel(g, v) {
+    const edge = v.y + v.h * v.reveal;
+    g.save(); g.beginPath(); g.rect(v.x - 80, v.y - 80, PK_INTEL.W + 160, edge - v.y + 80); g.clip();
+    PK_INTEL.draw(g, v.c, v.x, v.y, v.turn); g.restore();
+    if (v.reveal < 1) {
+      g.save(); g.fillStyle = '#FFFDF9'; g.strokeStyle = '#A9C1F5'; g.lineWidth = 2; g.shadowColor = 'rgba(40,40,80,0.3)'; g.shadowBlur = 6; g.shadowOffsetY = 2;
+      g.beginPath(); g.roundRect(v.x - 4, edge - 8, PK_INTEL.W + 8, 16, 8); g.fill(); g.stroke(); g.restore();
+    }
+  }
+
   // The card as far as it has come out (reveal), its top first; a curl of paper at the edge while it unrolls or rolls up.
   drawBill(g, b) {
     const edge = b.y + b.h * b.reveal;
@@ -2545,8 +2932,10 @@ class Component extends DCLogic {
     }
     const now = this.clock = this.now();
     let st;
-    if (this.cfg.scene === '手动' || this.cfg.scene === '演示') {
+    if (['手动', '演示', '整场 PK'].includes(this.cfg.scene)) {
       if (this.cfg.scene === '演示') this.demo(now);
+      if (this.cfg.scene === '整场 PK' && !this.pkDemo && now >= (this.pkDemoNext ?? 0)) this.pkDemoStart(true);
+      if (this.pkDemo) this.pkDemoStep(now);
       this.update(now);
       const c = this.cur;
       if (c && now < c.start + c.pre && !c.wakeLine) {   // the chest game tidies up before the show
@@ -2556,7 +2945,7 @@ class Component extends DCLogic {
         if (c.opts.kept) for (const a of [300, 1100]) st.y -= 12 * bump(now - c.start, a, a + 320);   // saved by the gift, she cheers (kept)
       }
       else if (c && now < c.start + c.pre) { st = this.base(); st.pose = 'awake'; st.sprite = 'surprised'; st.fx.push(['bang', c.start], ['shock', c.start], ['sweat', c.start + 200]); st.y -= 10 * bump(now - c.start, 0, 300); st.bubble = { text: this.fill(c.wakeLine), t: now - c.start }; }
-      else if (c) { st = this.eventState(c.name, now - c.start - c.pre, { ...c.opts, seed: Math.floor(c.start) }, this.fill(c.line, c.name, c.opts)); if (c.name === '城堡' && st.bubble?.at) st.bubble.text = this.fill(c.gateLine || (c.gateLine = this.pick('城堡·门口'))); }
+      else if (c) { st = this.eventState(c.name, now - c.start - c.pre, { ...c.opts, seed: Math.floor(c.start), at: now }, this.fill(c.line, c.name, c.opts)); if (c.name === '城堡' && st.bubble?.at) st.bubble.text = this.fill(c.gateLine || (c.gateLine = this.pick('城堡·门口'))); }
       // only blind boxes have a state of their own while the round comes in (she shakes them); gifts have played at once,
       // and once their show is over she is herself again, not holding the 中礼物's box (she used to pick it up after a
       // plain thank-you, until the round's 3 s were up)
@@ -2609,8 +2998,21 @@ class Component extends DCLogic {
     if (sp) { this.trail = (this.trail || []).filter(q => rt - q.rt < 420); if (st.sprite === 'glow') this.trail.push({ x: sp.x, y: sp.y, rt }); }
     for (const f of st.fx) if (BACK.has(f[0])) this.drawFx(g, f, st, her, now);
     if (st.bill) this.drawBill(g, st.bill);   // behind her: a long card comes down behind her hair
+    if (st.intel) { this.drawIntel(g, st.intel); this.intelHeld = st.intel; }
+    // cut off by a bigger show, the card rolls itself up where it hung, as at its own end (it used to vanish)
+    else if (this.intelHeld) { this.intelBack = { ...this.intelHeld, at: rt }; this.intelHeld = null; }
+    if (this.intelBack) {
+      const f = this.intelBack, u = k01((rt - f.at) * this.cfg.speed, 0, INTEL.roll[1] - INTEL.roll[0]);
+      if (u >= 1) this.intelBack = null; else this.drawIntel(g, { ...f, reveal: f.reveal * (1 - ease(u)) });
+    }
     if (sp && st.sBehind) this.drawSprite(g, st, sp, now);
     if (!st.hide) this.drawHer(g, st, now);
+    const flying = (f, words) => { g.save(); g.translate(f.x, f.y); g.rotate(f.a); g.scale(f.k, f.k); g.translate(-SIGN.W / 2, -SIGN.H / 2); SIGN.draw(g, words); g.restore(); };
+    if (st.signFly && !this.signShown) flying(st.signFly, st.sign || []);
+    if (this.signBack) {   // let go of: from where she held it, small, into her sprite
+      const f = this.signBack, u = ease(k01((rt - f.at) * this.cfg.speed, 0, PK_SIGN.back)), to = sp || this.home(now);
+      if (u >= 1) this.signBack = null; else flying({ x: f.x + (to.x - f.x) * u, y: f.y + (to.y - f.y) * u, a: f.a * (1 - u), k: 1 - 0.85 * u }, f.words);
+    }
     if (sp && !st.sBehind && !st.sOver) this.drawSprite(g, st, sp, now);
     if (st.gift) this.drawGift(g, st.gift);
     for (const f of st.fx) if (!BACK.has(f[0])) this.drawFx(g, f, st, her, now);
@@ -2684,7 +3086,31 @@ class Component extends DCLogic {
     const x = st.x + (st.slide && hv.tween?.[i] ? (hv.fromX - st.x) * (1 - (i + 1) / (hv.tween.length + 1)) : 0), b = this.herBox({ ...st, x }, c);
     hv.x = st.x;
     g.save(); g.translate(x, st.y); g.scale(st.sx / Math.sqrt(s), s); g.translate(-x, -st.y);
-    g.drawImage(c.im, c.x, c.y, c.w, c.h, b.x, b.y, b.w, b.h); g.restore();
+    g.drawImage(c.im, c.x, c.y, c.w, c.h, b.x, b.y, b.w, b.h);
+    // her PK sign keeps its words while she lets it go, whatever made her (her show's end, a bigger show cutting in on
+    // the in-betweens), and once it is out of her hands it flies back into her sprite (frame: signBack)
+    this.signShown = !!c.sign;
+    if (c.sign) { const words = this.signWords = st.sign || this.signWords || []; this.drawSignOn(g, c, b, words); this.signHeld = { ...this.signSpot({ ...st, x }, c), words }; }
+    else if (this.signHeld) { if (!st.signFly) this.signBack = { ...this.signHeld, at: rt }; this.signHeld = null; }   // (signFly: her show carries it on)
+    g.restore();
+  }
+
+  // Her PK sign where the drawing c had codex's, and her hands that hold it over it again: her drawing inside the edge
+  // of codex's sign her hands were at (it was wiped there, all but her hands), wherever that edge is on this taller sign.
+  drawSignOn(g, c, b, words) {
+    const s = c.sign, x = b.x + (s.x - c.x) * b.k, y = b.y + (s.y - c.y) * b.k, h = s.h * b.k;
+    const edge = s.e === 'b' ? (s.hold === 'b' ? 0 : -h) : (s.hold === 't' ? 0 : h), band = s.hold === 'b' ? edge - SIGN.HOLD : edge;
+    g.save(); g.translate(x, y); g.rotate(s.a); g.translate(-SIGN.W / 2, s.e === 'b' ? -SIGN.H : 0); SIGN.draw(g, words); g.restore();
+    g.save(); g.translate(x, y); g.rotate(s.a); g.beginPath(); g.rect(-SIGN.W / 2 + 8, band, SIGN.W - 16, SIGN.HOLD);
+    g.rotate(-s.a); g.translate(-x, -y); g.clip(); g.drawImage(c.im, c.x, c.y, c.w, c.h, b.x, b.y, b.w, b.h); g.restore();
+  }
+
+  // Where the drawing c of a pose has its sign on the page (her standing at st): its middle and tilt, for the sign flying
+  // to or from it (a flying sign is laid by its middle: one laid by its bottom edge going into hands that hold it by the
+  // top edge jumped its own height)
+  signSpot(st, c) {
+    const b = this.herBox(st, c), s = c.sign, x = b.x + (s.x - c.x) * b.k, y = b.y + (s.y - c.y) * b.k, d = (s.e === 'b' ? -1 : 1) * SIGN.H / 2;
+    return { x: x - Math.sin(s.a) * d, y: y + Math.cos(s.a) * d, a: s.a };
   }
 
   // The sprite flies to where it is wanted instead of jumping there; its speed decides which way it faces.
@@ -3330,7 +3756,9 @@ class Component extends DCLogic {
   drawCaption(g, st, now, px, py) {
     const c = this.cur, mood = this.mood(now);
     const rows = [];
-    if (['手动', '演示'].includes(this.cfg.scene)) {
+    if (['手动', '演示', '整场 PK'].includes(this.cfg.scene)) {
+      if (this.pkDemo) { const s = this.pkClock(now) / 1000, m = Math.floor(Math.abs(s) / 60), ss = String(Math.floor(Math.abs(s) % 60)).padStart(2, '0');
+        rows.push(`整场 PK（${this.pkDemo.fast ? '快进' : '真实时间'}）：${s < 0 ? `匹配上，${Math.ceil(-s)} 秒后开打` : `开打 ${m}:${ss}`} · 我们 ${this.pkDemo.ours} : 对面 ${this.pkDemo.theirs} · ${this.pkDemo.cap}`); }
       if (this.announced && now - this.announced.at < 8000) rows.push(`机器人播报：${this.announced.text}`);
       if (this.round) rows.push(`一轮送礼：${this.round.items.reduce((a, x) => a + x.n, 0)} 份，停手 ${((now - this.round.last) / 1000).toFixed(1)} 秒`);
       rows.push(c ? `演出：${c.name === '日常' ? '日常·' + c.opts.kind + (c.opts.mishap ? '（出事）' : '') : c.name + (c.opts.result ? '·' + c.opts.result : '')}（${EVENTS[c.name].tier} 档）${((now - c.start) / 1000).toFixed(1)} / ${((c.pre + c.dur) / 1000).toFixed(1)} 秒` : '演出：没有');
@@ -3383,6 +3811,24 @@ class Component extends DCLogic {
     };
     group('盲盒查询', [['今日·赚', ask('赚', '今日', 15, 4.5)], ['今日·回本', ask('回本', '今日', 15, 0)], ['今日·亏', ask('亏', '今日', 45, -12.5)],
       ['今日·没有记录', ask('没有记录', '今日')], ['本月·赚（大数字）', ask('赚', '本月', 131452, 8888.8)], ['今年·亏（大数字）', ask('亏', '今年', 1314520, -987654.3)]]);
+    // B站 PK (README 15): the 对手情报卡 for each of lib/pk-intel.js's cases; one B站 answered nothing for is not shown
+    const intel = c => () => { const L = PK_INTEL.layout(this.measureG ??= document.createElement('canvas').getContext('2d'), c);
+      if (!L.front && !L.back) return this.note('PK·对手：什么都没查到，不演'); this.fire('PK·对手', { intel: c }); };
+    group('PK 对手', [...Object.entries(PK_INTEL.SAMPLES).map(([k, c]) => [k, intel(c)]), ['什么都没查到', intel({ name: '星星点灯' })]]);
+    group('整场 PK', [['快进（约 93 秒）', () => this.pkDemoStart(true)], ['真实时间（5 分 25 秒）', () => this.pkDemoStart(false)], ['停', () => { this.pkDemo = null; this.pkOn(false); this.note('整场 PK 停了'); }]]);
+    group('PK 双倍挑战', [['挑战成功', () => this.fire('PK·挑战', { result: '成功' })], ['挑战失败', () => this.fire('PK·挑战', { result: '失败' })]]);
+    // B站 PK's score while it is on: move it and see what she does (PK_GAP; 20 s between shows), or play each show
+    const move = (o, t) => () => { if (!this.gm.pk) this.pkOn(true); const s = this.pkGap || PK_GAP.stand(0, 0); this.pkScore(Math.max(0, s.ours + o), Math.max(0, s.theirs + t)); };
+    group('PK 比分', [['PK 开始（0 : 0）', () => { this.pkOn(true); this.pkGap = null; this.pkGapAt = null; this.note('PK 开始，比分 0 : 0'); }],
+      ['我们 +300', move(300, 0)], ['对面 +300', move(0, 300)], ['我们 +3000', move(3000, 0)], ['对面 +3000', move(0, 3000)],
+      ...EVENTS['PK·比分'].results.map(r => [`直接演：${r}`, () => this.fire('PK·比分', { result: r })])]);
+    // B站 PK's result, each ending with a score that gives it; the ending is worked out from the score (PK_RESULT.of)
+    group('PK 结果', Object.entries(PK_RESULT.samples).map(([k, [ours, theirs]]) => [`${k}（${ours} : ${theirs}）`, () => {
+      const result = PK_RESULT.of(ours, theirs); this.note(`PK 结果：我们 ${ours} : 对面 ${theirs} → ${result}`); this.pkOn(false); this.pkGap = null; this.fire('PK·结果', { result, ours, theirs });
+    }]));
+    // B站 PK (README 15): her sign shows, each by itself; 双倍条件 with B站's own words (差10票翻倍, 差1人翻倍)
+    group('PK 举牌', [['双倍条件·差10票', () => this.fire('PK·双倍条件', { text: '差10票翻倍' })], ['双倍条件·差1人', () => this.fire('PK·双倍条件', { text: '差1人翻倍' })],
+      ['2倍加成中', () => this.fire('PK·2倍')], ['双倍还剩10秒', () => this.fire('PK·双倍还剩10秒', { left: 10000 })], ['最后10秒', () => this.fire('PK·最后10秒', { left: 10000 })]]);
     group('抽奖', [['报名开场', f('报名开场')], ['报名截止', f('报名截止')], ['奖池开场', f('奖池开场')], ['奖池点名', f('奖池点名')], ['奖池转动', f('奖池转动')],
       ['揭晓·大奖', f('揭晓·大奖')], ['揭晓·二奖', f('揭晓·二奖')], ['揭晓·三奖', f('揭晓·三奖')], ['没人报名', f('没人报名')], ['抽奖结束', f('抽奖结束')]]);
     const d = (kind, mishap) => () => this.fire('日常', { kind, mishap });

@@ -1,0 +1,88 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<title>DP PK 对手情报卡</title>
+<script src="./support.js"></script>
+<script src="/_blob/ea344d2c81956f70cf3b08e123dd766d"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<style>body{margin:0}
+@font-face{font-family:'Noto Sans SC';font-weight:500;src:url('/_blob/48cc515e9c60d77ebe1eda886747bdff') format('woff2')}
+@font-face{font-family:'Noto Sans SC';font-weight:800;src:url('/_blob/41d8525849b7a8d447ae4e7153b45c52') format('woff2')}</style>
+</helmet>
+<div style="position: relative; width: 1920px; height: 1080px; overflow: hidden">
+  <canvas id="pi-cv" width="1920" height="1080" aria-hidden="true" style="position: absolute; inset: 0; width: 1920px; height: 1080px"></canvas>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"view":{"editor":"enum","options":["样式一览","画面上"],"default":"样式一览"},"room":{"editor":"enum","options":["明亮画面","深色房间","透明"],"default":"明亮画面"},"case":{"editor":"enum","options":["普通","最高段位","只查到一部分","长名字没人上榜","新人"],"default":"普通"},"side":{"editor":"enum","options":["正面","背面"],"default":"正面"},"$preview":{"width":1920,"height":1080}}'>
+// B站 PK 对手情报卡: what her sprite prints over her head when a 1-on-1 PK is matched (README 15). The card itself is
+// lib/pk-intel.js (PK_INTEL), the same drawing DP-DesktopPet's 「PK 对手」 buttons play; this board lays its cases out.
+const BLOB = { day: '44e8beefd8e45a42a6db32a53b6a334b', idle: '528beadfc04d1d591ee7057771afab95' };
+const PAGE = { x: 1400, y: 420, w: 480, h: 640 }, H = 250, FOOT = { x: 240, y: 626 };
+const F = (w, px) => `${w} ${px}px "Noto Sans SC"`;
+
+function tag(g, lines, x, y, maxW) {
+  g.save(); g.font = F(500, 18); g.textAlign = 'left'; g.textBaseline = 'top';
+  const w = Math.min(maxW, Math.max(...lines.map(l => g.measureText(l).width)) + 20);
+  g.fillStyle = 'rgba(20,16,28,0.72)'; g.beginPath(); g.roundRect(x, y, w, lines.length * 26 + 12, 8); g.fill();
+  g.fillStyle = '#fff'; lines.forEach((l, i) => g.fillText(l, x + 10, y + 6 + i * 26)); g.restore();
+  return lines.length * 26 + 12;
+}
+
+// where the card hangs on the page: over her head, its top at least 40 px from the page's top (as the 账单卡)
+const cardY = h => Math.max(40, FOOT.y - H - 4 - h);
+
+class Component extends DCLogic {
+  renderVals() { return {}; }
+  async componentDidMount() {
+    const load = id => new Promise((ok, no) => { const i = new Image(); i.onload = () => ok(i); i.onerror = no; i.src = '/_blob/' + id; });
+    const [day, idle] = await Promise.all([load(BLOB.day), load(BLOB.idle), document.fonts.load(F(500, 18)), document.fonts.load(F(800, 18))]);
+    const g = document.getElementById('pi-cv').getContext('2d'), p = this.props;
+    const room = p.room || '明亮画面';
+    if (room === '明亮画面') { const r = Math.max(1920 / day.width, 1080 / day.height); g.drawImage(day, 0, 0, day.width * r, day.height * r); }
+    else if (room === '深色房间') { const gr = g.createLinearGradient(0, 0, 0, 1080); gr.addColorStop(0, '#2b3048'); gr.addColorStop(1, '#151826'); g.fillStyle = gr; g.fillRect(0, 0, 1920, 1080); }
+    if ((p.view || '样式一览') === '样式一览') this.sheet(g); else this.onStream(g, idle, p);
+  }
+
+  // Every case: its front on the top row, its back under it (a case with no back, or no front, says so).
+  sheet(g) {
+    tag(g, ['PK 对手情报卡 · 样式一览（1:1，1080p 直播画面上的大小）', '上排正面「对手情报」，下排背面「对面在线榜前三」：精灵吐出卡，一半时把它翻过来。B站 没答上来的项不画，一面都没有就不翻。'], 40, 30, 1840);
+    const names = Object.keys(PK_INTEL.SAMPLES), pitch = 372, x0 = 1920 / 2 - (names.length * pitch - 24) / 2, s = 348 / PK_INTEL.W;
+    names.forEach((name, i) => {
+      const c = PK_INTEL.SAMPLES[name], L = PK_INTEL.layout(g, c), x = x0 + i * pitch;
+      tag(g, [name], x, 104, 300);
+      for (const [side, y] of [[0, 150], [1, 590]]) {
+        g.save(); g.translate(x, y); g.scale(s, s);
+        if (L[side ? 'back' : 'front']) PK_INTEL.draw(g, c, 0, 0, side);
+        else { g.restore(); tag(g, [side ? '（在线榜没人：不翻面）' : '（什么都没查到：只有背面）'], x, y, 320); continue; }
+        g.restore();
+      }
+    });
+    tag(g, ['（这一排缩到 87%，好让五种并排；“画面上”是 1:1）'], 40, 1030, 600);
+  }
+
+  // The card where it hangs over her head on the page in the stream's bottom right corner; her standing drawing, faint, is
+  // the ruler for its size and place.
+  onStream(g, idle, p) {
+    const c = PK_INTEL.SAMPLES[p.case || '普通'], side = p.side === '背面' ? 1 : 0, L = PK_INTEL.layout(g, c);
+    g.save(); g.translate(PAGE.x, PAGE.y);
+    g.save(); g.strokeStyle = 'rgba(255,255,255,0.85)'; g.lineWidth = 2; g.setLineDash([10, 8]); g.strokeRect(0, 0, PAGE.w, PAGE.h); g.restore();
+    const cw = idle.height, off = new OffscreenCanvas(cw, cw), o = off.getContext('2d'); o.drawImage(idle, 0, 0, cw, cw, 0, 0, cw, cw);
+    const a = o.getImageData(0, 0, cw, cw).data; let top = cw, bottom = 0, left = cw, right = 0;
+    for (let yy = 0; yy < cw; yy++) for (let xx = 0; xx < cw; xx++) if (a[(yy * cw + xx) * 4 + 3] > 40) { top = Math.min(top, yy); bottom = Math.max(bottom, yy); left = Math.min(left, xx); right = Math.max(right, xx); }
+    const shown = L[side ? 'back' : 'front'] ? side : 1 - side, h = L[shown ? 'back' : 'front'].h, k = H / (bottom - top), bw = (right - left) * k, y = cardY(h);
+    PK_INTEL.draw(g, c, FOOT.x - PK_INTEL.W / 2, y, shown);
+    g.globalAlpha = 0.4; g.drawImage(idle, left, top, right - left, bottom - top, FOOT.x - bw / 2, FOOT.y - H, bw, H); g.globalAlpha = 1;
+    g.restore();
+    tag(g, ['PK 对手情报卡 · 画面上（页面 480 × 640，放在直播画面右下角）',
+      'PK 匹配上、开打前 10 秒，精灵飞到她头顶，吐出这张卡；一半时把它翻到背面。卡画在她身后，长的卡往下压到她头发后面一点。',
+      '半透明的站姿只当尺子，动起来的样子在 DP-DesktopPet 画板的「PK 对手」按钮。',
+      `卡宽 ${PK_INTEL.W} px，这一面高 ${h} px（每面按自己的内容高，翻面侧成一条线时换），卡顶离页面顶 ${Math.round(y)} px。`], 60, 40, 1100);
+  }
+}
+</script>
+</body>
+</html>
