@@ -55,6 +55,10 @@ cases.push({ id: 'bigGift-newFirst', ms: at(8600, [6200, 7000, 7700]),
   board: `dc.give([{ gift: '小电视飞船', price: 12450, n: 1, top: true }])`,
   page: `pet.ranked(${ranks([[2, '甲', 5]])}); told(pet, STAR, { items: itemsOf([{ gift: '小电视飞船', price: 12450, n: 1 }]) });
     pet.ranked(${ranks([[1, '星河', 1], [2, '甲', 5]])})` });
+// A 最后10秒 cut short by a big gift: she lets go of her sign, which flies back into her sprite, its words on it.
+cases.push({ id: 'pkLastSeconds-cut', ms: [1900, 2050, 2150, 2250, 2350, 2450, 2550, 2650, 2800],
+  board: `dc.start('PK·最后10秒', {}); later(2000, () => dc.start('大礼物', {}))`,
+  page: `pet.start('pkLastSeconds', {}); later(2000, () => pet.start('bigGift', { nickname: '星河' }))` });
 // The 宝箱小游戏's routes: the board's own steps, which the page plays through drive (routes.mjs).
 for (const [route, steps] of Object.entries(ROUTES)) cases.push({ id: 'game-' + route, steps });
 const chosen = args.length ? cases.filter(c => args.includes(c.id)) : cases;
@@ -102,8 +106,9 @@ const SNAP = `async (c, m, keep, res) => {
   res[c.id][m] = keep.includes(c.id + ':' + m) ? { hash, png: crop.toDataURL('image/png') } : { hash };
 }`;
 // Starting a case afresh: what the board's reset leaves of the case before (the sprite's flight and drawing, her in-betweens,
-// the 捣蛋鬼's, the chest's swing, the hair she had patted and the line she waited to say, the 心情 the game left her in).
-const AFRESH = `reset(); x.sv = x.hv = x.sc = x.orb = x.bubSide = x.pv = x.sw = x.pat = x.lineWait = x.sTarget = x.moodHold = null; x.rt = undefined; x.trail = []; x.nextDaily = Infinity;`;
+// the 捣蛋鬼's, the chest's swing, the hair she had patted and the line she waited to say, the 心情 the game left her in, the PK
+// sign she held and the one flying back).
+const AFRESH = `reset(); x.sv = x.hv = x.sc = x.orb = x.bubSide = x.pv = x.sw = x.pat = x.lineWait = x.sTarget = x.moodHold = x.signHeld = x.signBack = null; x.rt = undefined; x.trail = []; x.nextDaily = Infinity;`;
 
 // Plays one case from T0 on a grid of 60 frames a second, a gift or a result in the frame at or after its time, and keeps
 // each moment's hash (and picture, for the moments of keep) in the first frame at or after it.

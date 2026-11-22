@@ -300,6 +300,46 @@ public sealed class DesktopPetBrowserTests
     }
 
     [Fact]
+    public async Task A_first_PK_sign_show_while_her_signs_pictures_still_load_has_her_stand_as_she_was()
+    {
+        await using var page = await StartAsync();
+        await page.OpenAsync(480, 640);
+
+        // (her sign's sheet loads as the show starts, not with the page)
+        var drawn = await page.Browser.EvaluateAsync("""
+            (() => {
+              const loaded = !!pet.cells[pet.art.poses.signUp[0]];
+              pet.start('pkLastSeconds', {}); pet.frame();
+              return JSON.stringify([loaded, pet.hv.pose, pet.signShown]);
+            })()
+            """);
+
+        Assert.Equal("""[false,"idle",false]""", drawn.GetString());
+        Assert.Empty(page.Browser.Errors);
+    }
+
+    [Fact]
+    public async Task Her_PK_sign_fits_the_widest_double_bonus_conditions_at_full_size()
+    {
+        await using var page = await StartAsync();
+        await page.OpenAsync(480, 640);
+
+        // each condition's first row in her sign's fonts, and the width inside its border (the board checks it as it loads)
+        var measured = await page.Browser.EvaluateAsync("""
+            (async () => {
+              const { SIGN } = await import('/desktop-pet/sign.mjs'), { SANS } = await import('/gift-board/paint.mjs'), g = document.createElement('canvas').getContext('2d');
+              const wide = row => row.reduce((width, [text, weight, px]) => (g.font = `${weight} ${px}px ${SANS}`, width + g.measureText(text).width), 0);
+              return [SIGN.W - 2 * SIGN.PAD, ...['差9999票翻倍', '差1.2万票翻倍', '差1人翻倍', '差99999票翻倍', '差12.3万票翻倍'].map(text => wide(SIGN.words('pkCondition', { text })[0]))];
+            })()
+            """);
+
+        var (inside, widths) = (measured[0].GetDouble(), measured.EnumerateArray().Skip(1).Select(width => width.GetDouble()).ToList());
+        Assert.Equal(5, widths.Count);
+        Assert.All(widths, width => Assert.InRange(width, 1, inside));
+        Assert.Empty(page.Browser.Errors);
+    }
+
+    [Fact]
     public async Task A_frame_that_throws_loses_only_itself()
     {
         await using var page = await StartAsync();
