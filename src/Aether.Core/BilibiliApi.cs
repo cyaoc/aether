@@ -94,7 +94,7 @@ internal sealed class BilibiliApi
             var viewers = data.TryGetProperty("item", out var items) && items.ValueKind == JsonValueKind.Array
                 ? items.EnumerateArray()
                     .Where(item => item.GetProperty("uid").GetInt64() > 0)
-                    .Select(item => new OnlineRankViewer(item.GetProperty("uid").GetInt64(), item.GetProperty("name").GetString() ?? ""))
+                    .Select(RankViewer)
                     .ToArray()
                 : [];
             return new(data.GetProperty("count").GetInt32(), viewers);
@@ -109,6 +109,21 @@ internal sealed class BilibiliApi
             throw new InvalidOperationException($"读取在线榜失败：{error.Message}", error);
         }
     }
+
+    /// <summary>An 在线榜 item. What only the 对手情报卡 shows is 0 when B站 leaves it out, so picking a viewer never fails on it.</summary>
+    private static OnlineRankViewer RankViewer(JsonElement item)
+    {
+        var medal = item.TryGetProperty("uinfo", out var uinfo) && uinfo.ValueKind == JsonValueKind.Object
+            && uinfo.TryGetProperty("medal", out var worn) ? worn : default;
+        return new(item.GetProperty("uid").GetInt64(), item.GetProperty("name").GetString() ?? "")
+        {
+            Score = NumberOrZero(item, "score"), Wealth = (int)NumberOrZero(item, "wealth_level"),
+            Guard = (int)NumberOrZero(item, "guard_level"), MedalLevel = (int)NumberOrZero(medal, "level"), MedalOwner = NumberOrZero(medal, "ruid"),
+        };
+    }
+
+    private static long NumberOrZero(JsonElement parent, string name) => parent.ValueKind == JsonValueKind.Object
+        && parent.TryGetProperty(name, out var value) && value.ValueKind == JsonValueKind.Number && value.TryGetInt64(out var number) ? number : 0;
 
     public async Task<(long Mid, string Buvid, string Token, Uri Server)> GetConnectionAsync(
         long realRoomId, CancellationToken cancellationToken)
