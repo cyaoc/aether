@@ -204,6 +204,20 @@ public sealed class DesktopPetPkTests : IAsyncDisposable
         Assert.Empty(await ToldAsync(pet));
     }
 
+    [Fact]
+    public async Task A_doubling_first_told_without_a_timestamp_is_counted_down_by_the_next_pk_info_that_has_one()
+    {
+        var (updates, pet) = await WatchAsync();
+        var info = Info(members: [Member(Ours, capsules: Capsules((4, "2倍加成中", Now() + 20))), Member(OpponentRoom)]);
+
+        await h.PushAndSyncAsync(updates, PreNew(), info.Replace($",\"timestamp\":{Now()}", "", StringComparison.Ordinal), info, info);
+        h.Time.Advance(TimeSpan.FromSeconds(10));
+        await h.PushAndSyncAsync(updates);
+        Assert.Equal(["pkDouble {}"], await ToldAsync(pet, DesktopPet.PkDouble));
+
+        Assert.Equal(["pkCountdown {\"kind\":\"double\",\"leftMs\":10000}"], await ToldAsync(pet, DesktopPet.PkCountdown));
+    }
+
     [Theory]
     [InlineData("""{"capsule_type":5,"end_time":0,"url":""}""")]
     [InlineData("""{"capsule_type":5,"text":"挑战成功","url":""}""")]

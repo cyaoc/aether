@@ -22,6 +22,7 @@ internal sealed class DesktopPetPk(long roomId, StepTimers timers, Action<string
     // What one PK tells once only.
     private readonly HashSet<string> once = [];
     private bool? oneOnOne;
+    private bool doubleCounted;
     // Looked up, waiting for a PK_INFO to say whether the PK is 1-on-1.
     private OpponentCard? card;
     private bool over;
@@ -77,10 +78,11 @@ internal sealed class DesktopPetPk(long roomId, StepTimers timers, Action<string
     /// PK_INFO said what it was.</summary>
     private void TakeCapsule(PkCapsule capsule, long? sent, long receivedAt)
     {
-        if (capsule is { Type: DoubleCapsule, Text: Doubling } && once.Add(DesktopPet.PkDouble))
+        if (capsule is { Type: DoubleCapsule, Text: Doubling })
         {
-            Tell(DesktopPet.PkDouble, new { });
-            if (sent is { } at) Countdown("double", capsule.EndTime, at, receivedAt);
+            TellOnce(DesktopPet.PkDouble, new { });
+            // counted down by the first PK_INFO with a timestamp, which need not be the first to tell the doubling
+            if (sent is { } at && !doubleCounted) { doubleCounted = true; Countdown("double", capsule.EndTime, at, receivedAt); }
         }
         else if (capsule.Type == DoubleCapsule && capsule.Text.StartsWith('差') && capsule.Text.EndsWith("翻倍", StringComparison.Ordinal))
             TellOnce(DesktopPet.PkCondition, new { text = capsule.Text });
