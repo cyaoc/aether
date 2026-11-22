@@ -9,6 +9,8 @@ internal static class OpponentCardFixture
     public const string RoomInfo = "https://api.live.bilibili.com/room/v1/Room/get_info";
     public const string Guards = "https://api.live.bilibili.com/xlive/app-room/v2/guardTab/topListNew";
     public const string OnlineRankUrl = "https://api.live.bilibili.com/xlive/general-interface/v1/rank/queryContributionRank";
+    // The four questions asked about the other streamer.
+    public static readonly string[] LookUps = [Battle, RoomInfo, Guards, OnlineRankUrl];
 
     public static string BattleMain(string level = """{"level1_name":"钻石传说","level2_count":3,"is_top_level":false,"rank_info":"全站排名458"}""",
         int firstWins = 0) =>

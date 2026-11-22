@@ -64,8 +64,7 @@ public sealed class DesktopPetPkTests : IAsyncDisposable
         var (updates, pet) = await WatchAsync();
 
         await h.PushAndSyncAsync(updates, PreNew(), Info());
-        await asked.WaitAsync(TimeSpan.FromSeconds(5), TestContext.Current.CancellationToken);
-        h.Time.Advance(TimeSpan.FromSeconds(3));
+        await GiveUpAsync(asked);
 
         Assert.Equal("""{"name":"星星点灯","rank":null,"firstWin":null,"fans":null,"guards":null,"top3":[]}""",
             Text(await pet.NextAsync(DesktopPet.PkMatch)));
@@ -118,7 +117,7 @@ public sealed class DesktopPetPkTests : IAsyncDisposable
 
         // each state the page was told as whether it says the streamer is in a PK, and anything else as it was told
         Assert.Equal(["no PK", "PK", "no PK"], (await ToldAsync(pet, "")).Select(told => told.StartsWith("state ", StringComparison.Ordinal)
-            ? told.Contains("\"pk\":true", StringComparison.Ordinal) ? "PK" : "no PK" : told));
+            ? SaysInPk(told) ? "PK" : "no PK" : told));
     }
 
     [Fact]
@@ -144,7 +143,7 @@ public sealed class DesktopPetPkTests : IAsyncDisposable
         var condition = Capsules((4, "差<%10%>票翻倍", start + 190), (5, "完成挑战获得<%2倍%>PK值", 0));
         var theirCondition = Capsules((4, "差1人翻倍", start + 190), (5, "完成挑战获得<%2倍%>PK值", 0));
 
-        // As 31445880 had it on 2026-11-22, but their challenge failing first.
+        // As a PK went on 2026-11-22 (docs/research/2026-11-22-pk-data.md), but their challenge failing first.
         await h.PushAndSyncAsync(updates, PreNew(), Both(first, first), Both(condition, theirCondition), Both(condition, theirCondition),
             Both(condition, Capsules((5, "挑战失败", 0))), Both(Capsules((4, "差0票翻倍", -1), (5, "挑战成功", 0)), "[]"),
             Both(Capsules((4, "即将2倍加成", start + 190), (5, "挑战成功", 0)), "[]"),
@@ -206,10 +205,9 @@ public sealed class DesktopPetPkTests : IAsyncDisposable
         var (updates, pet) = await WatchAsync();
         var info = Info(members: [Member(Ours, 10, Capsules((4, "2倍加成中", Now() + 20), (5, "挑战成功", 0))), Member(OpponentRoom, 20)]);
 
-        await h.PushAndSyncAsync(updates, PreNew(), info.Replace($",\"timestamp\":{Now()}", "", StringComparison.Ordinal));
+        await h.PushAndSyncAsync(updates, PreNew(), WithoutTimestamp(info));
         Assert.Equal(["pkScore {\"ours\":10,\"theirs\":20}", "pkDouble {}", "pkChallenge {\"result\":\"Done\"}"], await ToldAsync(pet));
-        await asked.WaitAsync(TimeSpan.FromSeconds(5), TestContext.Current.CancellationToken);
-        h.Time.Advance(TimeSpan.FromSeconds(3));
+        await GiveUpAsync(asked);
         Assert.Equal(OpponentName, (await pet.NextAsync(DesktopPet.PkMatch)).GetProperty("name").GetString());
         h.Time.Advance(TimeSpan.FromSeconds(7));
         await h.PushAndSyncAsync(updates);
@@ -223,7 +221,7 @@ public sealed class DesktopPetPkTests : IAsyncDisposable
         var (updates, pet) = await WatchAsync();
         var info = Info(members: [Member(Ours, capsules: Capsules((4, "2倍加成中", Now() + 20))), Member(OpponentRoom)]);
 
-        await h.PushAndSyncAsync(updates, PreNew(), info.Replace($",\"timestamp\":{Now()}", "", StringComparison.Ordinal), info, info);
+        await h.PushAndSyncAsync(updates, PreNew(), WithoutTimestamp(info), info, info);
         h.Time.Advance(TimeSpan.FromSeconds(10));
         await h.PushAndSyncAsync(updates);
         Assert.Equal(["pkDouble {}"], await ToldAsync(pet, DesktopPet.PkDouble));
@@ -282,6 +280,8 @@ public sealed class DesktopPetPkTests : IAsyncDisposable
     private string Info(int type = 2, int status = 201, params string[] members) =>
         $$$"""{"cmd":"PK_INFO","data":{"members":[{{{string.Join(",", members is [] ? [Member(Ours), Member(OpponentRoom)] : members)}}}],"pk_basic":{"pk_id":100001,"status":{{{status}}},"type":{{{type}}},"sub_type":0,"start_time":{{{Now()}}},"end_time":{{{Now() + 300}}}},"pk_play":{},"timestamp":{{{Now()}}}}}""";
 
+    private string WithoutTimestamp(string info) => info.Replace($",\"timestamp\":{Now()}", "", StringComparison.Ordinal);
+
     private static string Member(long room, long votes = 0, string capsules = "[]") =>
         $$"""{"uid":{{room + 1}},"room_id":{{room}},"uname":"主播","votes":{{votes}},"golds":{{votes * 100}},"capsules_v2":{{capsules}}}""";
 
@@ -310,16 +310,24 @@ public sealed class DesktopPetPkTests : IAsyncDisposable
     }
 
     /// <summary>Has B站 not answer about the other streamer until the lookup gives up; done once it was asked all four.</summary>
-    private Task LookUpsHang() => Task.WhenAll(new[] { Battle, RoomInfo, Guards, OnlineRankUrl }.Select(url =>
+    private Task LookUpsHang() => Task.WhenAll(LookUps.Select(url =>
     {
         var requested = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
         h.Http.Intercept(url, (_, token, _) => FakeBilibiliHttp.HangUntilCancelledAsync(requested, token));
         return requested.Task;
     }));
 
+    /// <summary>Once the lookup has <paramref name="asked"/> all four, lets its 3 seconds pass: it gives up.</summary>
+    private async Task GiveUpAsync(Task asked)
+    {
+        await asked.WaitAsync(TimeSpan.FromSeconds(5), TestContext.Current.CancellationToken);
+        h.Time.Advance(TimeSpan.FromSeconds(3));
+    }
+
     /// <summary>Whether each state the page was told before the danmaku a push synced with says the streamer is in a PK.</summary>
-    private static async Task<bool[]> PkStatesAsync(DesktopPetEvents pet) =>
-        [.. (await ToldAsync(pet, "state")).Select(state => state.Contains("\"pk\":true", StringComparison.Ordinal))];
+    private static async Task<bool[]> PkStatesAsync(DesktopPetEvents pet) => [.. (await ToldAsync(pet, "state")).Select(SaysInPk)];
+
+    private static bool SaysInPk(string state) => state.Contains("\"pk\":true", StringComparison.Ordinal);
 
     /// <summary>A PK_BATTLE_START_NEW sent at <paramref name="sent"/> by B站's clock, its last 10 seconds starting at
     /// <paramref name="countdown"/>.</summary>

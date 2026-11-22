@@ -23,7 +23,7 @@ public sealed class OpponentCardTests
         await h.LoginAsync();
         var requested = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
         var referers = new List<string>();
-        foreach (var url in new[] { Battle, RoomInfo, Guards, OnlineRankUrl })
+        foreach (var url in LookUps)
             h.Http.Intercept(url, async (request, token, next) =>
             {
                 lock (referers)
