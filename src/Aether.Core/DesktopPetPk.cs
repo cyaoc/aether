@@ -1,0 +1,128 @@
+using static Aether.Core.DanmakuProtocol;
+
+namespace Aether.Core;
+
+/// <summary>One PK as the 桌宠页 is told it, from its first PK message to its end; part of the room connection region's state
+/// (ADR 0017). Only a 1-on-1 PK is told, once a PK_INFO says it is one: the other streamer, looked up as the PK is matched,
+/// waits for that.</summary>
+internal sealed class DesktopPetPk(long roomId, StepTimers timers, Action<string, object> tell, Func<PkMatched, Task<OpponentCard>> lookUp)
+{
+    // pk_basic.type: 2 a random PK, 6 one the streamer was invited to; 8, a PK of more, and any other is no 1-on-1.
+    private const int RandomPk = 2, InvitedPk = 6;
+    // A side's 胶囊 by capsule_type: 4 the 双倍彩蛋's condition and then its doubling, 5 how its challenge came out.
+    private const int DoubleCapsule = 4, ChallengeCapsule = 5;
+    private const string Doubling = "2倍加成中";
+    private static readonly Dictionary<string, string> Challenges = new() { ["挑战成功"] = "Done", ["挑战失败"] = "Failed" };
+    // How long before the moment it counts down to a 举牌 is told: her sign counts its last 10 seconds.
+    private static readonly TimeSpan Lead = TimeSpan.FromSeconds(10);
+    private readonly List<ITimer> countdowns = [];
+    // What one PK tells once only.
+    private readonly HashSet<string> once = [];
+    private bool? oneOnOne;
+    // Looked up, waiting for a PK_INFO to say whether the PK is 1-on-1.
+    private OpponentCard? card;
+    private bool over;
+
+    public void Take(PkReceived received)
+    {
+        switch (received.News)
+        {
+            case PkMatched matched:
+                if (once.Add(DesktopPet.PkMatch)) LookUp(matched);
+                break;
+            case PkStarted started:
+                Countdown("last", started.Countdown + (long)Lead.TotalSeconds, started.Timestamp, received.ReceivedTimestamp);
+                break;
+            case PkScored scored:
+                Score(scored.Sides, received.InPk ? DesktopPet.PkScore : DesktopPet.PkEnd);
+                break;
+            case PkInfo info:
+                TakeInfo(info, received.ReceivedTimestamp);
+                break;
+        }
+    }
+
+    /// <summary>The PK is over: what it has not told yet it never tells, however late that comes.</summary>
+    public void End()
+    {
+        over = true;
+        foreach (var countdown in countdowns) countdown.Dispose();
+    }
+
+    private void LookUp(PkMatched matched) => _ = Task.Run(async () =>
+    {
+        var looked = await lookUp(matched);
+        timers.Post(() =>
+        {
+            card = looked;
+            TellMatch();
+        });
+    });
+
+    private void TakeInfo(PkInfo info, long receivedAt)
+    {
+        oneOnOne = info.Type is RandomPk or InvitedPk && Sides(info.Sides) is not null;
+        TellMatch();
+        Score(info.Sides, DesktopPet.PkScore);
+        if (Sides(info.Sides) is var (ours, _))
+            foreach (var capsule in ours.Capsules) TakeCapsule(capsule, info.Timestamp, receivedAt);
+    }
+
+    /// <summary>Only our 双倍彩蛋 is told: the condition the first time it is one, as "差10票翻倍" or "差1人翻倍" is, how the
+    /// challenge came out and the doubling, each once; the doubling counted down to its end_time too.</summary>
+    private void TakeCapsule(PkCapsule capsule, long sent, long receivedAt)
+    {
+        if (capsule is { Type: DoubleCapsule, Text: Doubling } && once.Add(DesktopPet.PkDouble))
+        {
+            Tell(DesktopPet.PkDouble, new { });
+            Countdown("double", capsule.EndTime, sent, receivedAt);
+        }
+        else if (capsule.Type == DoubleCapsule && capsule.Text.StartsWith('差') && capsule.Text.EndsWith("翻倍", StringComparison.Ordinal))
+            TellOnce(DesktopPet.PkCondition, new { text = capsule.Text });
+        else if (capsule.Type == ChallengeCapsule && Challenges.TryGetValue(capsule.Text, out var result))
+            TellOnce(DesktopPet.PkChallenge, new { result });
+    }
+
+    /// <summary>Counts down to <paramref name="moment"/>, by the clock of B站 that sent the message at <paramref name="sent"/>,
+    /// which came at <paramref name="receivedAt"/>: the local clock may be off. Told 10 seconds before; at once, with less left,
+    /// when that is past; not at all once the moment is.</summary>
+    private void Countdown(string kind, long moment, long sent, long receivedAt)
+    {
+        var left = Left();
+        if (left > Lead) countdowns.Add(timers.Start(left - Lead, () => TellCountdown(Left())));
+        else if (left > TimeSpan.Zero) TellCountdown(left);
+
+        TimeSpan Left() => TimeSpan.FromSeconds(moment - sent) - timers.Time.GetElapsedTime(receivedAt);
+        void TellCountdown(TimeSpan remaining) => Tell(DesktopPet.PkCountdown, new { kind, leftMs = (long)remaining.TotalMilliseconds });
+    }
+
+    private void TellOnce(string name, object data)
+    {
+        if (once.Add(name)) Tell(name, data);
+    }
+
+    private void TellMatch()
+    {
+        if (card is null || oneOnOne is null) return;
+        Tell(DesktopPet.PkMatch, card);
+        card = null;
+    }
+
+    private void Score(PkSide[] sides, string name)
+    {
+        if (Sides(sides) is var (ours, theirs)) Tell(name, new { ours = ours.Votes, theirs = theirs.Votes });
+    }
+
+    /// <summary>Our side and theirs, by room: none unless there are two and one is ours.</summary>
+    private (PkSide Ours, PkSide Theirs)? Sides(PkSide[] sides) => sides switch
+    {
+        [var first, var second] when first.RoomId == roomId => (first, second),
+        [var first, var second] when second.RoomId == roomId => (second, first),
+        _ => null
+    };
+
+    private void Tell(string name, object data)
+    {
+        if (oneOnOne == true && !over) tell(name, data);
+    }
+}

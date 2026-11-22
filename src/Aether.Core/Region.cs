@@ -143,14 +143,17 @@ internal sealed class Region<TState>
     }
 }
 
-/// <summary>A region state's timers (ADR 0017): when one is due it only posts its step to the region, which runs it like any
-/// other and drops it once stopped.</summary>
+/// <summary>A region state's timers, and its way back for the outside flows it starts (ADR 0017): when one is due or done it
+/// only posts its step to the region, which runs it like any other and drops it once stopped.</summary>
 internal sealed class StepTimers(TimeProvider time, Action<Action> post)
 {
     public TimeProvider Time => time;
 
     /// <summary>Posts <paramref name="step"/> once <paramref name="due"/>; Change arms it again, Dispose stops it.</summary>
     public ITimer Start(TimeSpan due, Action step) => time.CreateTimer(_ => post(step), null, due, Timeout.InfiniteTimeSpan);
+
+    /// <summary>Posts <paramref name="step"/> now, as an outside flow brings back what it found.</summary>
+    public void Post(Action step) => post(step);
 }
 
 /// <summary>How many steps a client's regions have still to run, counted together: closing and tests wait for none

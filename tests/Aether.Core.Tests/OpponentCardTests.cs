@@ -1,40 +1,20 @@
 using Aether.Core.Tests.Support;
+using static Aether.Core.Tests.Support.OpponentCardFixture;
 
 namespace Aether.Core.Tests;
 
 /// <summary>The 对手情报卡's numbers, asked of B站 about the other streamer of a PK (made-up streamer and viewers).</summary>
 public sealed class OpponentCardTests
 {
-    private const long Room = 2468000, Uid = 13579;
-    private const string Battle = "https://api.live.bilibili.com/xlive/pk-interface/v1/battle/GetPkBattleMain";
-    private const string RoomInfo = "https://api.live.bilibili.com/room/v1/Room/get_info";
-    private const string Guards = "https://api.live.bilibili.com/xlive/app-room/v2/guardTab/topListNew";
-    private const string OnlineRank = "https://api.live.bilibili.com/xlive/general-interface/v1/rank/queryContributionRank";
-
-    private static string BattleMain(string level = """{"level1_name":"钻石传说","level2_count":3,"is_top_level":false,"rank_info":"全站排名458"}""",
-        int firstWins = 0) =>
-        $$$"""{"code":0,"data":{"battle_level":{{{level}}},"tasks":[{"task_type":2,"current_num":3,"need_num":15},{"task_type":1,"current_num":{{{firstWins}}},"need_num":1}]}}""";
-
-    private const string TopThree = """
-        {"code":0,"data":{"count":5,"item":[
-          {"uid":1,"name":"甲","score":12345,"wealth_level":31,"guard_level":3,"uinfo":{"medal":{"level":25,"ruid":13579}}},
-          {"uid":2,"name":"乙","score":5200,"wealth_level":22,"guard_level":0,"uinfo":{"medal":{"level":21,"ruid":97531}}},
-          {"uid":3,"name":"丙","score":880,"wealth_level":12,"guard_level":0,"uinfo":{"medal":null}},
-          {"uid":4,"name":"丁","score":10,"wealth_level":5,"guard_level":0,"uinfo":{"medal":null}}]}}
-        """;
-
     /// <summary>A harness where B站 answers all four as the 2026-11-22 answers looked, with this GetPkBattleMain.</summary>
     private static WatchHarness Answering(string? battle = null)
     {
         var h = new WatchHarness();
-        h.Http.Responses[Battle] = battle ?? BattleMain();
-        h.Http.Responses[RoomInfo] = """{"code":0,"data":{"room_id":2468000,"attention":34613}}""";
-        h.Http.Responses[Guards] = """{"code":0,"data":{"info":{"num":123,"page":13,"now":1},"list":[],"top3":[]}}""";
-        h.Http.Responses[OnlineRank] = TopThree;
+        Answer(h.Http, battle);
         return h;
     }
 
-    private static Task<OpponentCard> AskAsync(WatchHarness h) => h.Client.GetOpponentCardAsync(Room, Uid, "星星点灯", h.Stop.Token);
+    private static Task<OpponentCard> AskAsync(WatchHarness h) => h.Client.GetOpponentCardAsync(OpponentRoom, OpponentUid, OpponentName, h.Stop.Token);
 
     [Fact]
     public async Task Asks_all_four_at_once_anonymously_from_the_other_room_and_fills_the_card()
@@ -43,7 +23,7 @@ public sealed class OpponentCardTests
         await h.LoginAsync();
         var requested = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
         var referers = new List<string>();
-        foreach (var url in new[] { Battle, RoomInfo, Guards, OnlineRank })
+        foreach (var url in new[] { Battle, RoomInfo, Guards, OnlineRankUrl })
             h.Http.Intercept(url, async (request, token, next) =>
             {
                 lock (referers)
@@ -59,7 +39,7 @@ public sealed class OpponentCardTests
 
         var card = await AskAsync(h);
 
-        Assert.Equal("星星点灯", card.Name);
+        Assert.Equal(OpponentName, card.Name);
         Assert.Equal(new PkRank("钻石传说", 3, false, 458), card.Rank);
         Assert.False(card.FirstWin);
         Assert.Equal(34613, card.Fans);
@@ -99,7 +79,7 @@ public sealed class OpponentCardTests
     public async Task Fewer_than_three_on_the_online_rank_are_all_there_are()
     {
         await using var h = Answering();
-        h.Http.Responses[OnlineRank] = """{"code":0,"data":{"count":1,"item":[{"uid":1,"name":"甲","score":52,"wealth_level":3,"guard_level":0,"uinfo":{"medal":null}}]}}""";
+        h.Http.Responses[OnlineRankUrl] = """{"code":0,"data":{"count":1,"item":[{"uid":1,"name":"甲","score":52,"wealth_level":3,"guard_level":0,"uinfo":{"medal":null}}]}}""";
         Assert.Equal([new OpponentViewer(52, 3, 0, 0)], (await AskAsync(h)).Top3);
     }
 
@@ -113,9 +93,9 @@ public sealed class OpponentCardTests
     [InlineData(Guards, "api", "guards")]
     [InlineData(Guards, "http", "guards")]
     [InlineData(Guards, "missing", "guards")]
-    [InlineData(OnlineRank, "api", "top3")]
-    [InlineData(OnlineRank, "http", "top3")]
-    [InlineData(OnlineRank, "missing", "top3")]
+    [InlineData(OnlineRankUrl, "api", "top3")]
+    [InlineData(OnlineRankUrl, "http", "top3")]
+    [InlineData(OnlineRankUrl, "missing", "top3")]
     public async Task What_fails_or_reads_wrong_is_left_out_and_the_rest_still_comes(string url, string failure, string leftOut)
     {
         await using var h = Answering();
