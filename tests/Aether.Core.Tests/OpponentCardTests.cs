@@ -83,6 +83,14 @@ public sealed class OpponentCardTests
         Assert.Equal([new OpponentViewer(52, 3, 0, 0)], (await AskAsync(h)).Top3);
     }
 
+    [Fact]
+    public async Task One_of_the_three_without_a_score_leaves_out_the_online_rank()
+    {
+        await using var h = Answering();
+        h.Http.Responses[OnlineRankUrl] = """{"code":0,"data":{"count":2,"item":[{"uid":1,"name":"甲","score":52,"wealth_level":3},{"uid":2,"name":"乙","wealth_level":3}]}}""";
+        Assert.Equal("top3", LeftOut(await AskAsync(h)));
+    }
+
     [Theory]
     [InlineData(Battle, "api", "rank firstWin")]
     [InlineData(Battle, "http", "rank firstWin")]

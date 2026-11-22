@@ -65,7 +65,7 @@ message's `timestamp` measuring from when it came, so a local clock that is off 
 
 | Event | When | Fields |
 |---|---|---|
-| `pkMatch` | Once the 4 questions about the other streamer, asked without the login as the match (`PK_BATTLE_PRE_NEW`) came, are all answered or 3 seconds passed; once a PK | `name`; `rank`: `{name, stars (0–3), top, place (0 not on 全站排名)}` or null; `firstWin`: true, false or null; `fans`, `guards`: a number or null; `top3`: `[{score, wealth, guard (0 none, 1 总督, 2 提督, 3 舰长), medal (the level of the other streamer's 灯牌 they wear, 0 none)}]`, `[]` unanswered |
+| `pkMatch` | Once the 4 questions about the other streamer, asked without the login as the match (`PK_BATTLE_PRE_NEW`) came, are all answered or 3 seconds passed; once a PK | `name`; `rank`: `{name, stars (0–3), top, place (0 not on 全站排名)}` or null; `firstWin`: true, false or null; `fans`, `guards`: a number or null; `top3`: `[{score, wealth, guard (0 none, 1 总督, 2 提督, 3 舰长), medal (the level of the other streamer's 灯牌 they wear, 0 none)}]`, `[]` unanswered or with a score left out |
 | `pkCondition` | Our 4 号胶囊 (`capsules_v2`) the first time it is a condition, as “差10票翻倍” or “差1人翻倍” | `text`: B站's words without `<% %>` |
 | `pkChallenge` | Our 5 号胶囊 turning “挑战成功” or “挑战失败”; once a PK | `result`: `Done` or `Failed` |
 | `pkDouble` | Our 4 号胶囊 turning “2倍加成中”; once a PK | — |

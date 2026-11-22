@@ -4,7 +4,8 @@ using System.Text.Json;
 namespace Aether.Core;
 
 /// <summary>The 对手情报卡's numbers about the other streamer of a 1-on-1 PK, as the 桌宠页's pkMatch has them: the name as
-/// PK_BATTLE_PRE_NEW gave it; null for what B站 did not answer, and no 在线榜前三 when it did not answer that.</summary>
+/// PK_BATTLE_PRE_NEW gave it; null for what B站 did not answer, and no 在线榜前三 when it did not answer that or left out a
+/// score of theirs.</summary>
 internal sealed record OpponentCard(string Name, PkRank? Rank, bool? FirstWin, long? Fans, long? Guards, IReadOnlyList<OpponentViewer> Top3)
 {
     /// <summary>今日首胜 from GetPkBattleMain's tasks: its task_type 1 is done.</summary>
@@ -36,6 +37,7 @@ internal sealed record PkRank(string Name, int Stars, bool Top, long Place)
 /// the 灯牌 they wear only when it is the other streamer's, 0 otherwise.</summary>
 internal sealed record OpponentViewer(long Score, int Wealth, int Guard, int Medal)
 {
-    public static OpponentViewer Of(OnlineRankViewer viewer, long opponentUid) => new(viewer.Score, viewer.Wealth, viewer.Guard,
+    public static OpponentViewer Of(OnlineRankViewer viewer, long opponentUid) => new(
+        viewer.Score ?? throw new JsonException("在线榜缺少本场消费。"), viewer.Wealth, viewer.Guard,
         viewer.MedalOwner == opponentUid ? viewer.MedalLevel : 0);
 }

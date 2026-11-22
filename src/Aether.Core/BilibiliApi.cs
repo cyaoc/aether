@@ -129,20 +129,23 @@ internal sealed class BilibiliApi
 
     private static string RoomReferer(long roomId) => FormattableString.Invariant($"{LiveReferer}{roomId}");
 
-    /// <summary>An 在线榜 item. What only the 对手情报卡 shows is 0 when B站 leaves it out, so picking a viewer never fails on it.</summary>
+    /// <summary>An 在线榜 item. Picking a viewer never fails on what only the 对手情报卡 shows: B站 leaving it out, it is 0, or
+    /// the score null.</summary>
     private static OnlineRankViewer RankViewer(JsonElement item)
     {
         var medal = item.TryGetProperty("uinfo", out var uinfo) && uinfo.ValueKind == JsonValueKind.Object
             && uinfo.TryGetProperty("medal", out var worn) ? worn : default;
         return new(item.GetProperty("uid").GetInt64(), item.GetProperty("name").GetString() ?? "")
         {
-            Score = NumberOrZero(item, "score"), Wealth = (int)NumberOrZero(item, "wealth_level"),
+            Score = Number(item, "score"), Wealth = (int)NumberOrZero(item, "wealth_level"),
             Guard = (int)NumberOrZero(item, "guard_level"), MedalLevel = (int)NumberOrZero(medal, "level"), MedalOwner = NumberOrZero(medal, "ruid"),
         };
     }
 
-    private static long NumberOrZero(JsonElement parent, string name) => parent.ValueKind == JsonValueKind.Object
-        && parent.TryGetProperty(name, out var value) && value.ValueKind == JsonValueKind.Number && value.TryGetInt64(out var number) ? number : 0;
+    private static long NumberOrZero(JsonElement parent, string name) => Number(parent, name) ?? 0;
+
+    private static long? Number(JsonElement parent, string name) => parent.ValueKind == JsonValueKind.Object
+        && parent.TryGetProperty(name, out var value) && value.ValueKind == JsonValueKind.Number && value.TryGetInt64(out var number) ? number : null;
 
     public async Task<(long Mid, string Buvid, string Token, Uri Server)> GetConnectionAsync(
         long realRoomId, CancellationToken cancellationToken)
