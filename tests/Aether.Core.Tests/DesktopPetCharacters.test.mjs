@@ -88,6 +88,16 @@ for (const folder of readdirSync(new URL('characters/', pages), { withFileTypes:
     assert.deepEqual(none, []);
   });
 
+  test(`character ${folder}'s 被反超 goes from startled to stomping by her standing, never by way of opening a blind box`, () => {
+    const character = read(`characters/${folder}/character.json`), pet = new Pet(null, { currentTime: 0 }, shows, character), engine = gamePet(character);
+    pet.tweens = Object.fromEntries(Object.keys(character.desktopPet.transitions).map(pair => [pair, [pair, pair]]));
+    const opts = { result: 'Overtaken', seed: 0 }, poses = ['idle'];
+    engine.start('pkSwing', opts);
+    for (let t = 0; t <= engine.cur.dur; t += 20) { const pose = engine.eventState('pkSwing', t, opts, 'x').pose; if (pose !== poses.at(-1)) poses.push(pose); }
+    assert.deepEqual(poses, ['idle', 'surprised', 'idle', 'pout', 'idle']);
+    assert.deepEqual(poses.slice(1).flatMap((pose, i) => pet.route(poses[i], pose)).filter(pair => pair.includes('Box')), []);
+  });
+
   test(`character ${folder} has a way across every change of pose on the 宝箱小游戏's routes, and the 捣蛋鬼 its in-betweens or a cut written down`, async () => {
     const character = read(`characters/${folder}/character.json`), changes = await gamePoseChanges(character), { cuts } = prankster;
     const pet = gamePet(character), none = Object.entries(changes.her).filter(([pair]) => pet.route(...pair.split('>')) === null);

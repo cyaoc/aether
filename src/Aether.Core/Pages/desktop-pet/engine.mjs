@@ -5,6 +5,7 @@
 import { k, smooth as ease } from '../video/animations/toolkit.mjs';
 import { Changes } from '../gift-board/changes.mjs';
 import { viewerName } from '../lottery/viewer.mjs';
+import { PK_INTEL } from './pk-intel.mjs';
 import { SIGN } from './sign.mjs';
 
 export const seeded = seed => () => { seed |= 0; seed = seed + 0x6D2B79F5 | 0; let t = Math.imul(seed ^ seed >>> 15, 1 | seed); t = t + Math.imul(t ^ t >>> 7, 61 | t) ^ t; return ((t ^ t >>> 14) >>> 0) / 4294967296; };
@@ -89,7 +90,15 @@ const EVENTS = {
   pranksterKnocked: { dur: 4300 }, chestKept: { dur: 4800, zapDur: 7200 }, chestRobbed: { dur: 5600 },
   blindBoxQuery: { dur: 6000 },
   // B站 PK (design package README 15): she holds up her sign when it is time to act (PK_SIGN)
-  pkCondition: { dur: 7600 }, pkDouble: { dur: 6900 }, pkDoubleEnding: { dur: 10900 }, pkLastSeconds: { dur: 10900 }
+  pkCondition: { dur: 7600 }, pkDouble: { dur: 6900 }, pkDoubleEnding: { dur: 10900 }, pkLastSeconds: { dur: 10900 },
+  // the other side's card (PK_INTEL, pk-intel.mjs), the 10 s between the match and the start
+  pkOpponent: { dur: 10000 },
+  // the PK's result by its score (PK_RESULT.of), as long as each ending plays (durs)
+  pkResult: { dur: 5000, durs: { BigWin: 5000, Win: 4000, NarrowWin: 4400, Draw: 3600, NarrowLoss: 4400, Lose: 4400, BigLoss: 5000 } },
+  // a change in how the PK stands, while it is on (PK_GAP); C: never over a sign or a thank-you, 20 s apart at least
+  pkSwing: { dur: 2800, durs: { Overtake: 2800, Overtaken: 2800, PullAhead: 2600, FallBehind: 2600, CloseIn: 2400, CaughtUp: 2400 } },
+  // our side's double bonus challenge done or run out, from B站's capsule; B, as her viewers made it
+  pkChallenge: { dur: 3400, durs: { Done: 3200, Failed: 3400 } }
 };
 // Her sign shows (ms). The page moves the sign itself wherever it goes far: it flies out of her sprite to over her head (fly)
 // as she raises her empty hands to take it (raise, the last part of fly), and when she lowers them it flies back into her
@@ -103,6 +112,41 @@ export const PK_SIGN = { fly: 450, raise: 260, back: 420, hide: [450, 1500], lif
   jump: [[800, 420, 30], [1500, 420, 30]], pose: { pkCondition: 'signUp', pkDouble: 'signCheer', count: 'signUrge' } };
 // The countdowns by what they count to, as Core tells them (pkCountdown): the double bonus's end, or the PK's.
 const COUNTDOWNS = { double: 'pkDoubleEnding', last: 'pkLastSeconds' };
+// B站 PK's 对手情报卡 (ms): her sprite prints it over her head as it does the 账单卡, turns it over (only when it has both
+// sides), and it rolls itself up as the PK starts. The front, who the other streamer is, shows 4.5 s, its back, three
+// rows of the same kind to glance at, 2.9 s (user: “一般对手信息可以显示时间长点、前3显示的短点”; it was 3.5 and 3.9); all
+// of it before the start, when the gifts come thickest (首次送礼翻倍) and a show still on would drop their thank-yous.
+// She is startled at the match, then nervous over the front, and clenches her fist for her viewers over the back.
+export const INTEL = { print: [800, 1500], turn: [6000, 6400], roll: [9300, 9800], done: 9700 };
+// B站 PK's result from PK_BATTLE_END's votes, ours and theirs: the same is a Draw (none on either side too); winning, they
+// had half ours or less BigWin, within a tenth of the larger NarrowWin, else Win; losing the same the other way: BigLoss,
+// NarrowLoss, Lose. (The first list had no plain Lose: a 5000 : 8000 loss would have said 就差一点点 or 被打得好惨.)
+const PK_RESULT = {
+  of: (ours, theirs) => {
+    if (ours === theirs) return 'Draw';
+    const [hi, lo] = ours > theirs ? [ours, theirs] : [theirs, ours], close = hi - lo <= hi * 0.1, rout = lo * 2 <= hi;
+    return ours > theirs ? (rout ? 'BigWin' : close ? 'NarrowWin' : 'Win') : (rout ? 'BigLoss' : close ? 'NarrowLoss' : 'Lose');
+  }
+};
+// While a PK is on, how it stands (from each score B站 sends) and the 中途比分 a change calls for: who leads (the last
+// side ahead: a tie between does not end a lead), far (one side twice the other or more) and close (within a tenth of
+// the larger), the same yardstick as PK_RESULT. Nothing before either side has MIN votes (10 : 0 is no lead worth a
+// show); a change within COOL of the last show is let go, its standing still kept (README 15).
+const PK_GAP = {
+  MIN: 100, COOL: 20000,
+  stand(ours, theirs, was = {}) {
+    // under MIN nothing is far or close yet: 50 : 0 counted as far, and 300 : 0 then had no PullAhead
+    const hi = Math.max(ours, theirs), lo = Math.min(ours, theirs), lead = ours > theirs ? 1 : ours < theirs ? -1 : was.lead || 0, on = hi >= PK_GAP.MIN;
+    return { ours, theirs, lead, far: on && lo * 2 <= hi, close: on && hi - lo <= hi * 0.1 };
+  },
+  show(a, b) {
+    if (Math.max(b.ours, b.theirs) < PK_GAP.MIN) return null;
+    if (a.lead && b.lead && a.lead !== b.lead) return b.lead > 0 ? 'Overtake' : 'Overtaken';
+    if (b.far && !a.far) return b.lead > 0 ? 'PullAhead' : 'FallBehind';
+    if (b.close && !a.close && a.lead) return a.lead > 0 ? 'CaughtUp' : 'CloseIn';
+    return null;
+  }
+};
 // Shown only while she is idle: never over a show, a 日常小动作 or blind boxes she shakes, never queued, and not while the
 // 捣蛋鬼 is here, which they do not scare off (fire).
 const IDLE_ONLY = ['entry', 'blindBoxQuery'];
@@ -274,7 +318,8 @@ const revealOf = (lottery, draw) => lottery.mode === 'Entry'
 /** The engine of the 桌宠页: Core tells it what happens (DesktopPet.cs) and it decides what she plays. `master` is the page's
  * one animation, whose currentTime is the time of everything; `shows` are the rows of the 演出表, which give each show its
  * 演出档; `art` is the current character's desktopPet (characters/README.md), whose props' points place the big shows. Their
- * pictures' sizes, `props` and `castle`, are Pet's to measure. A 试演 that is over raises `trialended` with its number (trialOver). */
+ * pictures' sizes, `props` and `castle`, are Pet's to measure, and so are the 对手情报卡's words (`measureG`, a canvas's 2D
+ * context). A 试演 that is over raises `trialended` with its number (trialOver). */
 export class Engine extends EventTarget {
   constructor(master, shows, art) {
     super();
@@ -409,7 +454,7 @@ export class Engine extends EventTarget {
       opts = { ...opts, tidy: opts.tidy || (gm.out ? TIDY : 0), frizz: opts.frizz || this.frizzed(gm.fix, now) || this.frizzed(c, now) };
       gm.fix = null;
     }
-    const ev = this.events[name], wake = !!opts.wake, dur = DAILY[name] ? DAILY[name][0] + (opts.mishap ? DAILY[name][1] : 0) : (opts.zap && ev.zapDur) || (ev.steps?.[opts.result] ?? ev).dur;
+    const ev = this.events[name], wake = !!opts.wake, dur = DAILY[name] ? DAILY[name][0] + (opts.mishap ? DAILY[name][1] : 0) : (opts.zap && ev.zapDur) || ev.durs?.[opts.result] || (ev.steps?.[opts.result] ?? ev).dur;
     // one that scared the 捣蛋鬼 off, or came after, waits, at most FRIZZ, for the chest to go home and her hair to be smooth
     // (stateAt), the chest maybe home already; meanwhile she says on the line she was saying in the game's show it takes over
     // (speaking, as stateAt saw it last), until that show would have stopped it: 被偷了 at ROB.quiet, the others at their end;
@@ -431,11 +476,12 @@ export class Engine extends EventTarget {
     if (name === 'chestKept') this.moodHold = { mood: 'happy', until: now + dur + MOOD_HOLD.kept };
   }
 
-  // A blind box says the lines of its ending, a 盲盒查询 its result's, the lottery its step's, 守住了 by a 绝杀 that one's; every
-  // other show its own.
+  // A blind box says the lines of its ending, a 盲盒查询 its result's, the lottery its step's, 守住了 by a 绝杀 that one's, a PK's
+  // result and 中途比分 their ending's and a 双倍挑战 how it came out; every other show its own.
   lineKey(name, opts = {}) {
     const ev = this.events[name];
     return ev?.group === BLIND_BOX ? BOX_LINES[opts.result || 'Gain'] : name === 'blindBoxQuery' ? 'query' + (opts.result || 'Gain')
+      : name === 'pkResult' || name === 'pkSwing' ? 'pk' + (opts.result || 'Win') : name === 'pkChallenge' ? 'pkChallenge' + (opts.result || 'Done')
       : ev?.steps ? ev.steps[opts.result].line : name === 'chestKept' && opts.buzzer ? 'chestKeptBuzzer' : name;
   }
 
@@ -550,6 +596,29 @@ export class Engine extends EventTarget {
   pkDouble() { this.fire('pkDouble'); }
 
   pkCountdown({ kind, leftMs }) { if (COUNTDOWNS[kind]) this.fire(COUNTDOWNS[kind], { until: this.now() + leftMs }); }
+
+  // B站 PK matched: the 对手情报卡 of what B站 answered about the other streamer (OpponentCard.cs), none with nothing on either
+  // side. Asking B站 takes up to 3 s, so it may start that much late; it plays its 10 s all the same.
+  pkMatch(intel) {
+    const L = PK_INTEL.layout(this.measureG, intel);
+    if (L.front || L.back) this.fire('pkOpponent', { intel });
+  }
+
+  // Our side's 双倍挑战 done or run out (Done, Failed).
+  pkChallenge({ result }) { if (EVENTS.pkChallenge.durs[result]) this.fire('pkChallenge', { result }); }
+
+  // A PK's score: each change checked against how it stood (PK_GAP), the 中途比分 played if one is due and the last was COOL
+  // ago on her clock; how it stands is kept either way.
+  pkScore({ ours, theirs }) {
+    const now = this.now(), a = this.pkGap || PK_GAP.stand(0, 0), b = PK_GAP.stand(ours, theirs, a), show = PK_GAP.show(a, b);
+    this.pkGap = b;
+    const cool = show && this.pkGapAt != null && now - this.pkGapAt < PK_GAP.COOL;
+    // the 20 s count from a show that played, not one let go because she was busy
+    if (show && !cool) { this.fire('pkSwing', { result: show }); if (this.cur?.name === 'pkSwing' && this.cur.start === now) this.pkGapAt = now; }
+  }
+
+  // The PK over (PK_BATTLE_END): its result by the score (PK_RESULT).
+  pkEnd({ ours, theirs }) { this.fire('pkResult', { result: PK_RESULT.of(ours, theirs) }); }
 
   // a danmaku is not played (README 10), it tells her someone is there (犯困 needs an hour with nothing at all), and is its
   // viewer's in the 宝箱小游戏 (gameDanmaku): the 站队 it takes is Core's to tell (side), what it says never leaves Core
@@ -851,10 +920,10 @@ export class Engine extends EventTarget {
     if (frizz) gm.fix = { start: now, pose: 'cheer' };
   }
 
-  // A PK is no time for it (callOff).
+  // A PK is no time for it (callOff); a new one stands at 0 : 0 (pkScore).
   pkOn(on) {
     this.gm.pk = on;
-    if (on) this.callOff(this.now());
+    if (on) { this.callOff(this.now()); this.pkGap = null; }
   }
 
   // The 来访 starts, or it is over, as the page reports to Core (page.mjs).
@@ -936,14 +1005,15 @@ export class Engine extends EventTarget {
   comfort(st, now) { const b = this.herBox(st, this.cell(st.pose)); return ['at', b.x + b.w * this.art.lyingHead[st.pose] - 36, b.y - 15 + 3 * Math.sin(now / 500)]; }
 
   // Where the 捣蛋鬼 floats to pull at the ring that hangs from p: leaning back by rot, the rope its drawing holds (less trim) in
-  // one line with the hook and the ring. pkEnd: where that rope ends on the page, the 捣蛋鬼 at p.
+  // one line with the hook and the ring. pkRopeEnd: where that rope ends on the page, the 捣蛋鬼 at p (the board's pkEnd: that
+  // name is the PK's end, an event the page is told).
   pkPull(p, pose, rot, trim) {
     const c = this.pkCell(pose), s = PK_H / c.ruler, x = (c.x - c.cx + trim) * s, y = (c.y - c.cy + c.h * c.rope) * s;
     const d = this.prankster.ring.reach * this.chestBox.k + HOOK + 2, k = Math.cos(rot), n = Math.sin(rot);
     return { x: p.x + d * k - x * k + y * n, y: p.y + d * n - x * n - y * k };
   }
 
-  pkEnd(p) {
+  pkRopeEnd(p) {
     const c = this.pkCell(p.pose), s = PK_H / c.ruler * p.scale, x = (c.x - c.cx + (p.trim || 0)) * s + 2, y = (c.y - c.cy + c.h * c.rope) * s, k = Math.cos(p.rot), n = Math.sin(p.rot);
     return { x: p.x + x * k - y * n, y: p.y + x * n + y * k };
   }
@@ -1618,6 +1688,10 @@ export class Engine extends EventTarget {
       }
       case 'blindBoxQuery': this.queryShow(t, st, opts, line, hop); break;
       case 'pkCondition': case 'pkDouble': case 'pkDoubleEnding': case 'pkLastSeconds': this.signShow(name, t, st, opts, say); break;
+      case 'pkOpponent': this.intelShow(t, st, opts); break;
+      case 'pkResult': this.pkEndShow(t, st, opts, say, hop); break;
+      case 'pkSwing': this.pkGapShow(t, st, opts, say, hop); break;
+      case 'pkChallenge': this.pkChallengeShow(t, st, opts, say); break;
       case 'hum': case 'gym': case 'hike': case 'bike': case 'ski': return this.daily(t, st, { ...opts, kind: name }, line);
     }
     const extra = EVENT_FX[key];
@@ -1688,6 +1762,96 @@ export class Engine extends EventTarget {
         if (lifted > h * 0.35) { st.pose = 'signJump'; st.y -= drop; }   // in the air: her legs tuck up, her hands and the sign go on
       }
     }
+  }
+
+  // B站 PK's 对手情报卡 (INTEL): as the 账单卡, the sprite flies to the card's top right corner and prints it out of
+  // itself, glowing; it taps the card over (a nod) where it has two sides, and goes home down beside the card's right
+  // edge. The card hangs over her head on the side shown, as tall as that side; it turns over edge on, its height too.
+  // A 试演 shows the design package's usual one.
+  intelShow(t, st, opts) {
+    const q = INTEL, c = opts.intel || PK_INTEL.SAMPLES['普通'], L = PK_INTEL.layout(this.measureG, c);
+    const both = L.front && L.back, turn = both ? ease(k01(t, q.turn[0], q.turn[1])) : L.front ? 0 : 1, h = L[turn < 0.5 ? 'front' : 'back'].h;
+    const x = FOOT.x - PK_INTEL.W / 2, y = Math.max(40, FOOT.y - H - 4 - h);
+    st.pose = at(t, [[0, 'surprised'], [600, 'hope'], ...(both ? [[q.turn[1], 'announce']] : []), [q.done, 'idle']]);
+    if (t >= 1700 && t < q.turn[0]) st.fx.push(['sweat', 1700]);
+    // between its trips to the card's corner it waits at her right, below the card, inside the page; it goes home only
+    // after the turn, low in front of her (never across her face)
+    const corner = ['at', x + PK_INTEL.W - 6, Math.max(SPRITE_H / 2 + 4, y - 4)], side = ['at', Math.min(x + PK_INTEL.W + 22, PAGE.w - 34), FOOT.y - 0.34 * H];
+    if (t < q.print[1]) { st.sprite = t < q.print[0] ? 'sLook' : 'glow'; st.sp = corner; }
+    else if (both && t >= q.turn[0] - 600 && t < q.turn[1] + 300) { st.sprite = t >= q.turn[0] - 100 ? 'nod' : 'sLook'; st.sp = corner; }
+    else if (t < (both ? q.turn[1] + 1100 : q.print[1] + 800)) { st.sprite = 'sLook'; st.sp = side; }
+    else st.sprite = both ? 'sHappy' : 'sLook';
+    const reveal = t < q.print[0] ? 0 : t < q.print[1] ? ease(k01(t, q.print[0], q.print[1])) : 1 - ease(k01(t, q.roll[0], q.roll[1]));
+    if (reveal > 0) st.intel = { c, x, y: y + 2 * Math.sin(t / 500), h, turn, reveal };
+  }
+
+  // B站 PK's result (PK_RESULT), with poses she has. Winning she cheers and thanks her viewers: BigWin with confetti and
+  // two jumps, then, calming down, she hides her face at how loud she was; NarrowWin startled first (that close!). Draw: a
+  // surprised blink, then a nod. Losing: NarrowLoss she stomps (so close), Lose she droops and her sprite pats her head,
+  // BigLoss she squats drawing circles under a little rain cloud (Lose and BigLoss looked the same when both drooped); each
+  // then bows her thanks, a second line (…After). Never gloating, never fierce.
+  pkEndShow(t, st, opts, say, hop) {
+    const r = opts.result || 'Win', two = this.lines[`pk${r}After`] && this.saying(`pk${r}After`, opts.seed ?? 0), end = EVENTS.pkResult.durs[r] - 400;
+    say(150);
+    const steps = {
+      BigWin: [[0, 'cheer'], [2800, 'shy']], Win: [[0, 'cheer'], [1900, 'bow']], NarrowWin: [[0, 'surprised'], [700, 'cheer'], [2600, 'bow']],
+      Draw: [[0, 'surprised'], [800, 'nod']], NarrowLoss: [[0, 'pout'], [1900, 'bow']], Lose: [[0, 'dejected'], [2000, 'bow']], BigLoss: [[0, 'gloomy'], [2700, 'bow']]
+    }[r];
+    st.pose = at(t, [...steps, [end, 'idle']]);
+    const second = { BigWin: 2900, NarrowLoss: 2000, Lose: 2100, BigLoss: 2800 }[r];
+    if (two && t >= second) say(second, two);
+    if (r === 'BigWin') { hop(0, 16); hop(480, 16); st.fx.push(['confetti', 100], ['sparkles', 100]); if (t >= 2900) st.fx.push(['sweat', 3000, 1400]); }
+    if (r === 'Win') { hop(0, 12); st.fx.push(['sparkles', 100]); }
+    if (r === 'NarrowWin') { st.fx.push(['shock', 0], ['sweat', 100, 1400]); hop(700, 10); if (t >= 700) st.fx.push(['sparkles', 800]); }
+    if (r === 'NarrowLoss' && t < 1300) { st.y -= 4 * Math.abs(Math.sin(t / 90)); st.fx.push(['anger', 100, 900]); }
+    if (r === 'BigLoss') st.fx.push(['gloom', 0, 2600], ['rain', 200, 2400]);
+    // its sprite: waves its flag for a win, looks up at a Draw, hides its face with hers, pats her head when she lost
+    const win = ['BigWin', 'Win', 'NarrowWin'].includes(r), down = ['dejected', 'gloomy', 'pout'].includes(st.pose);
+    if (st.pose === 'shy') { st.sprite = 'hide'; st.sp = ['rel', -0.04, 0.42]; }
+    else if (st.pose === 'bow' || st.pose === 'nod') st.sprite = 'nod';
+    else if (win) st.sprite = r === 'NarrowWin' && t < 700 ? 'surprised' : 'flag';
+    else if (down && r !== 'NarrowLoss') { st.sprite = 'pat'; st.sp = 'head'; }
+    else st.sprite = down ? 'hide' : 'sLook';
+  }
+
+  // While a PK is on, how it stands has changed (PK_GAP): a short show with poses she has. Overtake she is startled and
+  // cheers with a jump; Overtaken startled, then a frustrated stomp, never fierce; PullAhead she claps under hearts;
+  // FallBehind she droops and her sprite pats her head; CloseIn hands together, hoping, a few sparkles; CaughtUp nervous,
+  // sweating.
+  pkGapShow(t, st, opts, say, hop) {
+    const r = opts.result || 'Overtake', end = EVENTS.pkSwing.durs[r] - 300;
+    say(150);
+    // (Overtaken goes from startled to stomping by her standing: the shortest way the board found went through opening a
+    // blind box, a box in her hands for a moment)
+    const steps = { Overtake: [[0, 'surprised'], [400, 'cheer']], Overtaken: [[0, 'surprised'], [1020, 'idle'], [1200, 'pout']], PullAhead: [[0, 'clap']],
+      FallBehind: [[0, 'dejected']], CloseIn: [[0, 'hope']], CaughtUp: [[0, 'hope']] }[r];
+    st.pose = at(t, [...steps, [end, 'idle']]);
+    if (r === 'Overtake') { st.fx.push(['shock', 0]); hop(400, 14); if (t >= 400) st.fx.push(['sparkles', 450]); st.sprite = t < 400 ? 'surprised' : 'flag'; }
+    if (r === 'Overtaken') { st.fx.push(['shock', 0], ['sweat', 200, 1000]); if (t >= 1200 && t < 2200) st.y -= 3 * Math.abs(Math.sin((t - 1200) / 90)); st.sprite = t < 1200 ? 'surprised' : 'hide'; }
+    if (r === 'PullAhead') { st.fx.push(['hearts', 200, 3]); st.sprite = 'sHappy'; }
+    if (r === 'FallBehind') { st.sprite = 'pat'; st.sp = 'head'; }
+    if (r === 'CloseIn') { st.fx.push(['sparkles', 300]); st.sprite = 'sLook'; }
+    if (r === 'CaughtUp') { st.fx.push(['sweat', 100, 1800]); st.sprite = 'sLook'; }
+    if (t >= end) { st.sprite = 'sIdle'; st.sp = null; }
+  }
+
+  // Our double bonus challenge (from B站's capsule). Done: a surprised blink, then she claps for her viewers under
+  // sparkles and hearts, her sprite waving its flag. Run out: she droops and her sprite pats her head, then she nods,
+  // picking herself up (…After); never asking for more gifts.
+  pkChallengeShow(t, st, opts, say) {
+    const ok = (opts.result || 'Done') === 'Done', end = EVENTS.pkChallenge.durs[ok ? 'Done' : 'Failed'] - 300;
+    say(150);
+    if (ok) {
+      st.pose = at(t, [[0, 'surprised'], [400, 'clap'], [end, 'idle']]);
+      st.sprite = t < 400 ? 'surprised' : 'flag';
+      if (t >= 400) st.fx.push(['sparkles', 450], ['hearts', 600, 3]);
+    } else {
+      st.pose = at(t, [[0, 'dejected'], [1600, 'nod'], [end, 'idle']]);
+      const two = this.saying('pkChallengeFailedAfter', opts.seed ?? 0);
+      if (t >= 1700) say(1700, two);
+      if (t < 1600) { st.sprite = 'pat'; st.sp = 'head'; } else st.sprite = 'nod';
+    }
+    if (t >= end) { st.sprite = 'sIdle'; st.sp = null; }
   }
 
   // line: the show's own line; what she says as it goes wrong is a line of its kind (key).

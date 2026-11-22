@@ -5,7 +5,7 @@ import { readFileSync } from 'node:fs';
 import { DAILY, Engine, seeded } from '../../src/Aether.Core/Pages/desktop-pet/engine.mjs';
 import { PK_INTEL } from '../../src/Aether.Core/Pages/desktop-pet/pk-intel.mjs';
 import { SETTINGS } from './Support/DesktopPetSettings.mjs';
-import { box, gamePet, gifts, item, play, playing, round, state } from './Support/DesktopPetGame.mjs';
+import { MEASURE, box, gamePet, gifts, item, play, playing, round, state } from './Support/DesktopPetGame.mjs';
 
 const read = path => JSON.parse(readFileSync(new URL('../../src/Aether.Core/Pages/' + path, import.meta.url), 'utf8'));
 const { shows } = read('desktop-pet/shows.json'), character = read('characters/1/character.json'), { lines } = character;
@@ -708,6 +708,76 @@ test('her sign says the double bonus\'s condition in B站\'s words, more than 99
 
 test('her sign and the 对手情报卡 write numbers up to 9999 as they are, then in 万, and a card B站 answered nothing for has no side', () => {
   assert.deepEqual([9999, 12345, 30000, 140323].map(PK_INTEL.count), ['9999', '1.2万', '3万', '14万']);
-  const g = { save() {}, restore() {}, measureText: () => ({ width: 0 }) };
-  assert.deepEqual(PK_INTEL.layout(g, { name: '星河' }), { front: null, back: null });
+  assert.deepEqual(PK_INTEL.layout(MEASURE, { name: '星河' }), { front: null, back: null });
+});
+
+test('a PK\'s result goes by its score: a 平局 alike (0 : 0 too), and by twice the other side and a tenth of the larger 大胜 to 惨败', () => {
+  const ended = ([ours, theirs]) => { const engine = inPk(); engine.pkEnd({ ours, theirs }); return playing(engine) && engine.cur.opts.result; };
+  // the board's scores for its buttons, one for each ending (its PK_RESULT.samples)
+  const samples = { BigWin: [12000, 3000], Win: [8000, 5000], NarrowWin: [5200, 5000], Draw: [3000, 3000], NarrowLoss: [4800, 5000], Lose: [5000, 8000], BigLoss: [1000, 12000] };
+  assert.deepEqual(Object.values(samples).map(ended), Object.keys(samples));
+  assert.deepEqual([[0, 0], [10, 0]].map(ended), ['Draw', 'BigWin']);
+});
+
+// The 中途比分 she plays as each score of a PK comes, 21 s apart (past the 20 s between two), '' for none.
+const swings = (...scores) => {
+  const engine = inPk();
+  return scores.map(([ours, theirs]) => {
+    engine.pkScore({ ours, theirs });
+    const swing = playing(engine) === 'pkSwing' ? engine.cur.opts.result : '';
+    advance(engine, 21000);
+    return swing;
+  });
+};
+
+test('a PK\'s score plays a 中途比分 as the lead changes hands, one side gets to twice the other or the gap to a tenth, once either has 100', () => {
+  assert.deepEqual(swings([10, 0]), ['']);
+  assert.deepEqual(swings([50, 0], [300, 0]), ['', 'PullAhead']);
+  assert.deepEqual(swings([300, 100], [300, 600]), ['PullAhead', 'Overtaken']);
+  assert.deepEqual(swings([500, 400], [500, 500], [500, 600]), ['', 'CaughtUp', 'Overtaken']);
+  assert.deepEqual(swings([1000, 2500], [1000, 1050]), ['FallBehind', 'CloseIn']);
+});
+
+test('a 中途比分 within 20 s of the last that played is let go, how the PK stands still kept', () => {
+  const engine = inPk();
+  engine.pkScore({ ours: 300, theirs: 100 });
+  advance(engine, 5000);
+  engine.pkScore({ ours: 300, theirs: 600 });
+  assert.equal(playing(engine), null);
+  advance(engine, 16000);
+  engine.pkScore({ ours: 800, theirs: 600 });
+  assert.deepEqual([playing(engine), engine.cur?.opts.result], ['pkSwing', 'Overtake']);
+});
+
+test('a 中途比分 while she plays another show is let go, not queued, and the 20 s count from one that played', () => {
+  const engine = inPk();
+  engine.guard({ uid: 1, nickname: '舰长', guardLevel: 3, spend: 19800000 });
+  engine.pkScore({ ours: 300, theirs: 100 });
+  assert.deepEqual([playing(engine), engine.queue], ['captain', []]);
+  advance(engine, 5000);
+  engine.pkScore({ ours: 300, theirs: 600 });
+  assert.deepEqual([playing(engine), engine.cur?.opts.result], ['pkSwing', 'Overtaken']);
+});
+
+test('a new PK counts how it stands from 0 : 0', () => {
+  const engine = inPk();
+  engine.pkScore({ ours: 300, theirs: 100 });
+  advance(engine, 21000);
+  engine.receive(state(engine, { pk: false }));
+  engine.receive(state(engine, { pk: true }));
+  engine.pkScore({ ours: 300, theirs: 100 });
+  assert.deepEqual([playing(engine), engine.cur?.opts.result], ['pkSwing', 'PullAhead']);
+});
+
+// The other streamer as Core tells of them as a PK is matched (pkMatch), with what B站 answered: the rest null, and no 在线榜前三;
+// and the sides the 对手情报卡 shows as it plays (0 its front, 1 its back, between them turning over).
+const opponent = so => ({ name: '星星点灯', rank: null, firstWin: null, fans: null, guards: null, top3: [], ...so });
+const sides = engine => { const seen = new Set(); play(engine, 10000, st => { if (st.intel) seen.add(st.intel.turn); }); return [...seen]; };
+
+test('the 对手情报卡 turns over only when it has both sides, one alone shows all the while, and with neither it does not play', () => {
+  const [front, back, both, neither] = [{ fans: 34613 }, { top3: [{ score: 880, wealth: 12, guard: 0, medal: 0 }] }, { fans: 34613, top3: [{ score: 880, wealth: 0, guard: 3, medal: 0 }] }, {}]
+    .map(so => { const engine = inPk(); engine.pkMatch(opponent(so)); return engine; });
+  assert.deepEqual([front, back, both, neither].map(playing), ['pkOpponent', 'pkOpponent', 'pkOpponent', null]);
+  const turned = sides(both);
+  assert.deepEqual([sides(front), sides(back), [0, 1].map(side => turned.includes(side))], [[0], [1], [true, true]]);
 });
