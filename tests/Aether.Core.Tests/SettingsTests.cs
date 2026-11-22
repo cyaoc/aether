@@ -447,8 +447,10 @@ public sealed class SettingsTests : IAsyncDisposable
     [Theory]
     [InlineData("format_version: 3\nother: &shared { lucky_percent: 10 }\ndesktop_pet: *shared\n", 2)]
     [InlineData("format_version: 2\nother: &shared\n  prankster_keyword: 帮它\ndesktop_pet: *shared\n", 2)]
+    [InlineData("format_version: 2\nother: &lines ['发{关键字}']\ndesktop_pet:\n  lines.1.pranksterRecruit: *lines\n", 2)]
+    [InlineData("format_version: 3\nkey_name: &key lucky_percent\ndesktop_pet:\n  # 拔河时每个纸团是幸运纸团的几率，0 到 100（%），0 表示不出幸运纸团；砸中谁，对面 10 秒内送的入伙礼物算双倍\n  *key : 10\n", 2)]
     [InlineData("{ desktop_pet: { lucky_percent: 10 } }\n", 1)]
-    public void Upgrade_refuses_a_desktop_pet_group_shared_through_an_anchor_or_a_flow_file_it_cannot_mark_and_leaves_the_file(string yaml, long line)
+    public void Upgrade_refuses_what_an_anchor_shares_or_a_flow_file_it_cannot_mark_and_leaves_the_file(string yaml, long line)
     {
         Write(yaml);
 

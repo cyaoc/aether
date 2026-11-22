@@ -177,6 +177,7 @@ internal static class SettingsUpgrade
             {
                 if (line.Value is not { } said || !said.Contains(V2Placeholder, StringComparison.Ordinal)) continue;
                 if (!group.Anchor.IsEmpty) throw CannotEdit(path, group);
+                if (!lines.Anchor.IsEmpty) throw CannotEdit(path, lines);
                 var (start, length, _) = ScalarEdit(tokens, line, "", path);
                 var written = source.Substring(start, length);
                 var spelled = written.Split(V2Placeholder).Length == said.Split(V2Placeholder).Length;
@@ -190,13 +191,15 @@ internal static class SettingsUpgrade
     /// <summary>Format 4 makes a paper ball lucky 30 times in a hundred by default, not 10, and a double last 20 seconds, not
     /// 10: a lucky_percent still at format 3's default of 10 becomes 30 (the one exception ADR 0011 makes to keeping what
     /// users have), and the Template's comment right above it says 20 seconds. Any other value, and a comment the user
-    /// changed, stay. Only the value's scalar is replaced, so unlike UpgradeV2 the group need not be in block style; one
-    /// shared through an anchor is refused, as its text may stand under another key.</summary>
+    /// changed, stay. Only the value's scalar is replaced, so unlike UpgradeV2 the group need not be in block style; a group
+    /// or key shared through an anchor is refused, as its text may stand under another key.</summary>
     private static string UpgradeV3(string source, string path)
     {
         if (Settings.ChildOf(RootOf(source), "desktop_pet") is not YamlMappingNode group) return source;
         var (key, value) = group.Children.FirstOrDefault(pair => pair.Key is YamlScalarNode { Value: "lucky_percent" });
         if (key is null) return source;
+        // An aliased key stands where its anchor is, so where its comment is is not known.
+        if (!key.Anchor.IsEmpty) throw CannotEdit(path, key);
         var tokens = Settings.Scan(source);
         // Read as format 3's Definition.Percent read it, frozen here as V0Guards is.
         var ten = value is YamlScalarNode { Value: { } text } && int.TryParse(text.Trim(), System.Globalization.NumberStyles.Integer,
