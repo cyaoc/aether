@@ -377,38 +377,36 @@ public sealed class DesktopPetSettingsTests
     });
 
     [Fact]
-    public Task A_new_show_in_the_show_table_brings_its_switch_kind_of_lines_and_test() => WithPage(page =>
+    public Task The_pk_group_brings_its_eight_switches_its_tests_and_kinds_of_lines_and_a_row_turned_off_saves_by_its_id() => WithPage(async (page, harness) =>
     {
         Pick(page, "ShowGroupList", "PK");
-        Assert.True(Switch(page, "PK 赢了").IsEnabled);
-        Assert.Contains("PK 结束时赢了", Texts(page));
-        Assert.Contains("PK 赢了", page.FindControl<ComboBox>("TestShowInput")!.Items.Cast<DesktopPetTest>().Select(test => test.Label));
+        Assert.Contains("1 对 1 PK 时；多人 PK 不演", Texts(page));
+        string[] rows = ["对手情报卡", "双倍条件", "双倍挑战", "2倍加成中", "双倍还剩10秒", "最后10秒", "中途比分", "PK 结果"];
+        Assert.Equal(rows, page.FindControl<ItemsControl>("ShowRows")!.Items.Cast<DesktopPetShowRow>().Select(row => row.Show.Label));
+        Assert.All(rows, row => Assert.True(Switch(page, row).IsEnabled));
+        Assert.Subset(page.FindControl<ComboBox>("TestShowInput")!.Items.Cast<DesktopPetTest>().Select(test => test.Label).ToHashSet(),
+            new HashSet<string> { "对手情报卡", "最后10秒", "双倍挑战：挑战失败", "中途比分：被追近", "PK 结果：险胜", "PK 结果：输" });
+        Switch(page, "PK 结果").IsChecked = false;
         GuiHarness.Tab(page, 3);
-        var kinds = page.FindControl<ListBox>("LineKindList")!;
-        kinds.ScrollIntoView(kinds.Items.Count - 1);
-        GuiHarness.Flush();
-        Assert.Subset(Texts(page).ToHashSet(), new HashSet<string?> { "PK", "PK 赢了" });
-        return Task.CompletedTask;
-    }, ShowTable.Current with
-    {
-        Groups = [.. ShowTable.Current.Groups, new("pk", "PK", "和别的直播间 PK 时")],
-        Shows = [.. ShowTable.Current.Shows, new("pkWin", "pk", "PK 赢了", "B", ["pkWin"], [null], "PK 结束时赢了")],
-        Lines = [.. ShowTable.Current.Lines, new("pkWin", "pk", "PK 赢了", "PK 结束时赢了", ["昵称"])]
+        Pick(page, "LineKindList", "惨败·收尾");
+        Assert.Contains("惨败后，她站起来鞠躬时；每次随机一句，不连着重复", Texts(page));
+        Assert.Equal(Character.Current.Lines["pkBigLossAfter"][0], Line(page, 1).Text);
+
+        await GuiHarness.SaveAsync(page);
+        Assert.Equal(["pkResult"], Settings.Load(harness.DataDirectory).DesktopPetShowsOff.Value);
     });
 
-    private static Task WithPage(Func<DesktopPetSettingsPage, Task> test, ShowTable? shows = null) =>
-        WithPage((page, _) => test(page), shows);
+    private static Task WithPage(Func<DesktopPetSettingsPage, Task> test) => WithPage((page, _) => test(page));
 
-    /// <summary>The page at 1200 × 720, built from <paramref name="shows"/>, or the program's 演出表, over data that
-    /// <paramref name="prepare"/> may change first.</summary>
-    private static Task WithPage(Func<DesktopPetSettingsPage, GuiHarness, Task> test, ShowTable? shows = null,
-        Action<GuiHarness>? prepare = null) => HeadlessApp.Session.Dispatch(async () =>
+    /// <summary>The page at 1200 × 720 over data that <paramref name="prepare"/> may change first.</summary>
+    private static Task WithPage(Func<DesktopPetSettingsPage, GuiHarness, Task> test, Action<GuiHarness>? prepare = null) =>
+        HeadlessApp.Session.Dispatch(async () =>
     {
         using var harness = new GuiHarness();
         harness.SaveSettings();
         prepare?.Invoke(harness);
         var viewModel = harness.CreateViewModel();
-        var page = new DesktopPetSettingsPage(harness.DataDirectory, shows ?? ShowTable.Current) { DataContext = viewModel };
+        var page = new DesktopPetSettingsPage(harness.DataDirectory) { DataContext = viewModel };
         var window = new Window { Content = page, Width = 1200, Height = 720 };
         window.Show();
         try
