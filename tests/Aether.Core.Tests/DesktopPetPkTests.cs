@@ -60,16 +60,11 @@ public sealed class DesktopPetPkTests : IAsyncDisposable
     [Fact]
     public async Task An_opponent_B站_does_not_answer_about_in_3_seconds_is_told_without_it()
     {
-        var asked = new[] { Battle, RoomInfo, Guards, OnlineRankUrl }.Select(url =>
-        {
-            var requested = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
-            h.Http.Intercept(url, (_, token, _) => FakeBilibiliHttp.HangUntilCancelledAsync(requested, token));
-            return requested.Task;
-        }).ToArray();
+        var asked = LookUpsHang();
         var (updates, pet) = await WatchAsync();
 
         await h.PushAndSyncAsync(updates, PreNew(), Info());
-        await Task.WhenAll(asked).WaitAsync(TimeSpan.FromSeconds(5), TestContext.Current.CancellationToken);
+        await asked.WaitAsync(TimeSpan.FromSeconds(5), TestContext.Current.CancellationToken);
         h.Time.Advance(TimeSpan.FromSeconds(3));
 
         Assert.Equal("""{"name":"星星点灯","rank":null,"firstWin":null,"fans":null,"guards":null,"top3":[]}""",
@@ -174,6 +169,37 @@ public sealed class DesktopPetPkTests : IAsyncDisposable
     }
 
     [Fact]
+    public async Task A_pk_info_without_its_timestamp_is_told_all_the_same_but_the_doubling_is_not_counted_down()
+    {
+        var asked = LookUpsHang();
+        var (updates, pet) = await WatchAsync();
+        var info = Info(members: [Member(Ours, 10, Capsules((4, "2倍加成中", Now() + 20), (5, "挑战成功", 0))), Member(OpponentRoom, 20)]);
+
+        await h.PushAndSyncAsync(updates, PreNew(), info.Replace($",\"timestamp\":{Now()}", "", StringComparison.Ordinal));
+        Assert.Equal(["pkScore {\"ours\":10,\"theirs\":20}", "pkDouble {}", "pkChallenge {\"result\":\"Done\"}"], await ToldAsync(pet));
+        await asked.WaitAsync(TimeSpan.FromSeconds(5), TestContext.Current.CancellationToken);
+        h.Time.Advance(TimeSpan.FromSeconds(3));
+        Assert.Equal(OpponentName, (await pet.NextAsync(DesktopPet.PkMatch)).GetProperty("name").GetString());
+        h.Time.Advance(TimeSpan.FromSeconds(7));
+        await h.PushAndSyncAsync(updates);
+
+        Assert.Empty(await ToldAsync(pet));
+    }
+
+    [Theory]
+    [InlineData("""{"capsule_type":5,"end_time":0,"url":""}""")]
+    [InlineData("""{"capsule_type":5,"text":"挑战成功","url":""}""")]
+    public async Task A_capsule_without_its_text_or_end_time_is_left_out_and_the_others_told(string capsule)
+    {
+        var (updates, pet) = await WatchAsync();
+        var capsules = $$"""[{{capsule}},{"capsule_type":4,"text":"差10票翻倍","end_time":{{Now() + 190}},"url":""}]""";
+
+        await h.PushAndSyncAsync(updates, PreNew(), Info(members: [Member(Ours, capsules: capsules), Member(OpponentRoom)]));
+
+        Assert.Equal(["pkScore {\"ours\":0,\"theirs\":0}", "pkCondition {\"text\":\"差10票翻倍\"}"], await ToldAsync(pet));
+    }
+
+    [Fact]
     public async Task A_countdown_not_told_yet_is_not_told_once_the_pk_ends()
     {
         var (updates, pet) = await WatchAsync();
@@ -229,14 +255,22 @@ public sealed class DesktopPetPkTests : IAsyncDisposable
     });
 
     /// <summary>The PK events, or those named <paramref name="only"/>, the page was told before the danmaku a push synced with,
-    /// each its name and what it said.</summary>
+    /// each its name and what it said; but the other streamer, told whenever B站 answers about them.</summary>
     private static async Task<string[]> ToldAsync(DesktopPetEvents pet, string only = "pk")
     {
         var told = new List<string>();
         while (await pet.NextAsync() is var (name, data) && name != DesktopPet.Danmaku)
-            if (name.StartsWith(only, StringComparison.Ordinal)) told.Add($"{name} {Text(data)}");
+            if (name.StartsWith(only, StringComparison.Ordinal) && name != DesktopPet.PkMatch) told.Add($"{name} {Text(data)}");
         return [.. told];
     }
+
+    /// <summary>Has B站 not answer about the other streamer until the lookup gives up; done once it was asked all four.</summary>
+    private Task LookUpsHang() => Task.WhenAll(new[] { Battle, RoomInfo, Guards, OnlineRankUrl }.Select(url =>
+    {
+        var requested = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        h.Http.Intercept(url, (_, token, _) => FakeBilibiliHttp.HangUntilCancelledAsync(requested, token));
+        return requested.Task;
+    }));
 
     /// <summary>Whether each state the page was told before the danmaku a push synced with says the streamer is in a PK.</summary>
     private static async Task<bool[]> PkStatesAsync(DesktopPetEvents pet) =>

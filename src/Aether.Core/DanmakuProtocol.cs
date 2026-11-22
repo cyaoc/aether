@@ -47,10 +47,10 @@ internal static class DanmakuProtocol
     /// <summary>PK_BATTLE_PROCESS_NEW's or PK_BATTLE_END's votes, init_info's side then match_info's.</summary>
     internal sealed record PkScored(PkSide[] Sides) : PkNews;
 
-    /// <summary>A PK_INFO: the PK's type (pk_basic.type), its members and when it was sent.</summary>
-    internal sealed record PkInfo(int Type, PkSide[] Sides, long Timestamp) : PkNews;
+    /// <summary>A PK_INFO: the PK's type (pk_basic.type), its members and when it was sent, none when B站 left that out.</summary>
+    internal sealed record PkInfo(int Type, PkSide[] Sides, long? Timestamp) : PkNews;
 
-    /// <summary>One side of a PK: its room, its votes and, in a PK_INFO, its 胶囊 (capsules_v2).</summary>
+    /// <summary>One side of a PK: its room, its votes and, in a PK_INFO, its 胶囊 (capsules_v2), without one B站 left a part of out.</summary>
     internal sealed record PkSide(long RoomId, long Votes, PkCapsule[] Capsules);
 
     /// <summary>A 胶囊: its capsule_type, its text without B站's bold marks (&lt;% %&gt;) and its end_time.</summary>
@@ -244,15 +244,24 @@ internal static class DanmakuProtocol
     }
 
     private static PkInfo Info(JsonElement data) => new(data.GetProperty("pk_basic").GetProperty("type").GetInt32(),
-        [.. data.GetProperty("members").EnumerateArray().Select(Side)], data.GetProperty("timestamp").GetInt64());
+        [.. data.GetProperty("members").EnumerateArray().Select(Side)],
+        data.TryGetProperty("timestamp", out var sent) && sent.ValueKind == JsonValueKind.Number && sent.TryGetInt64(out var at) ? at : null);
 
     private static PkSide Side(JsonElement side) => new(side.GetProperty("room_id").GetInt64(), side.GetProperty("votes").GetInt64(),
         side.TryGetProperty("capsules_v2", out var capsules) && capsules.ValueKind == JsonValueKind.Array
-            ? [.. capsules.EnumerateArray().Select(Capsule)] : []);
+            ? [.. capsules.EnumerateArray().Select(Capsule).OfType<PkCapsule>()] : []);
 
-    private static PkCapsule Capsule(JsonElement capsule) => new(capsule.GetProperty("capsule_type").GetInt32(),
-        (capsule.GetProperty("text").GetString() ?? throw new JsonException("缺少胶囊文字。")).Replace("<%", "").Replace("%>", ""),
-        capsule.GetProperty("end_time").GetInt64());
+    /// <summary>A 胶囊, none when B站 left a part of it out or wrote it otherwise: the others are told all the same.</summary>
+    private static PkCapsule? Capsule(JsonElement capsule)
+    {
+        try
+        {
+            return new(capsule.GetProperty("capsule_type").GetInt32(),
+                (capsule.GetProperty("text").GetString() ?? throw new JsonException("缺少胶囊文字。")).Replace("<%", "").Replace("%>", ""),
+                capsule.GetProperty("end_time").GetInt64());
+        }
+        catch (Exception error) when (Unreadable(error)) { return null; }
+    }
 
     /// <summary>The sender uid and danmaku id that only a reply needs, plus the nickname this danmaku itself @s. An
     /// unreadable uid becomes 0 (no reply), an unreadable id "" (a reply without replay_dmid) and an unreadable nickname

@@ -69,13 +69,14 @@ internal sealed class DesktopPetPk(long roomId, StepTimers timers, Action<string
     }
 
     /// <summary>Only our 双倍彩蛋 is told: the condition the first time it is one, as "差10票翻倍" or "差1人翻倍" is, how the
-    /// challenge came out and the doubling, each once; the doubling counted down to its end_time too.</summary>
-    private void TakeCapsule(PkCapsule capsule, long sent, long receivedAt)
+    /// challenge came out and the doubling, each once; the doubling counted down to its end_time too, by B站's clock when the
+    /// PK_INFO said what it was.</summary>
+    private void TakeCapsule(PkCapsule capsule, long? sent, long receivedAt)
     {
         if (capsule is { Type: DoubleCapsule, Text: Doubling } && once.Add(DesktopPet.PkDouble))
         {
             Tell(DesktopPet.PkDouble, new { });
-            Countdown("double", capsule.EndTime, sent, receivedAt);
+            if (sent is { } at) Countdown("double", capsule.EndTime, at, receivedAt);
         }
         else if (capsule.Type == DoubleCapsule && capsule.Text.StartsWith('差') && capsule.Text.EndsWith("翻倍", StringComparison.Ordinal))
             TellOnce(DesktopPet.PkCondition, new { text = capsule.Text });
