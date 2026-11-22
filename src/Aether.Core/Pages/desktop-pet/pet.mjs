@@ -317,6 +317,8 @@ export class Pet extends Engine {
 
   receive(state) {
     super.receive(state);
+    // switched off, what she held is forgotten with the rest: back on, no card rolls up and no sign flies home
+    if (!state.enabled) this.intelHeld = this.intelBack = this.signHeld = this.signBack = null;
     if (this.lot) for (const k of SEGMENTS.lottery) this.loadSheet(k);
   }
 

@@ -318,6 +318,30 @@ public sealed class DesktopPetBrowserTests
         Assert.Empty(page.Browser.Errors);
     }
 
+    [Theory]
+    [InlineData("pkOpponent", "intelHeld", "intelBack")]
+    [InlineData("pkLastSeconds", "signHeld", "signBack")]
+    public async Task The_desktop_pet_turned_off_while_she_holds_a_card_or_her_sign_does_not_bring_it_back_turned_on(string show, string held, string back)
+    {
+        await using var page = await StartAsync();
+        await page.OpenAsync(480, 640);
+        await page.H.Client.WebService.TestShowAsync(show, null, "星河");
+        await page.Browser.WaitAsync($"window.pet.cur?.name === '{show}'");
+        Assert.True((await page.Browser.EvaluateAsync($$"""
+            (async () => {
+              for (let i = 0; i < 40 && !pet.{{held}}; i++) { await Promise.all(Object.values(pet.loads)); {{Clock}}.currentTime += 250; await {{TwoFrames}}; }
+              return !!pet.{{held}};
+            })()
+            """)).GetBoolean());
+
+        await page.ApplyAsync(("desktop_pet.enabled", "false"));
+        await page.ApplyAsync(("desktop_pet.enabled", "true"));
+        await page.Browser.EvaluateAsync(TwoFrames);
+
+        Assert.Equal("[null,null]", (await page.Browser.EvaluateAsync($"JSON.stringify([pet.{held} ?? null, pet.{back} ?? null])")).GetString());
+        Assert.Empty(page.Browser.Errors);
+    }
+
     [Fact]
     public async Task Her_PK_sign_fits_the_widest_double_bonus_conditions_at_full_size()
     {
