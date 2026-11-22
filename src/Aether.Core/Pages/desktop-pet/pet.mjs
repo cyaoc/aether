@@ -3,9 +3,9 @@
 import { canvasOf, loadImage } from '../video/animations/toolkit.mjs';
 import { BALL, BAR, BURST, CHEST, DONE, DROP, Engine, FOOT, GAME, GLOW, H, HANG, HOOK, HOP, INTEL, LUCK, NOTICE, PAGE, PK_H, PK_SIGN, SPRITE_H, bump, clamp, ease, k01, seeded, xfade } from './engine.mjs';
 import { BACK, drawFx, drawStar, giftBox } from './effects.mjs';
-import { PK_INTEL, wrap } from './pk-intel.mjs';
+import { PK_INTEL } from './pk-intel.mjs';
 import { SIGN } from './sign.mjs';
-import { SANS } from '../gift-board/paint.mjs';
+import { SANS, wrap } from '../gift-board/paint.mjs';
 import { REMOTE } from '../gift-board/images.mjs';
 
 const SPRITE_SPEED = 0.8;
