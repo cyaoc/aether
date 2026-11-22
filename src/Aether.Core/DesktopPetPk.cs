@@ -4,7 +4,8 @@ namespace Aether.Core;
 
 /// <summary>One PK as the 桌宠页 is told it, from its first PK message to its end; part of the room connection region's state
 /// (ADR 0017). Only a 1-on-1 PK is told, once a PK_INFO says it is one: the other streamer, looked up as the PK is matched,
-/// waits for that.</summary>
+/// waits for that. One not matched on this connection, joined part way through after a reconnect, is not told at all: its
+/// 胶囊 and score would play as new.</summary>
 internal sealed class DesktopPetPk(long roomId, StepTimers timers, Action<string, object> tell, Func<PkMatched, Task<OpponentCard>> lookUp)
 {
     // pk_basic.type: 2 a random PK, 6 one the streamer was invited to; 8, a PK of more, and any other is no 1-on-1.
@@ -124,6 +125,6 @@ internal sealed class DesktopPetPk(long roomId, StepTimers timers, Action<string
 
     private void Tell(string name, object data)
     {
-        if (oneOnOne == true && !over) tell(name, data);
+        if (oneOnOne == true && once.Contains(DesktopPet.PkMatch) && !over) tell(name, data);
     }
 }

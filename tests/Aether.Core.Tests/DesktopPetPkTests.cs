@@ -91,11 +91,29 @@ public sealed class DesktopPetPkTests : IAsyncDisposable
     }
 
     [Fact]
+    public async Task A_pk_joined_part_way_through_after_a_reconnect_only_puts_the_streamer_in_one()
+    {
+        var (updates, pet) = await WatchAsync();
+        await h.PushAndSyncAsync(updates, PreNew(), Info());
+        await ToldAsync(pet);
+        await h.Server.DisconnectAsync();
+        Assert.IsType<Reconnecting>(await h.NextAsync(updates));
+        await h.AdvanceRetryAsync(updates, 1);
+
+        await h.PushAndSyncAsync(updates, Info(members: [Member(Ours, 500, Capsules((4, "2倍加成中", Now() + 100), (5, "挑战成功", 0))), Member(OpponentRoom, 100)]),
+            Votes("PK_BATTLE_PROCESS_NEW", (Ours, 900), (OpponentRoom, 100)), Votes("PK_BATTLE_END", (Ours, 1000), (OpponentRoom, 100)));
+
+        // each state the page was told as whether it says the streamer is in a PK, and anything else as it was told
+        Assert.Equal(["no PK", "PK", "no PK"], (await ToldAsync(pet, "")).Select(told => told.StartsWith("state ", StringComparison.Ordinal)
+            ? told.Contains("\"pk\":true", StringComparison.Ordinal) ? "PK" : "no PK" : told));
+    }
+
+    [Fact]
     public async Task Scores_and_the_end_say_ours_and_theirs_by_room_on_whichever_side_ours_is()
     {
         var (updates, pet) = await WatchAsync();
 
-        await h.PushAndSyncAsync(updates, Info(members: [Member(OpponentRoom, 300), Member(Ours, 120)]),
+        await h.PushAndSyncAsync(updates, PreNew(), Info(members: [Member(OpponentRoom, 300), Member(Ours, 120)]),
             Votes("PK_BATTLE_PROCESS_NEW", (Ours, 500), (OpponentRoom, 300)), Votes("PK_BATTLE_PROCESS_NEW", (OpponentRoom, 900), (Ours, 700)),
             Votes("PK_BATTLE_END", (OpponentRoom, 1000), (Ours, 1200)));
 
@@ -114,7 +132,7 @@ public sealed class DesktopPetPkTests : IAsyncDisposable
         var theirCondition = Capsules((4, "差1人翻倍", start + 190), (5, "完成挑战获得<%2倍%>PK值", 0));
 
         // As 31445880 had it on 2026-11-22, but their challenge failing first.
-        await h.PushAndSyncAsync(updates, Both(first, first), Both(condition, theirCondition), Both(condition, theirCondition),
+        await h.PushAndSyncAsync(updates, PreNew(), Both(first, first), Both(condition, theirCondition), Both(condition, theirCondition),
             Both(condition, Capsules((5, "挑战失败", 0))), Both(Capsules((4, "差0票翻倍", -1), (5, "挑战成功", 0)), "[]"),
             Both(Capsules((4, "即将2倍加成", start + 190), (5, "挑战成功", 0)), "[]"),
             Both(Capsules((4, "2倍加成中", start + 250), (5, "挑战成功", 0)), Capsules((4, "2倍加成中", start + 250))),
@@ -132,7 +150,7 @@ public sealed class DesktopPetPkTests : IAsyncDisposable
         var (updates, pet) = await WatchAsync();
         var sent = Now() - localAhead;
 
-        await h.PushAndSyncAsync(updates, Info(), Started(sent, countdown: sent + 12));
+        await h.PushAndSyncAsync(updates, PreNew(), Info(), Started(sent, countdown: sent + 12));
         Assert.Empty(await ToldAsync(pet, DesktopPet.PkCountdown));
         h.Time.Advance(TimeSpan.FromSeconds(12) - TimeSpan.FromMilliseconds(1));
         await h.PushAndSyncAsync(updates);
@@ -150,7 +168,7 @@ public sealed class DesktopPetPkTests : IAsyncDisposable
     {
         var (updates, pet) = await WatchAsync();
 
-        await h.PushAndSyncAsync(updates, Info(), Started(Now(), countdown: Now() - late));
+        await h.PushAndSyncAsync(updates, PreNew(), Info(), Started(Now(), countdown: Now() - late));
 
         Assert.Equal(told is null ? [] : [told], await ToldAsync(pet, DesktopPet.PkCountdown));
     }
@@ -160,7 +178,7 @@ public sealed class DesktopPetPkTests : IAsyncDisposable
     {
         var (updates, pet) = await WatchAsync();
 
-        await h.PushAndSyncAsync(updates, Info(members: [Member(Ours, capsules: Capsules((4, "2倍加成中", Now() + 20))), Member(OpponentRoom)]));
+        await h.PushAndSyncAsync(updates, PreNew(), Info(members: [Member(Ours, capsules: Capsules((4, "2倍加成中", Now() + 20))), Member(OpponentRoom)]));
         h.Time.Advance(TimeSpan.FromSeconds(10));
         await h.PushAndSyncAsync(updates);
         Assert.Equal(["pkDouble {}"], await ToldAsync(pet, DesktopPet.PkDouble));
@@ -204,7 +222,7 @@ public sealed class DesktopPetPkTests : IAsyncDisposable
     {
         var (updates, pet) = await WatchAsync();
 
-        await h.PushAndSyncAsync(updates, Info(members: [Member(Ours, capsules: Capsules((4, "2倍加成中", Now() + 15))), Member(OpponentRoom)]),
+        await h.PushAndSyncAsync(updates, PreNew(), Info(members: [Member(Ours, capsules: Capsules((4, "2倍加成中", Now() + 15))), Member(OpponentRoom)]),
             Started(Now(), countdown: Now() + 5), Votes("PK_BATTLE_END", (Ours, 0), (OpponentRoom, 0)));
         h.Time.Advance(TimeSpan.FromSeconds(6));
         await h.PushAndSyncAsync(updates);
