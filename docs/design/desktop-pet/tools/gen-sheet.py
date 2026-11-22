@@ -35,12 +35,17 @@ SHEETS = {1: ("common", "pet-base", None), 2: ("lottery", "pet-base", None), 3: 
           5: ("moods", "pet-base", None), 6: ("gifts", "pet-base", None),
           7: ("castleSheet", "princess-pose-base", "princess-sheet"), 8: ("voyage", "fleet-pose-base", "fleet-sheet"),
           9: ("ski9", "ski-pose-base", "ski-sheet"), 10: ("gym10", "outfit-pose-base", "gym-sheet"),
-          11: ("hike11", "outfit-pose-base", "hike-sheet"), 12: ("cycle12", "outfit-pose-base", "cycle-sheet")}
+          11: ("hike11", "outfit-pose-base", "hike-sheet"), 12: ("cycle12", "outfit-pose-base", "cycle-sheet"),
+          18: ("pkSign", "pet-base", None)}
+# a sheet drawn for the first time has no poses on the board yet: name its cells here, so the gate still measures them
+# (pkSign was named here until it went onto the board)
+FIRST_NAMES = {}
 CASTLE = [None, "pIdle", "spin", "curtsy", "walkA", "lookBack"]  # the castle's princess idle moves to cell 2
 # upright on the ground line: her eyes are as high above her feet as the anchor's
 UPRIGHT = {"wave", "cheer", "surprised", "announce", "point", "hope", "clap", "crack", "pout", "shy", "hum", "giftBox",
            "shakeBox", "crownV", "pIdle", "capSalute", "spyglass", "admSalute", "govPoint", "govWave", "gymReady", "curl",
-           "gymWipe", "hikeReady", "hikeUp", "bikeReady", "bikeUp", "skiShake"}
+           "gymWipe", "hikeReady", "hikeUp", "bikeReady", "bikeUp", "skiShake", "signHide", "signUp", "signCheer",
+           "signUrge"}
 NAMES = ["top-left", "top-middle", "top-right", "bottom-left", "bottom-middle", "bottom-right"]
 NEW = ("Use your built-in image generation tool (not code) to create ONE image, then copy the generated PNG file to {out}. "
        "Do not write any code. The LAST attached image is the canvas to fill; the image just before it is the approved "
@@ -53,6 +58,14 @@ REDO = ("Use your built-in image generation tool (not code) to edit the LAST att
         "now (a hat sits on top of her head; the head never gets smaller for it), her body and legs as long, her shoe soles "
         "on the same line. Change ONLY those cells and keep every other cell exactly as it is. The image just before it is "
         "the approved earlier version of this sheet: copy the poses from it, never its sizes. Image: {body}")
+# a first sheet has no earlier version: the images before the canvas are only who she is
+NEW_FIRST = NEW.replace("the image just before it is the approved earlier version of this pose sheet: copy each pose, outfit, "
+                        "prop and expression from it, by name, but take every size only from the canvas",
+                        "the images before it show who she is: copy her face, hair, outfit and drawing style from them, draw "
+                        "the poses described below, and take every size only from the canvas")
+FROM_EARLIER = "The image just before it is the approved earlier version of this sheet: copy the poses from it, never its sizes."
+FROM_REFS = "The images before it show who she is: copy her face, hair, outfit and drawing style from them, never their sizes."
+assert NEW_FIRST != NEW and FROM_EARLIER in REDO  # the wording above must keep matching NEW and REDO
 
 
 def canvas_cell(i):
@@ -138,7 +151,9 @@ def main():
     n, out = int(argv[0]), Path(argv[1]).resolve()
     out.mkdir(parents=True, exist_ok=True)
     key_, base, outfit = SHEETS[n]
-    names = CASTLE if key_ == "castleSheet" else [next((p for p, (k, i) in POSE.items() if k == key_ and i == j), None) for j in range(6)]
+    first = key_ not in SHEET  # not on the board yet: no approved earlier version of this sheet to copy the poses from
+    names = CASTLE if key_ == "castleSheet" else FIRST_NAMES[key_] if first else [
+        next((p for p, (k, i) in POSE.items() if k == key_ and i == j), None) for j in range(6)]
     A = standing()
     ref = eye_ref(A)
 
@@ -146,7 +161,8 @@ def main():
     refs = [MASCOT / "chibi-sheet.webp", MASCOT / "chibi-turnaround.webp"]
     if outfit:
         refs.append(PKG / f"textures/{outfit}.webp")
-    refs.append(PKG / f"textures/{SHEET[key_]}.webp")
+    if not first:
+        refs.append(PKG / f"textures/{SHEET[key_]}.webp")
     canvas = place_anchor(np.zeros((2 * CELL, 3 * CELL, 4), np.uint8), A)
     on_green(canvas).save(out / f"sheet-{n}-canvas.png")
 
@@ -168,7 +184,8 @@ def main():
             break
         png, log = out / f"sheet-{n}-try{t + 1}.png", out / f"sheet-{n}-try{t + 1}.log.txt"
         if t == 0 and not best:
-            got = run_codex(NEW.format(out=png, body=body), refs + [out / f"sheet-{n}-canvas.png"], png, log)
+            got = run_codex((NEW_FIRST if first else NEW).format(out=png, body=body), refs + [out / f"sheet-{n}-canvas.png"],
+                            png, log)
         else:
             sheet = place_anchor(np.zeros((2 * CELL, 3 * CELL, 4), np.uint8), A)
             for i, (_, c) in best.items():
@@ -178,7 +195,9 @@ def main():
                 sheet[y:y + CELL, x:x + CELL] = place_anchor(np.zeros((CELL, CELL, 4), np.uint8), A) if i in todo else c
             on_green(sheet).save(out / f"sheet-{n}-redo{t + 1}.png")
             cells_ = ", ".join(NAMES[i] for i in todo)
-            got = run_codex(REDO.format(out=png, cells=cells_, body=body), refs + [out / f"sheet-{n}-redo{t + 1}.png"], png, log)
+            redo_text = REDO.replace(FROM_EARLIER, FROM_REFS) if first else REDO
+            got = run_codex(redo_text.format(out=png, cells=cells_, body=body), refs + [out / f"sheet-{n}-redo{t + 1}.png"],
+                            png, log)
         if got is None:
             print(f"try {t + 1}: codex gave no image")
             continue

@@ -1,6 +1,6 @@
 """Draw the frame strip of a pose that moves in place (the board's STRIP), from its cell of the pose sheet.
 
-python gen-loop.py <pose> <out dir> [--tries 3]
+python gen-loop.py <pose> <out dir> [--tries 3] [--strip <name>]
 
 gen-frames.sh hands codex the cell as frame 1 of a 2 x 2 grid and codex draws frames 2-4 beside it; frame-patch.py
 keeps only what moves (OPTIONS per pose). Every frame's face is then measured against the cell's own (petlib.find_face,
@@ -8,6 +8,9 @@ the two eyes together): a frame more than GATE bigger or smaller is drawn again,
 frames whose eyes cannot be found (closed, turned away) are not measured. A walking loop whose legs hardly change is drawn
 again too (LEGS_MOVE). What lies on the ground beside her (a dumbbell, skis) is laid into every frame exactly as in her
 cell (petlib.carry_props), so it does not shift from frame to frame. Nothing is scaled afterwards.
+
+--strip draws another strip of the same pose than the board's STRIP names first (a pose whose loop runs over two strips,
+f and f2: her PK sign swaying left and right), with its own frames/<name>.txt.
 
 Out: <strip>-strip.png (the four frames in a row, each the cell's size, as the board plays them) and <strip>-check.png.
 """
@@ -48,10 +51,15 @@ def main():
         k = argv.index("--tries")
         tries = int(argv[k + 1])
         del argv[k:k + 2]
+    named = None
+    if "--strip" in argv:
+        k = argv.index("--strip")
+        named = argv[k + 1]
+        del argv[k:k + 2]
     pose, out = argv[0], Path(argv[1]).resolve()
     out.mkdir(parents=True, exist_ok=True)
     key, i = POSE[pose]
-    strip, ref = STRIP[pose], f"textures/{SHEET[key]}.webp:{i + 1}"
+    strip, ref = named or STRIP[pose], f"textures/{SHEET[key]}.webp:{i + 1}"
     cell = cells(SHEET[key])[i]
     opts = []
     for o in OPTIONS.get(pose, []):
