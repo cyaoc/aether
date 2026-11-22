@@ -22,6 +22,8 @@ internal sealed class DesktopPetPk(long? id, long roomId, StepTimers timers, Act
     private static readonly TimeSpan SignLead = TimeSpan.FromSeconds(10);
     // A PK's last seconds (s), from its pk_countdown to when B站 stops counting its votes.
     private const long LastSeconds = 10;
+    // From the match to when the PK is fought (PK_BATTLE_PRE_NEW's pre_timer, 2026-11-22): the 对手情报卡 is rolled up by then.
+    private static readonly TimeSpan MatchLead = TimeSpan.FromSeconds(10);
     private readonly List<ITimer> countdowns = [];
     // What one PK tells once only.
     private readonly HashSet<string> once = [];
@@ -30,8 +32,9 @@ internal sealed class DesktopPetPk(long? id, long roomId, StepTimers timers, Act
     // Looked up, waiting for a PK_INFO to say whether the PK is 1-on-1.
     private OpponentCard? card;
     private bool over;
-    // Whether its match (PK_BATTLE_PRE_NEW) came on this connection: only then is it told.
+    // Whether its match (PK_BATTLE_PRE_NEW) came on this connection, only then is it told; and when it came.
     private bool matched;
+    private long matchedAt;
 
     public long? Id => id;
 
@@ -40,7 +43,7 @@ internal sealed class DesktopPetPk(long? id, long roomId, StepTimers timers, Act
         switch (received.News)
         {
             case PkMatched match when !matched:
-                matched = true;
+                (matched, matchedAt) = (true, received.ReceivedTimestamp);
                 LookUp(match);
                 break;
             case PkStarted started:
@@ -120,7 +123,7 @@ internal sealed class DesktopPetPk(long? id, long roomId, StepTimers timers, Act
     private void TellMatch()
     {
         if (card is null || oneOnOne is null) return;
-        Tell(DesktopPet.PkMatch, card);
+        Tell(DesktopPet.PkMatch, new { intel = card, leftMs = (long)(MatchLead - timers.Time.GetElapsedTime(matchedAt)).TotalMilliseconds });
         card = null;
     }
 

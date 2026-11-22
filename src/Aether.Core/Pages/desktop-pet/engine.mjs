@@ -442,7 +442,7 @@ export class Engine extends EventTarget {
 
   start(name, opts) {
     const now = this.now(), c = this.cur, gm = this.gm, { dailyMinSeconds, dailyMaxSeconds } = this.settings;
-    if (opts.until != null && opts.until - now < PK_SIGN.least) return;
+    if (opts.until != null && opts.until - now < PK_SIGN.least || opts.by <= now) return;
     this.trialOver(c);
     // a PK countdown cut off goes back to the head of the queue: once the bigger show is over it is held up again for what is
     // left, if PK_SIGN.least or more (the check above); every other show cut off is gone
@@ -467,6 +467,7 @@ export class Engine extends EventTarget {
     // a round's blind boxes were shaken all the while they came in: the show opens the box right away instead of shaking it again
     if (opts.shaken && BOX_OPEN[name]) this.cur.start -= BOX_OPEN[name];
     if (opts.until != null) this.cur.dur = Math.min(dur, opts.until - now + PK_SIGN.down);   // a late countdown is shorter
+    if (opts.by != null) this.cur.dur = Math.min(dur, opts.by - now);   // a late 对手情报卡 too: rolled up as the PK starts
     if (DAILY[name]) this.nextDaily = now + dur + dailyMinSeconds * 1000 + this.rng() * (dailyMaxSeconds - dailyMinSeconds) * 1000;
     // after the chest game: robbed, she is sad until a gift cheers her up (MOOD_HOLD.robbed at most, its own lines); kept, glad
     // for MOOD_HOLD.kept (and no 日常小动作 meanwhile: those come only when she is calm)
@@ -598,10 +599,11 @@ export class Engine extends EventTarget {
   pkCountdown({ kind, leftMs }) { if (COUNTDOWNS[kind]) this.fire(COUNTDOWNS[kind], { until: this.now() + leftMs }); }
 
   // B站 PK matched: the 对手情报卡 of what B站 answered about the other streamer (OpponentCard.cs), none with nothing on either
-  // side. Asking B站 takes up to 3 s, so it may start that much late; it plays its 10 s all the same.
-  pkMatch(intel) {
+  // side. It is rolled up as the PK starts, leftMs from now (by): asking B站 takes up to 3 s and a show before it may take more,
+  // so it may start that much late and play that much shorter.
+  pkMatch({ intel, leftMs }) {
     const L = PK_INTEL.layout(this.measureG, intel);
-    if (L.front || L.back) this.fire('pkOpponent', { intel });
+    if (L.front || L.back) this.fire('pkOpponent', { intel, by: this.now() + leftMs });
   }
 
   // Our side's 双倍挑战 done or run out (Done, Failed).

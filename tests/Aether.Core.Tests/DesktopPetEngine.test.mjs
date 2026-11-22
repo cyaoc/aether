@@ -786,8 +786,13 @@ const sides = engine => { const seen = new Set(); play(engine, 10000, st => { if
 
 test('the 对手情报卡 turns over only when it has both sides, one alone shows all the while, and with neither it does not play', () => {
   const [front, back, both, neither] = [{ fans: 34613 }, { top3: [{ score: 880, wealth: 12, guard: 0, medal: 0 }] }, { fans: 34613, top3: [{ score: 880, wealth: 0, guard: 3, medal: 0 }] }, {}]
-    .map(so => { const engine = inPk(); engine.pkMatch(opponent(so)); return engine; });
+    .map(so => { const engine = inPk(); engine.pkMatch({ intel: opponent(so), leftMs: 10000 }); return engine; });
   assert.deepEqual([front, back, both, neither].map(playing), ['pkOpponent', 'pkOpponent', 'pkOpponent', null]);
   const turned = sides(both);
   assert.deepEqual([sides(front), sides(back), [0, 1].map(side => turned.includes(side))], [[0], [1], [true, true]]);
+});
+
+test('the 对手情报卡 is rolled up as the PK starts: so much shorter as its lookup took, and not played once the PK has started', () => {
+  const [late, started] = [7000, 0].map(leftMs => { const engine = inPk(); engine.pkMatch({ intel: opponent({ fans: 34613 }), leftMs }); return engine; });
+  assert.deepEqual([playing(late), late.cur.dur, playing(started)], ['pkOpponent', 7000, null]);
 });

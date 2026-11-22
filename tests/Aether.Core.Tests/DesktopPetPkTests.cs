@@ -27,7 +27,7 @@ public sealed class DesktopPetPkTests : IAsyncDisposable
         await h.PushAndSyncAsync(updates, infoFirst ? [Info(), PreNew()] : [PreNew(), Info()]);
 
         Assert.Equal("""{"name":"星星点灯","rank":{"name":"钻石传说","stars":3,"top":false,"place":458},"firstWin":false,"fans":34613,"guards":123,"top3":[{"score":12345,"wealth":31,"guard":3,"medal":25},{"score":5200,"wealth":22,"guard":0,"medal":0},{"score":880,"wealth":12,"guard":0,"medal":0}]}""",
-            Text(await pet.NextAsync(DesktopPet.PkMatch)));
+            Text(await CardAsync(pet)));
     }
 
     [Theory]
@@ -66,7 +66,7 @@ public sealed class DesktopPetPkTests : IAsyncDisposable
         await h.PushAndSyncAsync(updates, PreNew(), Info());
         await GiveUpAsync(asked);
 
-        Assert.Equal("""{"name":"星星点灯","rank":null,"firstWin":null,"fans":null,"guards":null,"top3":[]}""",
+        Assert.Equal("""{"intel":{"name":"星星点灯","rank":null,"firstWin":null,"fans":null,"guards":null,"top3":[]},"leftMs":7000}""",
             Text(await pet.NextAsync(DesktopPet.PkMatch)));
     }
 
@@ -86,7 +86,7 @@ public sealed class DesktopPetPkTests : IAsyncDisposable
         // The other streamer of the next PK, a 1-on-1, is the first one told: the first PK's never is, however late it comes.
         await h.PushAndSyncAsync(updates, PreNew("月亮"), Info());
 
-        Assert.Equal("月亮", (await pet.NextAsync(DesktopPet.PkMatch)).GetProperty("name").GetString());
+        Assert.Equal("月亮", (await CardAsync(pet)).GetProperty("name").GetString());
     }
 
     [Fact]
@@ -95,11 +95,11 @@ public sealed class DesktopPetPkTests : IAsyncDisposable
         Answer(h.Http);
         var (updates, pet) = await WatchAsync();
         await h.PushAndSyncAsync(updates, PreNew(), Info(), PreNew());
-        Assert.Equal(OpponentName, (await pet.NextAsync(DesktopPet.PkMatch)).GetProperty("name").GetString());
+        Assert.Equal(OpponentName, (await CardAsync(pet)).GetProperty("name").GetString());
 
         await h.PushAndSyncAsync(updates, PreNew("月亮", NextPk), Info(pk: NextPk));
 
-        Assert.Equal("月亮", (await pet.NextAsync(DesktopPet.PkMatch)).GetProperty("name").GetString());
+        Assert.Equal("月亮", (await CardAsync(pet)).GetProperty("name").GetString());
     }
 
     [Fact]
@@ -225,7 +225,7 @@ public sealed class DesktopPetPkTests : IAsyncDisposable
         await h.PushAndSyncAsync(updates, PreNew(), WithoutTimestamp(info));
         Assert.Equal(["pkScore {\"ours\":10,\"theirs\":20}", "pkDouble {}", "pkChallenge {\"result\":\"Done\"}"], await ToldAsync(pet));
         await GiveUpAsync(asked);
-        Assert.Equal(OpponentName, (await pet.NextAsync(DesktopPet.PkMatch)).GetProperty("name").GetString());
+        Assert.Equal(OpponentName, (await CardAsync(pet)).GetProperty("name").GetString());
         h.Time.Advance(TimeSpan.FromSeconds(7));
         await h.PushAndSyncAsync(updates);
 
@@ -340,6 +340,9 @@ public sealed class DesktopPetPkTests : IAsyncDisposable
         await asked.WaitAsync(TimeSpan.FromSeconds(5), TestContext.Current.CancellationToken);
         h.Time.Advance(TimeSpan.FromSeconds(3));
     }
+
+    /// <summary>The 对手情报卡 the page is told next, whenever B站 answers about the other streamer.</summary>
+    private static async Task<JsonElement> CardAsync(DesktopPetEvents pet) => (await pet.NextAsync(DesktopPet.PkMatch)).GetProperty("intel");
 
     /// <summary>Whether each state the page was told before the danmaku a push synced with says the streamer is in a PK.</summary>
     private static async Task<bool[]> PkStatesAsync(DesktopPetEvents pet) => [.. (await ToldAsync(pet, "state")).Select(SaysInPk)];

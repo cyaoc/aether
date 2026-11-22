@@ -65,7 +65,7 @@ message's `timestamp` measuring from when it came, so a local clock that is off 
 
 | Event | When | Fields |
 |---|---|---|
-| `pkMatch` | Once the 4 questions about the other streamer, asked without the login as the match (`PK_BATTLE_PRE_NEW`) came, are all answered or 3 seconds passed; once a PK | `name`; `rank`: `{name, stars (0–3), top, place (0 not on 全站排名)}` or null; `firstWin`: true, false or null; `fans`, `guards`: a number or null; `top3`: `[{score, wealth, guard (0 none, 1 总督, 2 提督, 3 舰长), medal (the level of the other streamer's 灯牌 they wear, 0 none)}]`, `[]` unanswered or with a score left out |
+| `pkMatch` | Once the 4 questions about the other streamer, asked without the login as the match (`PK_BATTLE_PRE_NEW`) came, are all answered or 3 seconds passed; once a PK | `leftMs`: how long, as it is told, until the PK is fought, 10 seconds after the match; `intel`: `name`; `rank`: `{name, stars (0–3), top, place (0 not on 全站排名)}` or null; `firstWin`: true, false or null; `fans`, `guards`: a number or null; `top3`: `[{score, wealth, guard (0 none, 1 总督, 2 提督, 3 舰长), medal (the level of the other streamer's 灯牌 they wear, 0 none)}]`, `[]` unanswered or with a score left out |
 | `pkCondition` | Our 4 号胶囊 (`capsules_v2`) the first time it is a condition, as “差10票翻倍” or “差1人翻倍” | `text`: B站's words without `<% %>` |
 | `pkChallenge` | Our 5 号胶囊 turning “挑战成功” or “挑战失败”; once a PK | `result`: `Done` or `Failed` |
 | `pkDouble` | Our 4 号胶囊 turning “2倍加成中”; once a PK | — |
@@ -172,8 +172,9 @@ the page beside the board, as the web service serves it, telling it it is on in 
   from B站's server time); the board's buttons counted 10 s from when they were pressed, and its 整场 PK played B站's moments on
   its own clock. Neither the buttons nor the 整场 PK are on the page. A 试演 of a countdown counts from 10, and cut short it is
   over, as any 试演, not held up again.
-- The 对手情报卡 starts as Core's `pkMatch` comes, once the other streamer is looked up (up to 3 s after the match), and plays
-  its 10 s whole; the board's started at the match. Each `pkScore` is weighed against the one before, and the 20 s between
+- The 对手情报卡 starts as Core's `pkMatch` comes, once the other streamer is looked up (up to 3 s after the match), and is
+  rolled up as the PK starts, as the board's, cut that much shorter, and more for a show it waited behind (none once the PK
+  has started); the board's started at the match. Each `pkScore` is weighed against the one before, and the 20 s between
   two 中途比分 are on the page's clock, from the last that played; the board's 整场 PK counted them on its PK's clock. A new PK
   (the state's `pk` turning true) stands at 0 : 0 with none of the 20 s left, as the board's 「PK 开始」.
 - She does no 日常小动作 while she shakes a round's blind boxes. Waiting for the 盲盒播报 takes up to half a minute; the board's
