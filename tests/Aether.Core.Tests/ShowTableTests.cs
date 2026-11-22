@@ -69,7 +69,7 @@ public sealed class ShowTableTests
             ("pkCondition", "pk", ""), ("pkChallengeDone", "pk", ""), ("pkChallengeFailed", "pk", ""), ("pkChallengeFailedAfter", "pk", ""),
             ("pkOvertake", "pk", ""), ("pkOvertaken", "pk", ""), ("pkPullAhead", "pk", ""), ("pkFallBehind", "pk", ""), ("pkCloseIn", "pk", ""), ("pkCaughtUp", "pk", ""),
             ("pkBigWin", "pk", ""), ("pkBigWinAfter", "pk", ""), ("pkWin", "pk", ""), ("pkNarrowWin", "pk", ""), ("pkDraw", "pk", ""),
-            ("pkNarrowLoss", "pk", ""), ("pkNarrowLossAfter", "pk", ""), ("pkLoss", "pk", ""), ("pkLossAfter", "pk", ""), ("pkBigLoss", "pk", ""), ("pkBigLossAfter", "pk", ""),
+            ("pkNarrowLoss", "pk", ""), ("pkNarrowLossAfter", "pk", ""), ("pkLose", "pk", ""), ("pkLoseAfter", "pk", ""), ("pkBigLoss", "pk", ""), ("pkBigLossAfter", "pk", ""),
             ("bored", "mood", ""), ("gloomy", "mood", ""), ("sleepy", "mood", ""), ("jolt", "mood", ""),
             ("hum", "daily", ""), ("gym", "daily", ""), ("hike", "daily", ""), ("bike", "daily", ""), ("ski", "daily", ""),
             ("voiceCrack", "mishap", ""), ("droppedOnFoot", "mishap", ""), ("slipped", "mishap", ""), ("dustOff", "mishap", ""),
