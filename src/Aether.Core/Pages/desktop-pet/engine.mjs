@@ -998,7 +998,10 @@ export class Engine extends EventTarget {
 
   // How far in front of her centre the chest's link is in a drawing of hers that holds its ring (her drawings that hold it
   // were drawn with the chest standing in the canvas; the link is at column grip of their cells).
-  grip(pose) { const [k, i] = this.art.poses[pose], c = this.cells[k][i]; return (c.ox + this.art.grip - c.cx) * H / c.ruler; }   // (its cell, not a loop's frame)
+  grip(pose) { const c = this.still(pose); return (c.ox + this.art.grip - c.cx) * H / c.ruler; }
+
+  // A pose's own cell of her sheet, not a loop's frame (Pet's cell): what is measured on her drawing standing still.
+  still(pose) { const [k, i] = this.art.poses[pose]; return this.cells[k][i]; }
 
   // Where her sprite pats her head as she lies where the 捣蛋鬼 has dragged the chest from her: as 'head' puts it over her
   // standing, her head lyingHead across her lying drawing.
@@ -1754,7 +1757,7 @@ export class Engine extends EventTarget {
     if (name === 'pkDouble' && t >= raised && t < lower) {
       st.fx.push(['sparkles', q.jump[0][0]]);
       // (the board measures the lift from the sign in her drawing holding it up, signUp, to the one in her jumping drawing)
-      const [c, j] = ['signUp', 'signJump'].map(p => this.cells[this.art.poses[p][0]][this.art.poses[p][1]]), k = H / c.ruler, drop = ((j.sign.y - j.ground) - (c.sign.y - c.ground)) * k;
+      const [c, j] = ['signUp', 'signJump'].map(p => this.still(p)), k = H / c.ruler, drop = ((j.sign.y - j.ground) - (c.sign.y - c.ground)) * k;
       for (const [a, ms, h] of q.jump) {
         const lifted = h * Math.sin(Math.PI * k01(t, a, a + ms));
         if (t < a || t >= a + ms) continue;
