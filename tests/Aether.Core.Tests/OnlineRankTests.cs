@@ -21,6 +21,21 @@ public sealed class OnlineRankTests
         Assert.Null(request.Cookie);
         Assert.Equal("https://api.live.bilibili.com/xlive/general-interface/v1/rank/queryContributionRank?ruid=24680&room_id=7734200&page=1&page_size=100&type=online_rank&switch=contribution_rank&platform=web&web_location=444.8", request.Uri.AbsoluteUri);
     }
+    [Fact]
+    public async Task Reads_each_viewers_score_wealth_level_guard_and_the_medal_they_wear()
+    {
+        await using var h = new WatchHarness();
+        h.Http.Respond = (_, _) => Task.FromResult(FakeBilibiliHttp.Json("""
+            {"code":0,"data":{"count":3,"item":[
+              {"uid":42,"name":"猫","score":12345,"wealth_level":31,"guard_level":3,"uinfo":{"medal":{"level":25,"ruid":24680}}},
+              {"uid":43,"name":"兔","score":880,"wealth_level":0,"guard_level":0,"uinfo":{"medal":null}}]}}
+            """));
+        var rank = await h.Client.GetOnlineRankAsync(7734200, 24680, h.Stop.Token);
+        Assert.Equal([
+            new OnlineRankViewer(42, "猫") { Score = 12345, Wealth = 31, Guard = 3, MedalLevel = 25, MedalOwner = 24680 },
+            new OnlineRankViewer(43, "兔") { Score = 880 }], rank.Viewers);
+    }
+
     [Theory]
     [InlineData("api")]
     [InlineData("http")]
