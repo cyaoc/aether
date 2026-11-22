@@ -357,17 +357,19 @@ public sealed class SettingsTests : IAsyncDisposable
             File.ReadAllText(SettingsPath));
     }
 
-    [Fact]
-    public void Upgrade_leaves_a_format_2_file_with_neither_as_it_was()
+    // (format 2 without the helper keyword and with no changed 招人 line; format 3 without lucky_percent, read as 30)
+    [Theory]
+    [InlineData("settings-v0.6.2.yml", "  prankster_keyword:")]
+    [InlineData("settings-v0.6.3.yml", V3LuckyComment)]
+    public void Upgrade_leaves_a_file_with_nothing_its_steps_change_as_it_was(string fixture, string cutFrom)
     {
-        var old = Fixture("settings-v0.6.2.yml");
-        Write(old[..old.IndexOf("  prankster_keyword:", StringComparison.Ordinal)] + old[old.IndexOf("  # 平静时隔几秒", StringComparison.Ordinal)..]);
+        var old = Fixture(fixture);
+        Write(old[..old.IndexOf(cutFrom, StringComparison.Ordinal)] + old[old.IndexOf("  # 平静时隔几秒", StringComparison.Ordinal)..]);
         var before = File.ReadAllBytes(SettingsPath);
 
         var settings = Settings.Load(harness.DataDirectory);
 
-        Assert.Null(settings.Error);
-        Assert.Null(settings.UpgradedFromVersion);
+        Assert.Equal((null, null, 30), (settings.Error, settings.UpgradedFromVersion, settings.DesktopPetLuckyPercent.Value));
         Assert.Equal(before, File.ReadAllBytes(SettingsPath));
     }
 
@@ -398,17 +400,32 @@ public sealed class SettingsTests : IAsyncDisposable
         Assert.Equal(30, AssertUpgrade(old, 3, expected).DesktopPetLuckyPercent.Value);
     }
 
-    [Fact]
-    public void Upgrade_leaves_a_format_3_file_without_lucky_percent_as_it_was_and_reads_30()
+    // (only the value and the comment right above its line change, so a flow group is no matter; an aliased key has its
+    // anchor's place, and the comment on it is the one above the alias)
+    [Theory]
+    [InlineData("desktop_pet: { lucky_percent: 10 }\n", "desktop_pet: { lucky_percent: 30 }\n", 30)]
+    [InlineData("key_name: &key lucky_percent\ndesktop_pet:\n" + V3LuckyComment + "\n  *key : 10\n",
+        "key_name: &key lucky_percent\ndesktop_pet:\n" + V4LuckyComment + "\n  *key : 30\n", 30)]
+    [InlineData("key_name: &key lucky_percent\ndesktop_pet:\n" + V3LuckyComment + "\n  *key : 20\n",
+        "key_name: &key lucky_percent\ndesktop_pet:\n" + V4LuckyComment + "\n  *key : 20\n", 20)]
+    // (an explicit key, the comment between its ? and the alias)
+    [InlineData("key_name: &key lucky_percent\ndesktop_pet:\n  ?\n" + V3LuckyComment + "\n    *key\n  : 20\n",
+        "key_name: &key lucky_percent\ndesktop_pet:\n  ?\n" + V4LuckyComment + "\n    *key\n  : 20\n", 20)]
+    [InlineData("key_name: &key lucky_percent\ndesktop_pet: {\n  ?\n" + V3LuckyComment + "\n    *key\n  : 20 }\n",
+        "key_name: &key lucky_percent\ndesktop_pet: {\n  ?\n" + V4LuckyComment + "\n    *key\n  : 20 }\n", 20)]
+    // (a tag a line above the key's name, the comment between them)
+    [InlineData("desktop_pet:\n  ? !!str\n" + V3LuckyComment + "\n    &key lucky_percent\n  : 10\n",
+        "desktop_pet:\n  ? !!str\n" + V4LuckyComment + "\n    &key lucky_percent\n  : 30\n", 30)]
+    [InlineData("desktop_pet:\n  ? !!str\n" + V3LuckyComment + "\n    lucky_percent\n  : 10\n",
+        "desktop_pet:\n  ? !!str\n" + V4LuckyComment + "\n    lucky_percent\n  : 30\n", 30)]
+    public void Upgrade_edits_lucky_percent_where_its_line_is_written(string old, string upgraded, int lucky)
     {
-        var old = Fixture("settings-v0.6.3.yml");
-        Write(old[..old.IndexOf(V3LuckyComment, StringComparison.Ordinal)] + old[old.IndexOf("  # 平静时隔几秒", StringComparison.Ordinal)..]);
-        var before = File.ReadAllBytes(SettingsPath);
+        Write("format_version: 3\n" + old);
 
         var settings = Settings.Load(harness.DataDirectory);
 
-        Assert.Equal((null, null, 30), (settings.Error, settings.UpgradedFromVersion, settings.DesktopPetLuckyPercent.Value));
-        Assert.Equal(before, File.ReadAllBytes(SettingsPath));
+        Assert.Equal((null, 3, lucky), (settings.Error, settings.UpgradedFromVersion, settings.DesktopPetLuckyPercent.Value));
+        Assert.StartsWith("format_version: 4\n" + upgraded, File.ReadAllText(SettingsPath));
     }
 
     private const string V3LuckyComment = "  # 拔河时每个纸团是幸运纸团的几率，0 到 100（%），0 表示不出幸运纸团；砸中谁，对面 10 秒内送的入伙礼物算双倍";
@@ -431,11 +448,16 @@ public sealed class SettingsTests : IAsyncDisposable
     }
 
     [Theory]
-    [InlineData("desktop_pet: { prankster_keyword: 帮它, enabled: false }\n", 2)]
-    [InlineData("desktop_pet:\n  prankster_keyword: >\n    帮它\n", 3)]
-    public void Upgrade_refuses_a_helper_keyword_it_cannot_take_out_as_one_line_and_leaves_the_file(string group, long line)
+    // (a helper keyword it cannot take out as one line)
+    [InlineData("format_version: 2\ndesktop_pet: { prankster_keyword: 帮它, enabled: false }\n", 2)]
+    [InlineData("format_version: 2\ndesktop_pet:\n  prankster_keyword: >\n    帮它\n", 3)]
+    // (what an anchor shares, or a flow file it cannot mark)
+    [InlineData("format_version: 3\nother: &shared { lucky_percent: 10 }\ndesktop_pet: *shared\n", 2)]
+    [InlineData("format_version: 2\nother: &shared\n  prankster_keyword: 帮它\ndesktop_pet: *shared\n", 2)]
+    [InlineData("format_version: 2\nother: &lines ['发{关键字}']\ndesktop_pet:\n  lines.1.pranksterRecruit: *lines\n", 2)]
+    [InlineData("{ desktop_pet: { lucky_percent: 10 } }\n", 1)]
+    public void Upgrade_refuses_what_it_cannot_safely_edit_line_by_line_and_leaves_the_file(string yaml, long line)
     {
-        var yaml = "format_version: 2\n" + group;
         Write(yaml);
 
         var error = Assert.IsType<SettingsException>(Settings.Load(harness.DataDirectory).Error);
@@ -445,25 +467,14 @@ public sealed class SettingsTests : IAsyncDisposable
     }
 
     [Theory]
-    [InlineData("format_version: 3\nother: &shared { lucky_percent: 10 }\ndesktop_pet: *shared\n", 2)]
-    [InlineData("format_version: 2\nother: &shared\n  prankster_keyword: 帮它\ndesktop_pet: *shared\n", 2)]
-    [InlineData("format_version: 2\nother: &lines ['发{关键字}']\ndesktop_pet:\n  lines.1.pranksterRecruit: *lines\n", 2)]
-    [InlineData("format_version: 3\nkey_name: &key lucky_percent\ndesktop_pet:\n  # 拔河时每个纸团是幸运纸团的几率，0 到 100（%），0 表示不出幸运纸团；砸中谁，对面 10 秒内送的入伙礼物算双倍\n  *key : 10\n", 2)]
-    [InlineData("{ desktop_pet: { lucky_percent: 10 } }\n", 1)]
-    public void Upgrade_refuses_what_an_anchor_shares_or_a_flow_file_it_cannot_mark_and_leaves_the_file(string yaml, long line)
+    [InlineData("format_version: 3\nother: &shared { lucky_percent: 20 }\ndesktop_pet: *shared\n")]
+    [InlineData("format_version: 3\ndesktop_pet:\n  &key lucky_percent: 20\n")]
+    [InlineData("format_version: 3\nkey_name: &key lucky_percent\ndesktop_pet:\n  *key : 20\n")]
+    [InlineData("format_version: 3\nother:\n" + V3LuckyComment + "\n  &key lucky_percent: 5\ndesktop_pet:\n  *key : 20\n")]
+    // (the first alias is of the name anchored before it again, so it is another key)
+    [InlineData("format_version: 3\nfirst: &key other\ndesktop_pet:\n" + V3LuckyComment + "\n  *key : 1\n  second: &key lucky_percent\n  *key : 20\n")]
+    public void Upgrade_leaves_a_shared_desktop_pet_group_or_key_it_need_not_change(string yaml)
     {
-        Write(yaml);
-
-        var error = Assert.IsType<SettingsException>(Settings.Load(harness.DataDirectory).Error);
-
-        Assert.Equal(("升级", line), (error.SettingName, error.LineNumber));
-        Assert.Equal(yaml, File.ReadAllText(SettingsPath));
-    }
-
-    [Fact]
-    public void Upgrade_leaves_a_shared_desktop_pet_group_it_need_not_change()
-    {
-        const string yaml = "format_version: 3\nother: &shared { lucky_percent: 20 }\ndesktop_pet: *shared\n";
         Write(yaml);
 
         var settings = Settings.Load(harness.DataDirectory);
