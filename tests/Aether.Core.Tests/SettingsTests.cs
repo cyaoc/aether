@@ -444,6 +444,33 @@ public sealed class SettingsTests : IAsyncDisposable
         Assert.Equal(yaml, File.ReadAllText(SettingsPath));
     }
 
+    [Theory]
+    [InlineData("format_version: 3\nother: &shared { lucky_percent: 10 }\ndesktop_pet: *shared\n", 2)]
+    [InlineData("format_version: 2\nother: &shared\n  prankster_keyword: 帮它\ndesktop_pet: *shared\n", 2)]
+    [InlineData("{ desktop_pet: { lucky_percent: 10 } }\n", 1)]
+    public void Upgrade_refuses_a_desktop_pet_group_shared_through_an_anchor_or_a_flow_file_it_cannot_mark_and_leaves_the_file(string yaml, long line)
+    {
+        Write(yaml);
+
+        var error = Assert.IsType<SettingsException>(Settings.Load(harness.DataDirectory).Error);
+
+        Assert.Equal(("升级", line), (error.SettingName, error.LineNumber));
+        Assert.Equal(yaml, File.ReadAllText(SettingsPath));
+    }
+
+    [Fact]
+    public void Upgrade_leaves_a_shared_desktop_pet_group_it_need_not_change()
+    {
+        const string yaml = "format_version: 3\nother: &shared { lucky_percent: 20 }\ndesktop_pet: *shared\n";
+        Write(yaml);
+
+        var settings = Settings.Load(harness.DataDirectory);
+
+        Assert.Equal((null, 20), (settings.Error, settings.DesktopPetLuckyPercent.Value));
+        // (the missing groups appended after it, as ADR 0004 has it)
+        Assert.StartsWith(yaml, File.ReadAllText(SettingsPath));
+    }
+
     [Fact]
     public void Web_service_port_is_appended_and_legacy_animation_port_only_warns()
     {

@@ -160,6 +160,7 @@ internal static class SettingsUpgrade
         // A comment the user changed stays; tokens after the line have moved.
         string WithoutHelper(YamlNode key, YamlNode value)
         {
+            if (!group.Anchor.IsEmpty) throw CannotEdit(path, group);
             var end = Settings.EndOf(tokens, value);
             if (group.Style != MappingStyle.Block || key.Start.Line != end.Line) throw CannotEdit(path, key);
             int from = LineStart(source, (int)key.Start.Index), to = LineEnd(source, (int)end.Index);
@@ -175,6 +176,7 @@ internal static class SettingsUpgrade
             foreach (var line in lines.AllNodes.OfType<YamlScalarNode>().Reverse())
             {
                 if (line.Value is not { } said || !said.Contains(V2Placeholder, StringComparison.Ordinal)) continue;
+                if (!group.Anchor.IsEmpty) throw CannotEdit(path, group);
                 var (start, length, _) = ScalarEdit(tokens, line, "", path);
                 var written = source.Substring(start, length);
                 var spelled = written.Split(V2Placeholder).Length == said.Split(V2Placeholder).Length;
@@ -188,22 +190,26 @@ internal static class SettingsUpgrade
     /// <summary>Format 4 makes a paper ball lucky 30 times in a hundred by default, not 10, and a double last 20 seconds, not
     /// 10: a lucky_percent still at format 3's default of 10 becomes 30 (the one exception ADR 0011 makes to keeping what
     /// users have), and the Template's comment right above it says 20 seconds. Any other value, and a comment the user
-    /// changed, stay. Only the value's scalar is replaced, so unlike UpgradeV2 the group need not be in block style.</summary>
+    /// changed, stay. Only the value's scalar is replaced, so unlike UpgradeV2 the group need not be in block style; one
+    /// shared through an anchor is refused, as its text may stand under another key.</summary>
     private static string UpgradeV3(string source, string path)
     {
         if (Settings.ChildOf(RootOf(source), "desktop_pet") is not YamlMappingNode group) return source;
         var (key, value) = group.Children.FirstOrDefault(pair => pair.Key is YamlScalarNode { Value: "lucky_percent" });
         if (key is null) return source;
         var tokens = Settings.Scan(source);
-        // Read as format 3's Definition.Percent read it, frozen here as V0Guards is. The value comes after its comment, so
-        // it is replaced first and the comment keeps its place.
-        if (value is YamlScalarNode { Value: { } text } && int.TryParse(text.Trim(), System.Globalization.NumberStyles.Integer,
-                System.Globalization.CultureInfo.InvariantCulture, out var percent) && percent == 10)
+        // Read as format 3's Definition.Percent read it, frozen here as V0Guards is.
+        var ten = value is YamlScalarNode { Value: { } text } && int.TryParse(text.Trim(), System.Globalization.NumberStyles.Integer,
+            System.Globalization.CultureInfo.InvariantCulture, out var percent) && percent == 10;
+        var comment = CommentAbove(tokens, source, LineStart(source, (int)key.Start.Index), V3LuckyComment);
+        if (!ten && comment is null) return source;
+        if (!group.Anchor.IsEmpty) throw CannotEdit(path, group);
+        // The value comes after its comment, so it is replaced first and the comment keeps its place.
+        if (ten)
         {
             var (start, length, written) = ScalarEdit(tokens, value, "30", path);
             source = source.Remove(start, length).Insert(start, written);
         }
-        var comment = CommentAbove(tokens, source, LineStart(source, (int)key.Start.Index), V3LuckyComment);
         return comment is null ? source
             : source.Remove((int)comment.Start.Index, (int)(comment.End.Index - comment.Start.Index)).Insert((int)comment.Start.Index, V4LuckyComment);
     }
@@ -220,6 +226,7 @@ internal static class SettingsUpgrade
             var (start, length, value) = ScalarEdit(tokens, current, version, path);
             return source.Remove(start, length).Insert(start, value);
         }
+        if (root.Style != MappingStyle.Block) throw CannotEdit(path, root);
         var first = tokens.OfType<Tokens.BlockMappingStart>().First();
         var indent = IndentOf(first);
         var lead = tokens.IndexOf(first);
