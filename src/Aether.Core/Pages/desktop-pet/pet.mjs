@@ -1,9 +1,9 @@
 // The 桌宠 on the 桌宠页's canvas, drawn as the design package's board draws her (DP-DesktopPet.dc.html), from the current
 // character's Q 版 pictures and the numbers in her manifest (characters/README.md, desktopPet).
 import { canvasOf, loadImage } from '../video/animations/toolkit.mjs';
-import { BALL, BAR, BURST, CHEST, DONE, DROP, Engine, FOOT, GAME, GLOW, H, HANG, HOOK, HOP, LUCK, NOTICE, PAGE, PK_H, PK_SIGN, SPRITE_H, bump, clamp, ease, k01, seeded, xfade } from './engine.mjs';
+import { BALL, BAR, BURST, CHEST, DONE, DROP, Engine, FOOT, GAME, GLOW, H, HANG, HOOK, HOP, INTEL, LUCK, NOTICE, PAGE, PK_H, PK_SIGN, SPRITE_H, bump, clamp, ease, k01, seeded, xfade } from './engine.mjs';
 import { BACK, drawFx, drawStar, giftBox } from './effects.mjs';
-import { wrap } from './pk-intel.mjs';
+import { PK_INTEL, wrap } from './pk-intel.mjs';
 import { SIGN } from './sign.mjs';
 import { SANS } from '../gift-board/paint.mjs';
 import { REMOTE } from '../gift-board/images.mjs';
@@ -18,7 +18,8 @@ const CARRY = new Set(['crown', 'glow', 'lift', 'lift2', 'lid']);
 // (design package README 11).
 const SEGMENTS = { hum: ['daily1'], gym: ['gym10'], hike: ['hike11'], bike: ['cycle12'], ski: ['ski9'], castle: ['castleSheet'],
   captain: ['voyage'], admiral: ['voyage'], governor: ['voyage'], lottery: ['lottery'], game: ['game13', 'game14', 'game15', 'game16', 'game17', 'sp3'],
-  pkCondition: ['pkSign'], pkDouble: ['pkSign'], pkDoubleEnding: ['pkSign'], pkLastSeconds: ['pkSign'] };
+  pkCondition: ['pkSign'], pkDouble: ['pkSign'], pkDoubleEnding: ['pkSign'], pkLastSeconds: ['pkSign'],
+  pkOpponent: ['lottery'], pkResult: ['lottery'], pkSwing: ['lottery'], pkChallenge: ['lottery'] };
 // The 捣蛋鬼's drawings and the chest's, the same for every character (prankster/prankster.json).
 const PRANKSTER = '/desktop-pet/prankster/';
 // The tug's two sides, hers 1 and the 捣蛋鬼's -1: B站's own icons of their gifts, 人气票 and 小花花 (giftConfig?platform=pc,
@@ -213,6 +214,7 @@ export class Pet extends Engine {
     this.castle = { closed, open, box: box(closed, 0, 0, closed.width, closed.height) };
     const [k, i] = POSE.idle, c = this.cells[k][i];
     this.herLeft = (c.x - c.cx) * H / c.ruler;  // her left edge standing idle, from her centre
+    this.measureG = document.createElement('canvas').getContext('2d');   // where the 对手情报卡's words are measured (intelShow)
   }
 
   // A load of pictures, kept once asked for. One that fails (the web service restarting cut it off) is forgotten a second later,
@@ -342,6 +344,13 @@ export class Pet extends Engine {
     if (sp) { this.trail = this.trail.filter(q => rt - q.rt < 420); if (st.sprite === 'glow') this.trail.push({ x: sp.x, y: sp.y, rt }); }
     for (const f of st.fx) if (BACK.has(f[0])) drawFx(g, f, st, her, now, this);
     if (st.bill?.reveal > 0) this.drawBill(g, st.bill, bill);   // behind her: a long card comes down behind her hair
+    if (st.intel) { this.drawIntel(g, st.intel); this.intelHeld = st.intel; }
+    // cut off by a bigger show, the card rolls itself up where it hung, as at its own end (it used to vanish)
+    else if (this.intelHeld) { this.intelBack = { ...this.intelHeld, at: rt }; this.intelHeld = null; }
+    if (this.intelBack) {
+      const f = this.intelBack, u = k01(rt - f.at, 0, INTEL.roll[1] - INTEL.roll[0]);
+      if (u >= 1) this.intelBack = null; else this.drawIntel(g, { ...f, reveal: f.reveal * (1 - ease(u)) });
+    }
     if (sp && st.sBehind) this.drawSprite(g, st, sp, now);
     this.drawHer(g, st, now);
     // her PK sign flying, while her drawing holds none; and let go of, from where she held it, small, into her sprite
@@ -615,6 +624,17 @@ export class Pet extends Engine {
     }
   }
 
+  // The 对手情报卡 as far as it has come out (reveal), its top first, with the curl of paper at the edge (as drawBill).
+  drawIntel(g, v) {
+    const edge = v.y + v.h * v.reveal;
+    g.save(); g.beginPath(); g.rect(v.x - 80, v.y - 80, PK_INTEL.W + 160, edge - v.y + 80); g.clip();
+    PK_INTEL.draw(g, v.c, v.x, v.y, v.turn); g.restore();
+    if (v.reveal < 1) {
+      g.save(); g.fillStyle = '#FFFDF9'; g.strokeStyle = '#A9C1F5'; g.lineWidth = 2; g.shadowColor = 'rgba(40,40,80,0.3)'; g.shadowBlur = 6; g.shadowOffsetY = 2;
+      g.beginPath(); g.roundRect(v.x - 4, edge - 8, PK_INTEL.W + 8, 16, 8); g.fill(); g.stroke(); g.restore();
+    }
+  }
+
   // A prop at her scale times s, its bottom centre at x, y.
   drawProp(g, im, x, y, s = 1, a = 1, src) {
     if (!a || !s) return;
@@ -783,7 +803,7 @@ export class Pet extends Engine {
       // its rope to the chest on the ground, or falling with it: from the end of the rope its drawing holds, or from under its
       // arm on the side the ring is; taut while it pulls, slack while it does not
       if (L.loose && hook) ropes.push([{ x: hook.x + 30, y: hook.y - 46 }, hook, 0.25]);
-      else if (pk && hook && !pivot && (L.ropes || c.still)) ropes.push([this.pkCell(pk.pose).rope != null ? this.pkEnd(pk) : { x: clamp(hook.x + 20, pk.x - 30, pk.x + 24), y: pk.y + 16 }, hook, L.slack ? 0.3 : 0.03, !L.slack, !L.slack || !!c.still]);
+      else if (pk && hook && !pivot && (L.ropes || c.still)) ropes.push([this.pkCell(pk.pose).rope != null ? this.pkRopeEnd(pk) : { x: clamp(hook.x + 20, pk.x - 30, pk.x + 24), y: pk.y + 16 }, hook, L.slack ? 0.3 : 0.03, !L.slack, !L.slack || !!c.still]);
       // its two rings: hers hangs unless her fists hold it (her drawing's own ring), the other unless a rope's hook is in it
       if (!L.held || c.x == null) this.drawRing(g, at(-ex, -ey));
       if (!ropes.length) this.drawRing(g, at(ex, -ey));
