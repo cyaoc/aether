@@ -315,6 +315,7 @@ public sealed class DesktopPetPageTests
     }
 
     [Theory]
+    [InlineData("PK_BATTLE_PRE_NEW")]
     [InlineData("PK_BATTLE_START")]
     [InlineData("PK_BATTLE_START_NEW")]
     [InlineData("PK_BATTLE_PROCESS")]
