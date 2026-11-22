@@ -13,7 +13,7 @@ namespace Aether.Gui;
 /// 演出 needs no change here.</summary>
 public partial class DesktopPetSettingsPage : SettingsPage
 {
-    private readonly ShowTable shows;
+    private readonly ShowTable shows = ShowTable.Current;
     private readonly DesktopPetShowRow[] showRows;
     private readonly OrderedInputs thresholds, dailySeconds;
     private string? blocked;
@@ -22,12 +22,8 @@ public partial class DesktopPetSettingsPage : SettingsPage
 
     public DesktopPetSettingsPage() : this(DataDirectory.Locate()) { }
 
-    public DesktopPetSettingsPage(string dataDirectory) : this(dataDirectory, ShowTable.Current) { }
-
-    /// <param name="shows">The 演出表 the page is built from.</param>
-    internal DesktopPetSettingsPage(string dataDirectory, ShowTable shows) : base(dataDirectory)
+    public DesktopPetSettingsPage(string dataDirectory) : base(dataDirectory)
     {
-        this.shows = shows;
         InitializeComponent();
         lineTarget = new(LineRows, RefreshInsertTarget);
         Title = "桌宠";
