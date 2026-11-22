@@ -173,7 +173,7 @@ the page beside the board, as the web service serves it, telling it it is on in 
 - The 对手情报卡 starts as Core's `pkMatch` comes, once the other streamer is looked up (up to 3 s after the match), and plays
   its 10 s whole; the board's started at the match. Each `pkScore` is weighed against the one before, and the 20 s between
   two 中途比分 are on the page's clock, from the last that played; the board's 整场 PK counted them on its PK's clock. A new PK
-  (the state's `pk` turning true) stands at 0 : 0, as the board's after a result.
+  (the state's `pk` turning true) stands at 0 : 0 with none of the 20 s left, as the board's 「PK 开始」.
 - She does no 日常小动作 while she shakes a round's blind boxes. Waiting for the 盲盒播报 takes up to half a minute; the board's
   stand-in took 0.8 s and a 日常小动作 could start in it.
 - The thresholds, the minutes before each 心情 (0 never), the 日常小动作's interval, which of them she does and their chance of a

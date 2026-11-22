@@ -920,10 +920,10 @@ export class Engine extends EventTarget {
     if (frizz) gm.fix = { start: now, pose: 'cheer' };
   }
 
-  // A PK is no time for it (callOff); a new one stands at 0 : 0 (pkScore).
+  // A PK is no time for it (callOff); a new one stands at 0 : 0, its first 中途比分 not held back by the last PK's (pkScore).
   pkOn(on) {
     this.gm.pk = on;
-    if (on) { this.callOff(this.now()); this.pkGap = null; }
+    if (on) { this.callOff(this.now()); this.pkGap = null; this.pkGapAt = null; }
   }
 
   // The 来访 starts, or it is over, as the page reports to Core (page.mjs).
