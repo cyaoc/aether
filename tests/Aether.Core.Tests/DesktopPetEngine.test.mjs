@@ -769,6 +769,16 @@ test('a new PK counts how it stands from 0 : 0', () => {
   assert.deepEqual([playing(engine), engine.cur?.opts.result], ['pkSwing', 'PullAhead']);
 });
 
+test('a new PK plays its first 中途比分 however soon after the last PK\'s', () => {
+  const engine = inPk();
+  engine.pkScore({ ours: 300, theirs: 100 });
+  advance(engine, 5000);
+  engine.receive(state(engine, { pk: false }));
+  engine.receive(state(engine, { pk: true }));
+  engine.pkScore({ ours: 300, theirs: 100 });
+  assert.deepEqual([playing(engine), engine.cur?.opts.result], ['pkSwing', 'PullAhead']);
+});
+
 // The other streamer as Core tells of them as a PK is matched (pkMatch), with what B站 answered: the rest null, and no 在线榜前三;
 // and the sides the 对手情报卡 shows as it plays (0 its front, 1 its back, between them turning over).
 const opponent = so => ({ name: '星星点灯', rank: null, firstWin: null, fans: null, guards: null, top3: [], ...so });

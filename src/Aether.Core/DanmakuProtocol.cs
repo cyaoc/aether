@@ -47,38 +47,35 @@ internal static class DanmakuProtocol
     /// <summary>PK_BATTLE_PROCESS_NEW's or PK_BATTLE_END's votes, init_info's side then match_info's.</summary>
     internal sealed record PkScored(PkSide[] Sides) : PkNews;
 
-    /// <summary>A PK_INFO: the PK's type (pk_basic.type), its members and when it was sent.</summary>
-    internal sealed record PkInfo(int Type, PkSide[] Sides, long Timestamp) : PkNews;
+    /// <summary>A PK_INFO: the PK's type (pk_basic.type), its members and when it was sent, none when B站 left that out.</summary>
+    internal sealed record PkInfo(int Type, PkSide[] Sides, long? Timestamp) : PkNews;
 
-    /// <summary>One side of a PK: its room, its votes and, in a PK_INFO, its 胶囊 (capsules_v2).</summary>
+    /// <summary>One side of a PK: its room, its votes and, in a PK_INFO, its 胶囊 (capsules_v2), without one B站 left a part of out.</summary>
     internal sealed record PkSide(long RoomId, long Votes, PkCapsule[] Capsules);
 
     /// <summary>A 胶囊: its capsule_type, its text without B站's bold marks (&lt;% %&gt;) and its end_time.</summary>
     internal sealed record PkCapsule(int Type, string Text, long EndTime);
 
-    // Whether a PK message's command means the streamer is in a PK, read from its name alone: blivedm knows only the names
-    // (handlers.py's logged_unknown_cmds), to which bili_danmu and go-bili-chat add START, START_NEW, SETTLE_NEW and ABNORMAL.
-    // A PK starts with its match, PK_BATTLE_PRE_NEW, 10 seconds before it is fought (2026-11-22).
-    private static readonly Dictionary<string, bool> PkCommands = new()
-    {
-        ["PK_BATTLE_PRE_NEW"] = true, ["PK_BATTLE_START"] = true, ["PK_BATTLE_START_NEW"] = true, ["PK_BATTLE_PROCESS"] = true,
-        ["PK_BATTLE_PROCESS_NEW"] = true, ["PK_BATTLE_FINAL_PROCESS"] = true,
-        ["PK_BATTLE_END"] = false, ["PK_BATTLE_SETTLE"] = false, ["PK_BATTLE_SETTLE_V2"] = false,
-        ["PK_BATTLE_SETTLE_NEW"] = false, ["PK_BATTLE_SETTLE_USER"] = false, ["PK_BATTLE_ABNORMAL"] = false
-    };
-
     // A PK_INFO's pk_basic.status while a PK goes on, as the 直播间 page's script names them: 101 waiting for its start, 201
     // fought, 301 its 绝杀. Those after, its end and 惩罚, are no PK.
     private static readonly HashSet<int> PkGoingOn = [101, 201, 301];
 
-    // What the 桌宠 plays of a PK message, by its command.
-    private static readonly Dictionary<string, Func<JsonElement, PkNews>> PkNewsOf = new()
+    // A PK message by its command: whether the streamer is in a PK, read from its name alone but a PK_INFO's from its status
+    // (none, no PK message, once the PK is over), and what the 桌宠 plays of it, if anything. blivedm knows only the names
+    // (handlers.py's logged_unknown_cmds), to which bili_danmu and go-bili-chat add START, START_NEW, SETTLE_NEW and ABNORMAL.
+    // A PK starts with its match, PK_BATTLE_PRE_NEW, 10 seconds before it is fought (2026-11-22).
+    private static readonly Func<JsonElement, bool?> Yes = _ => true, No = _ => false;
+    private static readonly Dictionary<string, (Func<JsonElement, bool?> InPk, Func<JsonElement, PkNews>? News)> PkCommands = new()
     {
-        ["PK_BATTLE_PRE_NEW"] = root => Matched(root.GetProperty("data")),
-        ["PK_BATTLE_START_NEW"] = root => new PkStarted(root.GetProperty("data").GetProperty("pk_countdown").GetInt64(),
-            root.GetProperty("timestamp").GetInt64()),
-        ["PK_BATTLE_PROCESS_NEW"] = Scored, ["PK_BATTLE_END"] = Scored,
-        ["PK_INFO"] = root => Info(root.GetProperty("data"))
+        ["PK_BATTLE_PRE_NEW"] = (Yes, root => Matched(root.GetProperty("data"))),
+        ["PK_BATTLE_START_NEW"] = (Yes, root => new PkStarted(root.GetProperty("data").GetProperty("pk_countdown").GetInt64(),
+            root.GetProperty("timestamp").GetInt64())),
+        ["PK_BATTLE_PROCESS_NEW"] = (Yes, Scored), ["PK_BATTLE_END"] = (No, Scored),
+        ["PK_INFO"] = (root => PkGoingOn.Contains(root.GetProperty("data").GetProperty("pk_basic").GetProperty("status").GetInt32())
+            ? true : null, root => Info(root.GetProperty("data"))),
+        ["PK_BATTLE_START"] = (Yes, null), ["PK_BATTLE_PROCESS"] = (Yes, null), ["PK_BATTLE_FINAL_PROCESS"] = (Yes, null),
+        ["PK_BATTLE_SETTLE"] = (No, null), ["PK_BATTLE_SETTLE_V2"] = (No, null), ["PK_BATTLE_SETTLE_NEW"] = (No, null),
+        ["PK_BATTLE_SETTLE_USER"] = (No, null), ["PK_BATTLE_ABNORMAL"] = (No, null)
     };
 
     /// <summary>What one room connection has already logged about B站's message formats; reconnects keep it.</summary>
@@ -209,19 +206,15 @@ internal static class DanmakuProtocol
             return decoded;
         }
 
-        private PkReceived? Pk(string command, JsonElement root, long receivedTimestamp)
-        {
-            if (command == "PK_INFO")
-                return PkGoingOn.Contains(root.GetProperty("data").GetProperty("pk_basic").GetProperty("status").GetInt32())
-                    ? new(true, receivedTimestamp, News(command, root)) : null;
-            return PkCommands.TryGetValue(command, out var inPk) ? new(inPk, receivedTimestamp, News(command, root)) : null;
-        }
+        private PkReceived? Pk(string command, JsonElement root, long receivedTimestamp) =>
+            PkCommands.TryGetValue(command, out var pk) && pk.InPk(root) is { } inPk
+                ? new(inPk, receivedTimestamp, News(command, pk.News, root)) : null;
 
-        /// <summary>What the 桌宠 plays of a PK message: one with a part B站 left out or wrote otherwise only says whether the
-        /// streamer is in a PK.</summary>
-        private PkNews? News(string command, JsonElement root)
+        /// <summary>What the 桌宠 plays of a PK message, as <paramref name="read"/> reads it: one with a part B站 left out or wrote
+        /// otherwise only says whether the streamer is in a PK.</summary>
+        private PkNews? News(string command, Func<JsonElement, PkNews>? read, JsonElement root)
         {
-            if (!PkNewsOf.TryGetValue(command, out var read)) return null;
+            if (read is null) return null;
             try { return read(root); }
             catch (Exception error) when (Unreadable(error))
             {
@@ -244,15 +237,24 @@ internal static class DanmakuProtocol
     }
 
     private static PkInfo Info(JsonElement data) => new(data.GetProperty("pk_basic").GetProperty("type").GetInt32(),
-        [.. data.GetProperty("members").EnumerateArray().Select(Side)], data.GetProperty("timestamp").GetInt64());
+        [.. data.GetProperty("members").EnumerateArray().Select(Side)],
+        data.TryGetProperty("timestamp", out var sent) && sent.ValueKind == JsonValueKind.Number && sent.TryGetInt64(out var at) ? at : null);
 
     private static PkSide Side(JsonElement side) => new(side.GetProperty("room_id").GetInt64(), side.GetProperty("votes").GetInt64(),
         side.TryGetProperty("capsules_v2", out var capsules) && capsules.ValueKind == JsonValueKind.Array
-            ? [.. capsules.EnumerateArray().Select(Capsule)] : []);
+            ? [.. capsules.EnumerateArray().Select(Capsule).OfType<PkCapsule>()] : []);
 
-    private static PkCapsule Capsule(JsonElement capsule) => new(capsule.GetProperty("capsule_type").GetInt32(),
-        (capsule.GetProperty("text").GetString() ?? throw new JsonException("缺少胶囊文字。")).Replace("<%", "").Replace("%>", ""),
-        capsule.GetProperty("end_time").GetInt64());
+    /// <summary>A 胶囊, none when B站 left a part of it out or wrote it otherwise: the others are told all the same.</summary>
+    private static PkCapsule? Capsule(JsonElement capsule)
+    {
+        try
+        {
+            return new(capsule.GetProperty("capsule_type").GetInt32(),
+                (capsule.GetProperty("text").GetString() ?? throw new JsonException("缺少胶囊文字。")).Replace("<%", "").Replace("%>", ""),
+                capsule.GetProperty("end_time").GetInt64());
+        }
+        catch (Exception error) when (Unreadable(error)) { return null; }
+    }
 
     /// <summary>The sender uid and danmaku id that only a reply needs, plus the nickname this danmaku itself @s. An
     /// unreadable uid becomes 0 (no reply), an unreadable id "" (a reply without replay_dmid) and an unreadable nickname

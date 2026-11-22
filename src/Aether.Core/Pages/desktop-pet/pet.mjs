@@ -3,9 +3,9 @@
 import { canvasOf, loadImage } from '../video/animations/toolkit.mjs';
 import { BALL, BAR, BURST, CHEST, DONE, DROP, Engine, FOOT, GAME, GLOW, H, HANG, HOOK, HOP, INTEL, LUCK, NOTICE, PAGE, PK_H, PK_SIGN, SPRITE_H, bump, clamp, ease, k01, seeded, xfade } from './engine.mjs';
 import { BACK, drawFx, drawStar, giftBox } from './effects.mjs';
-import { PK_INTEL, wrap } from './pk-intel.mjs';
+import { PK_INTEL } from './pk-intel.mjs';
 import { SIGN } from './sign.mjs';
-import { SANS } from '../gift-board/paint.mjs';
+import { SANS, wrap } from '../gift-board/paint.mjs';
 import { REMOTE } from '../gift-board/images.mjs';
 
 const SPRITE_SPEED = 0.8;
@@ -39,9 +39,10 @@ const DOUBLE = { fly: 450, pop: 220, flash: 260, hurry: 3000, out: 200 };
 // A 盲盒查询's 账单卡 (design package README 14: the board's BILL, which DP-BlindBoxCard.dc.html draws too), in page px, 1 : 1 at
 // 1080p: a receipt W wide and as tall as its words (layout), the 投入 and 盈亏 as the reply wrote them (Core's text), and her
 // line at its foot where a receipt says 谢谢惠顾. stampT: ms since the sprite stamped it, null before (or none, no record).
+// CURL: the shadow of its curl as it unrolls (unroll).
 const BILL = (() => {
   const W = 356, PAD = 20, IN = W - 2 * PAD, HEAD = 52, TEETH = 9;
-  const INK = '#4A3742', MUTED = '#8B6B7B', PAPER = '#FFFDF9', EDGE = '#F0A3C0', RULE = '#F2BFD2';
+  const INK = '#4A3742', MUTED = '#8B6B7B', PAPER = '#FFFDF9', EDGE = '#F0A3C0', RULE = '#F2BFD2', CURL = 'rgba(60,30,50,0.3)';
   // each result its colour and its own word (pill, stamp), never the colour alone: 赚 red as luck is, 亏 her tears' blue
   const RESULT = { Gain: { ink: '#E23A5E', pill: '赚', stamp: '赚' }, Even: { ink: '#8456D8', stamp: '回本' }, Loss: { ink: '#3D74E0', pill: '亏', stamp: '亏' }, None: { ink: MUTED } };
   const F = (w, px) => `${w} ${px}px ${SANS}`;
@@ -118,8 +119,20 @@ const BILL = (() => {
     }
     g.restore();
   }
-  return { W, PAPER, EDGE, layout, draw };
+  return { W, PAPER, EDGE, CURL, layout, draw };
 })();
+
+// A card her sprite prints (BILL, PK_INTEL) as far as it has come out (v.reveal), its top first, v.h tall at v.x, v.y on the
+// page, drawn by paint; a curl of its paper at the edge while it unrolls or rolls up.
+const unroll = (g, card, v, paint) => {
+  const edge = v.y + v.h * v.reveal;
+  g.save(); g.beginPath(); g.rect(v.x - 80, v.y - 80, card.W + 160, edge - v.y + 80); g.clip();
+  paint(); g.restore();
+  if (v.reveal < 1) {
+    g.save(); g.fillStyle = card.PAPER; g.strokeStyle = card.EDGE; g.lineWidth = 2; g.shadowColor = card.CURL; g.shadowBlur = 6; g.shadowOffsetY = 2;
+    g.beginPath(); g.roundRect(v.x - 4, edge - 8, card.W + 8, 16, 8); g.fill(); g.stroke(); g.restore();
+  }
+};
 
 // The box of what is drawn in a part of a picture, and the centre of its mass.
 const box = (im, x, y, w, h) => {
@@ -461,7 +474,7 @@ export class Pet extends Engine {
   }
 
   // Her sign's sheet loads as her first sign show starts (SEGMENTS): until it is there she stands as she was and no sign flies.
-  signShow(name, t, st, opts, say) { if (this.cells[this.art.poses.signUp[0]]) super.signShow(name, t, st, opts, say); }
+  signShow(name, t, st, opts, say) { if (SEGMENTS[name].every(k => this.cells[k])) super.signShow(name, t, st, opts, say); }
 
   // The sprite flies to where it is wanted instead of jumping there; its speed decides which way it faces.
   follow(target, dt, st) {
@@ -612,28 +625,14 @@ export class Pet extends Engine {
     return { x: st.x - BILL.W / 2, y: Math.max(40, FOOT.y - H - 4 - h), h };
   }
 
-  // The card b as far as it has come out (reveal), its top first, where it hangs (spot) bobbing by b.dy; a curl of paper at the
-  // edge while it unrolls or rolls up.
+  // The card b as far as it has come out (unroll), where it hangs (spot) bobbing by b.dy.
   drawBill(g, b, spot) {
-    const y = spot.y + b.dy, edge = y + spot.h * b.reveal;
-    g.save(); g.beginPath(); g.rect(spot.x - 80, y - 80, BILL.W + 160, edge - y + 80); g.clip();
-    BILL.draw(g, b, spot.x, y, b.stampT); g.restore();
-    if (b.reveal < 1) {
-      g.save(); g.fillStyle = BILL.PAPER; g.strokeStyle = BILL.EDGE; g.lineWidth = 2; g.shadowColor = 'rgba(60,30,50,0.3)'; g.shadowBlur = 6; g.shadowOffsetY = 2;
-      g.beginPath(); g.roundRect(spot.x - 4, edge - 8, BILL.W + 8, 16, 8); g.fill(); g.stroke(); g.restore();
-    }
+    const y = spot.y + b.dy;
+    unroll(g, BILL, { x: spot.x, y, h: spot.h, reveal: b.reveal }, () => BILL.draw(g, b, spot.x, y, b.stampT));
   }
 
-  // The 对手情报卡 as far as it has come out (reveal), its top first, with the curl of paper at the edge (as drawBill).
-  drawIntel(g, v) {
-    const edge = v.y + v.h * v.reveal;
-    g.save(); g.beginPath(); g.rect(v.x - 80, v.y - 80, PK_INTEL.W + 160, edge - v.y + 80); g.clip();
-    PK_INTEL.draw(g, v.c, v.x, v.y, v.turn); g.restore();
-    if (v.reveal < 1) {
-      g.save(); g.fillStyle = '#FFFDF9'; g.strokeStyle = '#A9C1F5'; g.lineWidth = 2; g.shadowColor = 'rgba(40,40,80,0.3)'; g.shadowBlur = 6; g.shadowOffsetY = 2;
-      g.beginPath(); g.roundRect(v.x - 4, edge - 8, PK_INTEL.W + 8, 16, 8); g.fill(); g.stroke(); g.restore();
-    }
-  }
+  // The 对手情报卡 as far as it has come out (unroll), on the side it is turned to.
+  drawIntel(g, v) { unroll(g, PK_INTEL, v, () => PK_INTEL.draw(g, v.c, v.x, v.y, v.turn)); }
 
   // A prop at her scale times s, its bottom centre at x, y.
   drawProp(g, im, x, y, s = 1, a = 1, src) {

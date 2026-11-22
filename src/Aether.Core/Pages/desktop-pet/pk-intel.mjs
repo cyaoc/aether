@@ -3,26 +3,14 @@
 // 今日首胜, 关注, 大航海) and 对面在线榜前三 (each one's 本场消费, with their 荣耀等级, 大航海 and 灯牌 as tags; never their
 // names: they are the other room's viewers). What B站 did not answer is left out, a side with nothing on it too.
 // Page px (1080p stream, 1:1), Noto Sans SC 500/800, drawn as the 账单卡 is. The design package's lib/pk-intel.js, ported
-// whole; its self-check is the page's tests' (DesktopPetEngine.test.mjs), and its wrap the page's one (pet.mjs breaks her
-// bubble and the 账单卡 with it).
-import { SANS } from '../gift-board/paint.mjs';
-
-// text's lines in g's font, maxW wide and broken at its line breaks (her bubble's, the 账单卡's, this card's): a line never
-// starts with closing punctuation, which stays on the line before, a little over the width
-export const wrap = (g, text, maxW) => {
-  const lines = [];
-  let cur = '';
-  for (const ch of [...text]) {
-    if (ch === '\n') { lines.push(cur); cur = ''; } else if (cur && g.measureText(cur + ch).width > maxW && !'！？。，、…～）」’”'.includes(ch)) { lines.push(cur); cur = ch; } else cur += ch;
-  }
-  lines.push(cur);
-  return lines;
-};
+// whole; its self-check is the page's tests' (DesktopPetEngine.test.mjs), its wrap the one her bubble and the 账单卡 break
+// with (paint.mjs), and its paper's colours, CURL the shadow of its curl, are for Pet to unroll it (unroll).
+import { SANS, wrap } from '../gift-board/paint.mjs';
 
 export const PK_INTEL = (() => {
   const W = 400, PAD = 20, IN = W - 2 * PAD, HEAD = 52;
   // the other side is blue, as on B站's own PK bar; her pink stays on the edge of the paper she prints
-  const INK = '#4A3742', MUTED = '#8B6B7B', PAPER = '#FFFDF9', EDGE = '#A9C1F5', RULE = '#C9D7F7', BLUE = '#3D74E0';
+  const INK = '#4A3742', MUTED = '#8B6B7B', PAPER = '#FFFDF9', EDGE = '#A9C1F5', RULE = '#C9D7F7', BLUE = '#3D74E0', CURL = 'rgba(40,40,80,0.3)';
   // 大航海 by B站's guard_level: each its own word and colour; gold only for 总督, the highest
   const GUARD = { 1: { word: '总督', fill: '#F2C14E', ink: '#5A3A00' }, 2: { word: '提督', fill: '#8456D8', ink: '#fff' }, 3: { word: '舰长', fill: BLUE, ink: '#fff' } };
   const F = (w, px) => `${w} ${px}px ${SANS}`;
@@ -142,5 +130,5 @@ export const PK_INTEL = (() => {
     长名字没人上榜: { name: '一只名字特别特别长的主播啊啊啊长长长长', rank: { name: '黄金战神', stars: 2, place: 0 }, firstWin: false, fans: 8800, guards: 12, top3: [] },
     新人: { name: '小新', rank: { name: '青铜萌新', stars: 1 }, firstWin: false, fans: 120, guards: 0, top3: [{ score: 52, wealth: 3 }] }
   };
-  return { W, count, layout, draw, SAMPLES };
+  return { W, PAPER, EDGE, CURL, count, layout, draw, SAMPLES };
 })();

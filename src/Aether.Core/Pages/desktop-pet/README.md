@@ -58,8 +58,9 @@ nothing too.
 
 A PK is told event by event only while it is 1-on-1: a `PK_INFO`'s `pk_basic.type` 2 (random) or 6 (invited), its `members`
 exactly two and this room one of them, sides told apart by `room_id`. Before a `PK_INFO` says so none is told, and in one of
-more than two (8) none at all; `pk` above is still told. Times are B站's, each message's `timestamp` measuring from when it came,
-so a local clock that is off does not matter (`DesktopPetPk.cs`):
+more than two (8) none at all, nor in one not matched (`PK_BATTLE_PRE_NEW`) on this connection, joined part way through after
+a reconnect; `pk` above is still told. A 胶囊 B站 left a part of out is left out, the others told. Times are B站's, each
+message's `timestamp` measuring from when it came, so a local clock that is off does not matter (`DesktopPetPk.cs`):
 
 | Event | When | Fields |
 |---|---|---|
@@ -67,7 +68,7 @@ so a local clock that is off does not matter (`DesktopPetPk.cs`):
 | `pkCondition` | Our 4 号胶囊 (`capsules_v2`) the first time it is a condition, as “差10票翻倍” or “差1人翻倍” | `text`: B站's words without `<% %>` |
 | `pkChallenge` | Our 5 号胶囊 turning “挑战成功” or “挑战失败”; once a PK | `result`: `Done` or `Failed` |
 | `pkDouble` | Our 4 号胶囊 turning “2倍加成中”; once a PK | — |
-| `pkCountdown` | 10 seconds before the doubling's `end_time` (`double`), and at `PK_BATTLE_START_NEW`'s `pk_countdown`, 10 seconds before scoring stops (`last`). Known only later, at once with less left; not once that moment passed, nor once the PK ended | `kind`: `double` or `last`; `leftMs`: how long to that moment as it is told |
+| `pkCountdown` | 10 seconds before the doubling's `end_time` (`double`; none when its `PK_INFO` has no `timestamp`), and at `PK_BATTLE_START_NEW`'s `pk_countdown`, 10 seconds before scoring stops (`last`). Known only later, at once with less left; not once that moment passed, nor once the PK ended | `kind`: `double` or `last`; `leftMs`: how long to that moment as it is told |
 | `pkScore` | Each `PK_BATTLE_PROCESS_NEW` and `PK_INFO` | `ours`, `theirs`: the votes |
 | `pkEnd` | `PK_BATTLE_END` | `ours`, `theirs` |
 
@@ -173,7 +174,7 @@ the page beside the board, as the web service serves it, telling it it is on in 
 - The 对手情报卡 starts as Core's `pkMatch` comes, once the other streamer is looked up (up to 3 s after the match), and plays
   its 10 s whole; the board's started at the match. Each `pkScore` is weighed against the one before, and the 20 s between
   two 中途比分 are on the page's clock, from the last that played; the board's 整场 PK counted them on its PK's clock. A new PK
-  (the state's `pk` turning true) stands at 0 : 0, as the board's after a result.
+  (the state's `pk` turning true) stands at 0 : 0 with none of the 20 s left, as the board's 「PK 开始」.
 - She does no 日常小动作 while she shakes a round's blind boxes. Waiting for the 盲盒播报 takes up to half a minute; the board's
   stand-in took 0.8 s and a 日常小动作 could start in it.
 - The thresholds, the minutes before each 心情 (0 never), the 日常小动作's interval, which of them she does and their chance of a

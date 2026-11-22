@@ -5,6 +5,18 @@ export const SANS = '"Noto Sans SC", "PingFang SC", sans-serif';
 export const NUMERALS = '"Playfair Num", Georgia, serif';
 export const PAD = 40;   // room around glass shapes for their outer glow
 
+/** `text`'s lines in `g`'s font, `maxW` wide and broken at its line breaks: a line never starts with closing punctuation, which
+ * stays on the line before, a little over the width. */
+export const wrap = (g, text, maxW) => {
+  const lines = [];
+  let cur = '';
+  for (const ch of [...text]) {
+    if (ch === '\n') { lines.push(cur); cur = ''; } else if (cur && g.measureText(cur + ch).width > maxW && !'！？。，、…～）」’”'.includes(ch)) { lines.push(cur); cur = ch; } else cur += ch;
+  }
+  lines.push(cur);
+  return lines;
+};
+
 /** The path of a rounded rectangle `[x, y, w, h]` with corners of radius `r`. */
 export function roundRect(g, [x, y, w, h], r) {
   g.beginPath();

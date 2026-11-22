@@ -4,7 +4,8 @@ namespace Aether.Core;
 
 /// <summary>One PK as the 桌宠页 is told it, from its first PK message to its end; part of the room connection region's state
 /// (ADR 0017). Only a 1-on-1 PK is told, once a PK_INFO says it is one: the other streamer, looked up as the PK is matched,
-/// waits for that.</summary>
+/// waits for that. One not matched on this connection, joined part way through after a reconnect, is not told at all: its
+/// 胶囊 and score would play as new.</summary>
 internal sealed class DesktopPetPk(long roomId, StepTimers timers, Action<string, object> tell, Func<PkMatched, Task<OpponentCard>> lookUp)
 {
     // pk_basic.type: 2 a random PK, 6 one the streamer was invited to; 8, a PK of more, and any other is no 1-on-1.
@@ -14,7 +15,9 @@ internal sealed class DesktopPetPk(long roomId, StepTimers timers, Action<string
     private const string Doubling = "2倍加成中";
     private static readonly Dictionary<string, string> Challenges = new() { ["挑战成功"] = "Done", ["挑战失败"] = "Failed" };
     // How long before the moment it counts down to a 举牌 is told: her sign counts its last 10 seconds.
-    private static readonly TimeSpan Lead = TimeSpan.FromSeconds(10);
+    private static readonly TimeSpan SignLead = TimeSpan.FromSeconds(10);
+    // A PK's last seconds (s), from its pk_countdown to when B站 stops counting its votes.
+    private const long LastSeconds = 10;
     private readonly List<ITimer> countdowns = [];
     // What one PK tells once only.
     private readonly HashSet<string> once = [];
@@ -31,10 +34,10 @@ internal sealed class DesktopPetPk(long roomId, StepTimers timers, Action<string
                 if (once.Add(DesktopPet.PkMatch)) LookUp(matched);
                 break;
             case PkStarted started:
-                Countdown("last", started.Countdown + (long)Lead.TotalSeconds, started.Timestamp, received.ReceivedTimestamp);
+                Countdown("last", started.Countdown + LastSeconds, started.Timestamp, received.ReceivedTimestamp);
                 break;
             case PkScored scored:
-                Score(scored.Sides, received.InPk ? DesktopPet.PkScore : DesktopPet.PkEnd);
+                Score(Sides(scored.Sides), received.InPk ? DesktopPet.PkScore : DesktopPet.PkEnd);
                 break;
             case PkInfo info:
                 TakeInfo(info, received.ReceivedTimestamp);
@@ -61,21 +64,23 @@ internal sealed class DesktopPetPk(long roomId, StepTimers timers, Action<string
 
     private void TakeInfo(PkInfo info, long receivedAt)
     {
-        oneOnOne = info.Type is RandomPk or InvitedPk && Sides(info.Sides) is not null;
+        var sides = Sides(info.Sides);
+        oneOnOne = info.Type is RandomPk or InvitedPk && sides is not null;
         TellMatch();
-        Score(info.Sides, DesktopPet.PkScore);
-        if (Sides(info.Sides) is var (ours, _))
+        Score(sides, DesktopPet.PkScore);
+        if (sides is var (ours, _))
             foreach (var capsule in ours.Capsules) TakeCapsule(capsule, info.Timestamp, receivedAt);
     }
 
     /// <summary>Only our 双倍彩蛋 is told: the condition the first time it is one, as "差10票翻倍" or "差1人翻倍" is, how the
-    /// challenge came out and the doubling, each once; the doubling counted down to its end_time too.</summary>
-    private void TakeCapsule(PkCapsule capsule, long sent, long receivedAt)
+    /// challenge came out and the doubling, each once; the doubling counted down to its end_time too, by B站's clock when the
+    /// PK_INFO said what it was.</summary>
+    private void TakeCapsule(PkCapsule capsule, long? sent, long receivedAt)
     {
         if (capsule is { Type: DoubleCapsule, Text: Doubling } && once.Add(DesktopPet.PkDouble))
         {
             Tell(DesktopPet.PkDouble, new { });
-            Countdown("double", capsule.EndTime, sent, receivedAt);
+            if (sent is { } at) Countdown("double", capsule.EndTime, at, receivedAt);
         }
         else if (capsule.Type == DoubleCapsule && capsule.Text.StartsWith('差') && capsule.Text.EndsWith("翻倍", StringComparison.Ordinal))
             TellOnce(DesktopPet.PkCondition, new { text = capsule.Text });
@@ -89,7 +94,7 @@ internal sealed class DesktopPetPk(long roomId, StepTimers timers, Action<string
     private void Countdown(string kind, long moment, long sent, long receivedAt)
     {
         var left = Left();
-        if (left > Lead) countdowns.Add(timers.Start(left - Lead, () => TellCountdown(Left())));
+        if (left > SignLead) countdowns.Add(timers.Start(left - SignLead, () => TellCountdown(Left())));
         else if (left > TimeSpan.Zero) TellCountdown(left);
 
         TimeSpan Left() => TimeSpan.FromSeconds(moment - sent) - timers.Time.GetElapsedTime(receivedAt);
@@ -108,9 +113,9 @@ internal sealed class DesktopPetPk(long roomId, StepTimers timers, Action<string
         card = null;
     }
 
-    private void Score(PkSide[] sides, string name)
+    private void Score((PkSide Ours, PkSide Theirs)? sides, string name)
     {
-        if (Sides(sides) is var (ours, theirs)) Tell(name, new { ours = ours.Votes, theirs = theirs.Votes });
+        if (sides is var (ours, theirs)) Tell(name, new { ours = ours.Votes, theirs = theirs.Votes });
     }
 
     /// <summary>Our side and theirs, by room: none unless there are two and one is ours.</summary>
@@ -123,6 +128,6 @@ internal sealed class DesktopPetPk(long roomId, StepTimers timers, Action<string
 
     private void Tell(string name, object data)
     {
-        if (oneOnOne == true && !over) tell(name, data);
+        if (oneOnOne == true && once.Contains(DesktopPet.PkMatch) && !over) tell(name, data);
     }
 }
