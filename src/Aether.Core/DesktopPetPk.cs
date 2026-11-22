@@ -13,6 +13,9 @@ internal sealed class DesktopPetPk(long roomId, StepTimers timers, Action<string
     // A side's 胶囊 by capsule_type: 4 the 双倍彩蛋's condition and then its doubling, 5 how its challenge came out.
     private const int DoubleCapsule = 4, ChallengeCapsule = 5;
     private const string Doubling = "2倍加成中";
+    // The condition, so many votes or people short of the doubling: "差10票翻倍", "差1人翻倍".
+    private const char ConditionStart = '差';
+    private const string ConditionEnd = "翻倍";
     private static readonly Dictionary<string, string> Challenges = new() { ["挑战成功"] = "Done", ["挑战失败"] = "Failed" };
     // How long before the moment it counts down to a 举牌 is told: her sign counts its last 10 seconds.
     private static readonly TimeSpan SignLead = TimeSpan.FromSeconds(10);
@@ -88,7 +91,7 @@ internal sealed class DesktopPetPk(long roomId, StepTimers timers, Action<string
             // counted down by the first PK_INFO with a timestamp, which need not be the first to tell the doubling
             if (sent is { } at && !doubleCounted) { doubleCounted = true; Countdown("double", capsule.EndTime, at, receivedAt); }
         }
-        else if (capsule.Type == DoubleCapsule && capsule.Text.StartsWith('差') && capsule.Text.EndsWith("翻倍", StringComparison.Ordinal))
+        else if (capsule.Type == DoubleCapsule && capsule.Text.StartsWith(ConditionStart) && capsule.Text.EndsWith(ConditionEnd, StringComparison.Ordinal))
             TellOnce(DesktopPet.PkCondition, new { text = capsule.Text });
         else if (capsule.Type == ChallengeCapsule && Challenges.TryGetValue(capsule.Text, out var result))
             TellOnce(DesktopPet.PkChallenge, new { result });

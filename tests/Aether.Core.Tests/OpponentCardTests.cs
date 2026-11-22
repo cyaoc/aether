@@ -14,7 +14,7 @@ public sealed class OpponentCardTests
         return h;
     }
 
-    private static Task<OpponentCard> AskAsync(WatchHarness h) => h.Client.GetOpponentCardAsync(OpponentRoom, OpponentUid, OpponentName, h.Stop.Token);
+    private static Task<OpponentCard> AskAsync(WatchHarness h) => h.Client.GetOpponentCardAsync(new(OpponentUid, OpponentRoom, OpponentName), h.Stop.Token);
 
     [Fact]
     public async Task Asks_all_four_at_once_anonymously_from_the_other_room_and_fills_the_card()

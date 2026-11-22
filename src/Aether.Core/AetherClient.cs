@@ -75,8 +75,9 @@ public sealed partial class AetherClient : IDisposable
 
     /// <summary>Asks B站 about the other streamer of a PK for the 对手情报卡: anonymously, as a viewer who never enters that room,
     /// and all four at once. What fails, reads wrong or has not answered in 3 s is left out; only the caller's cancelling throws.</summary>
-    internal async Task<OpponentCard> GetOpponentCardAsync(long roomId, long uid, string name, CancellationToken cancellationToken)
+    internal async Task<OpponentCard> GetOpponentCardAsync(DanmakuProtocol.PkMatched matched, CancellationToken cancellationToken)
     {
+        var (uid, roomId, name) = matched;
         using var timeout = new CancellationTokenSource(OpponentCardTimeout, timeProvider);
         using var asking = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken, timeout.Token);
         var api = Api(credential: null);
