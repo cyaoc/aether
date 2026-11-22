@@ -7,7 +7,7 @@ namespace Aether.Core;
 
 internal static class SettingsUpgrade
 {
-    internal const int CurrentVersion = 3;
+    internal const int CurrentVersion = 4;
 
     // The 0.2.x spellings, frozen here rather than read from Settings.WelcomeGuards, which may change.
     private static readonly string[] V0Guards = ["关闭", "舰长", "提督", "总督"];
@@ -21,6 +21,13 @@ internal static class SettingsUpgrade
     private const string V2HelperComment = "# 帮它的关键字，观众发了就站到捣蛋鬼那边；非空文字，不能和下一场报名抽奖、盲盒查询的关键字一样";
     private const string V2Placeholder = "{关键字}";
 
+    // The v0.6.3 Template's comment on lucky_percent and its default, the last of format 3, and what format 4 writes over
+    // them. Frozen as V0Guards is.
+    private const string V3LuckyComment = "# 拔河时每个纸团是幸运纸团的几率，0 到 100（%），0 表示不出幸运纸团；砸中谁，对面 10 秒内送的入伙礼物算双倍";
+    private const string V4LuckyComment = "# 拔河时每个纸团是幸运纸团的几率，0 到 100（%），0 表示不出幸运纸团；砸中谁，对面 20 秒内送的入伙礼物算双倍";
+    private const int V3LuckyPercent = 10;
+    private const string V4LuckyPercent = "30";
+
     internal static string Apply(string source, int version, string path)
     {
         var original = source;
@@ -31,6 +38,7 @@ internal static class SettingsUpgrade
                 0 => UpgradeV0(source, path),
                 1 => UpgradeV1(source, path),
                 2 => UpgradeV2(source, path),
+                3 => UpgradeV3(source, path),
                 _ => throw new InvalidOperationException("缺少设置文件升级步骤。"),
             };
             version++;
@@ -98,10 +106,7 @@ internal static class SettingsUpgrade
             edits.Add(replacement.Length == 0 ? (start, LineEnd(source, end) - start, "")
                 : ((int)comment.Start.Index, end - (int)comment.Start.Index, replacement));
         }
-        // Replacements before inserts at the same offset, so an insert is never removed as the text it precedes.
-        foreach (var edit in edits.OrderByDescending(edit => edit.Start).ThenByDescending(edit => edit.Length))
-            source = source.Remove(edit.Start, edit.Length).Insert(edit.Start, edit.Value);
-        return source;
+        return Edited(source, edits);
 
         void ReplaceScalar(YamlNode node, string value) => edits.Add(ScalarEdit(tokens, node, value, path));
     }
@@ -151,14 +156,14 @@ internal static class SettingsUpgrade
         }
         return source;
 
-        // A comment the user changed stays. Only a scanner-recognized one counts, as in UpgradeV0, and tokens after the line have moved.
+        // A comment the user changed stays; tokens after the line have moved.
         string WithoutHelper(YamlNode key, YamlNode value)
         {
+            if (!group.Anchor.IsEmpty) throw CannotEdit(path, group);
             var end = Settings.EndOf(tokens, value);
             if (group.Style != MappingStyle.Block || key.Start.Line != end.Line) throw CannotEdit(path, key);
             int from = LineStart(source, (int)key.Start.Index), to = LineEnd(source, (int)end.Index);
-            var comment = tokens.OfType<Tokens.Comment>().FirstOrDefault(token => token.End.Index < from && LineEnd(source, (int)token.End.Index) == from
-                && source[LineStart(source, (int)token.Start.Index)..(int)token.End.Index].TrimStart(' ') == V2HelperComment);
+            var comment = CommentAbove(tokens, source, from, V2HelperComment);
             return source[..(comment is null ? from : LineStart(source, (int)comment.Start.Index))] + source[to..];
         }
 
@@ -170,6 +175,8 @@ internal static class SettingsUpgrade
             foreach (var line in lines.AllNodes.OfType<YamlScalarNode>().Reverse())
             {
                 if (line.Value is not { } said || !said.Contains(V2Placeholder, StringComparison.Ordinal)) continue;
+                if (!group.Anchor.IsEmpty) throw CannotEdit(path, group);
+                if (!lines.Anchor.IsEmpty) throw CannotEdit(path, lines);
                 var (start, length, _) = ScalarEdit(tokens, line, "", path);
                 var written = source.Substring(start, length);
                 var spelled = written.Split(V2Placeholder).Length == said.Split(V2Placeholder).Length;
@@ -180,6 +187,60 @@ internal static class SettingsUpgrade
         }
     }
 
+    /// <summary>Format 4 makes a paper ball lucky 30 times in a hundred by default, not 10, and a double last 20 seconds, not
+    /// 10: a lucky_percent still at format 3's default of 10 becomes 30 (the one exception ADR 0011 makes to keeping what
+    /// users have), and the Template's comment right above it says 20 seconds. Any other value, and a comment the user
+    /// changed, stay. Only the value's scalar is replaced, so unlike UpgradeV2 the group need not be in block style; a key
+    /// written as an alias has its comment looked for above the alias, and a group shared through an anchor is refused when
+    /// it must change, as its text stands under another key.</summary>
+    private static string UpgradeV3(string source, string path)
+    {
+        if (Settings.ChildOf(RootOf(source), "desktop_pet") is not YamlMappingNode group) return source;
+        var (key, value) = group.Children.FirstOrDefault(pair => pair.Key is YamlScalarNode { Value: "lucky_percent" });
+        if (key is null) return source;
+        var tokens = Settings.Scan(source);
+        // Read as format 3's Definition.Percent read it, frozen here as V0Guards is.
+        var atV3Default = value is YamlScalarNode { Value: { } text } && int.TryParse(text.Trim(), System.Globalization.NumberStyles.Integer,
+            System.Globalization.CultureInfo.InvariantCulture, out var percent) && percent == V3LuckyPercent;
+        var comment = CommentAbove(tokens, source, LineStart(source, WrittenAt(tokens, group, key, path)), V3LuckyComment);
+        if (!atV3Default && comment is null) return source;
+        if (!group.Anchor.IsEmpty) throw CannotEdit(path, group);
+        var edits = new List<(int Start, int Length, string Value)>();
+        if (atV3Default) edits.Add(ScalarEdit(tokens, value, V4LuckyPercent, path));
+        if (comment is not null) edits.Add(((int)comment.Start.Index, (int)(comment.End.Index - comment.Start.Index), V4LuckyComment));
+        return Edited(source, edits);
+    }
+
+    /// <summary>Where <paramref name="group"/> writes <paramref name="key"/>. An aliased key's node has the place of its anchor,
+    /// the last of its name before the alias, as YAML lets a name be anchored again; so the key is the alias among the group's
+    /// own keys whose anchor that is. YamlDotNet ends a collection node where it starts, so the group's own are told by depth.
+    /// A key written where its node is stands on the line of its name, which its tag or anchor may come a line above. A key
+    /// it cannot place is refused.</summary>
+    private static int WrittenAt(List<Tokens.Token> tokens, YamlMappingNode group, YamlNode key, string path)
+    {
+        var name = (int)tokens.OfType<Tokens.Scalar>().First(token => Within(token, key)).Start.Index;
+        if (key.Anchor.IsEmpty) return name;
+        var depth = 0;
+        for (var i = tokens.FindIndex(token => token.Start.Index >= group.Start.Index); i < tokens.Count; i++)
+        {
+            if (tokens[i] is Tokens.BlockMappingStart or Tokens.BlockSequenceStart or Tokens.FlowMappingStart or Tokens.FlowSequenceStart) depth++;
+            // (at the group's end with no alias of it: the key is anchored where it is written, in the group)
+            else if (tokens[i] is Tokens.BlockEnd or Tokens.FlowMappingEnd or Tokens.FlowSequenceEnd && --depth == 0)
+                return name >= group.Start.Index && name < tokens[i].End.Index ? name : throw CannotEdit(path, key);
+            else if (depth == 1 && tokens[i] is Tokens.AnchorAlias alias && alias.Value == key.Anchor && IsKeyOf(tokens.GetRange(0, i)))
+                return (int)alias.Start.Index;
+        }
+        throw CannotEdit(path, key);
+
+        // Whether the alias after these tokens stands for a key, past any comment, and its anchor is key's.
+        bool IsKeyOf(List<Tokens.Token> before)
+        {
+            if (before.Last(token => token is not Tokens.Comment) is not Tokens.Key) return false;
+            var anchor = before.Last(token => token is Tokens.Anchor named && named.Value == key.Anchor);
+            return anchor.Start.Index >= key.Start.Index && anchor.Start.Index < key.End.Index;
+        }
+    }
+
     /// <summary>Marks a file the steps changed as the current format: its format_version, or one above the comments that lead its
     /// first group, as in Template, so they stay with the group they describe.</summary>
     private static string WithVersion(string source, string path)
@@ -187,11 +248,8 @@ internal static class SettingsUpgrade
         var root = RootOf(source);
         var tokens = Settings.Scan(source);
         var version = CurrentVersion.ToString(System.Globalization.CultureInfo.InvariantCulture);
-        if (Settings.ChildOf(root, "format_version") is { } current)
-        {
-            var (start, length, value) = ScalarEdit(tokens, current, version, path);
-            return source.Remove(start, length).Insert(start, value);
-        }
+        if (Settings.ChildOf(root, "format_version") is { } current) return Edited(source, [ScalarEdit(tokens, current, version, path)]);
+        if (root.Style != MappingStyle.Block) throw CannotEdit(path, root);
         var first = tokens.OfType<Tokens.BlockMappingStart>().First();
         var indent = IndentOf(first);
         var lead = tokens.IndexOf(first);
@@ -202,16 +260,32 @@ internal static class SettingsUpgrade
         return source.Insert(at, indent + "# 设置文件格式版本，由程序维护" + newline + indent + "format_version: " + version + newline + newline);
     }
 
+    /// <summary>Makes <paramref name="edits"/> last first, so the ones before keep their places, and a replacement before an
+    /// insert at the same offset, so an insert is never removed as the text it precedes.</summary>
+    private static string Edited(string source, IEnumerable<(int Start, int Length, string Value)> edits)
+    {
+        foreach (var edit in edits.OrderByDescending(edit => edit.Start).ThenByDescending(edit => edit.Length))
+            source = source.Remove(edit.Start, edit.Length).Insert(edit.Start, edit.Value);
+        return source;
+    }
+
+    /// <summary>The comment on the line right above the one starting at <paramref name="from"/>, if it reads
+    /// <paramref name="text"/> past its indent. Only a scanner-recognized one counts: a block scalar can hold the same text.</summary>
+    private static Tokens.Comment? CommentAbove(List<Tokens.Token> tokens, string source, int from, string text) =>
+        tokens.OfType<Tokens.Comment>().FirstOrDefault(token => token.End.Index < from && LineEnd(source, (int)token.End.Index) == from
+            && source[LineStart(source, (int)token.Start.Index)..(int)token.End.Index].TrimStart(' ') == text);
+
     /// <summary>Replaces only <paramref name="node"/>'s scalar token, keeping its tag and the whitespace around it.</summary>
     private static (int Start, int Length, string Value) ScalarEdit(List<Tokens.Token> tokens, YamlNode node, string value, string path)
     {
         // Alias nodes point at their anchor definition, which may belong to an unrelated setting.
         if (!node.Anchor.IsEmpty) throw CannotEdit(path, node);
-        var scalar = tokens.OfType<Tokens.Scalar>().FirstOrDefault(token => token.Start.Index >= node.Start.Index
-            && token.End.Index <= node.End.Index);
+        var scalar = tokens.OfType<Tokens.Scalar>().FirstOrDefault(token => Within(token, node));
         if (scalar is null || scalar.Start.Line != scalar.End.Line) throw CannotEdit(path, node);
         return ((int)scalar.Start.Index, (int)(scalar.End.Index - scalar.Start.Index), value);
     }
+
+    private static bool Within(Tokens.Token token, YamlNode node) => token.Start.Index >= node.Start.Index && token.End.Index <= node.End.Index;
 
     private static YamlMappingNode RootOf(string source)
     {

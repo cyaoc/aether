@@ -307,14 +307,16 @@ test('a 人气票 or 小花花 sent while it only peeks in counts once it flies 
   assert.deepEqual([empty.gm.visit.phase, playing(empty)], ['away', 'chestRobbed']);
 });
 
-test('at 0:00 the tug waits five seconds for what is late on the way, then the side the line is on wins, a tie the 捣蛋鬼\'s', () => {
+test('at 0:00 the tug waits ten seconds for what is late on the way, then the side the line is on wins, a tie the 捣蛋鬼\'s', () => {
   const outcome = sent => {
     const pet = tugging();
     countdown(pet, 0);
-    play(pet, 4000);
+    play(pet, 9000);
     assert.deepEqual([pet.gm.visit.phase, pet.gm.visit.left], ['tug', 0]);
     sent(pet);
-    play(pet, 1500);
+    play(pet, 900);
+    assert.equal(pet.gm.visit.phase, 'tug', 'still waiting 9.9 s in');
+    play(pet, 600);
     return [pet.gm.visit.phase, playing(pet)];
   };
   assert.deepEqual(outcome(() => {}), ['lost', 'chestRobbed'], '0 : 0');
@@ -337,6 +339,7 @@ test('a 绝杀 is a tug decided by a gift that came in its last ten seconds or t
   assert.deepEqual(ended([30000, tickets(1, 5)]), ['won', null, null, 'chestKept', flees], 'ahead since half a minute before');
   assert.deepEqual(ended([5000, tickets(1, 5)]), ['won', 1, '观众1', 'chestKeptBuzzer', flees], 'put ahead 5 s before the end');
   assert.deepEqual(ended([30000, flowers(3, 5)], [-1000, tickets(2, 6)]), ['won', 1, '观众2', 'chestKeptBuzzer', flees], 'turned in the grace');
+  assert.deepEqual(ended([30000, flowers(3, 5)], [-9000, tickets(2, 6)]), ['won', 1, '观众2', 'chestKeptBuzzer', flees], 'turned 9 s into the grace');
   assert.deepEqual(ended([30000, tickets(1, 5)], [5000, flowers(2, 6)]), ['lost', -1, '观众2', 'chestRobbed', '多谢观众2！\n箱子归我啦～'], 'turned its way 5 s before the end');
   assert.deepEqual(ended([5000, tickets(3, 100)]), ['won', 1, '观众3', 'chestKeptBuzzer', flees], 'a 秒杀 5 s before the end');
   assert.deepEqual(ended([30000, flowers(2, 5)]), ['lost', null, null, 'chestRobbed', '多谢款待，\n下次再来！'], 'behind since half a minute before');
@@ -872,19 +875,22 @@ test('five paper balls of one side\'s landing within five seconds have the one t
   assert.equal(her.gm.say.text, '观众5！别丢啦～');
 });
 
-test('a 幸运纸团 opens whoever it hits for ten seconds, the other side\'s gifts counting twice with no cap, and the next comes no sooner than five seconds after', () => {
+test('a 幸运纸团 opens whoever it hits for twenty seconds, the other side\'s gifts counting twice with no cap, and the next comes no sooner than five seconds after', () => {
   // (every ball a lucky one; each end 200 票 off, so that what is thrown here sets off no lightning)
   const pet = tugging(4000, { luckyPercent: 100 }), v = pet.gm.visit, thrown = () => { pet.danmaku({ uid: 5, nickname: '观众5', side: 1 }); return v.balls.at(-1).lucky; };
   play(pet, 3000);
   assert.equal(thrown(), true);
   play(pet, 700);
-  assert.deepEqual([v.luck.side, Math.round(v.luck.until - v.luck.at), v.say.text], [1, 10000, '哎哟！别送\n人气票啊！']);
+  assert.deepEqual([v.luck.side, Math.round(v.luck.until - v.luck.at), v.say.text], [1, 20000, '哎哟！别送\n人气票啊！']);
   pet.gift(tickets(6, 30));
   pet.gift(flowers(7, 4));
   assert.deepEqual([v.red, v.blue, thrown()], [60, 4, false]);
-  play(pet, 10000);
+  play(pet, 19000);
   pet.gift(tickets(6));
-  assert.deepEqual([v.luck, v.red, thrown()], [null, 61, false]);
+  assert.deepEqual([v.luck?.side, v.red, thrown()], [1, 62, false], 'in its twentieth second');
+  play(pet, 1000);
+  pet.gift(tickets(6));
+  assert.deepEqual([v.luck, v.red, thrown()], [null, 63, false]);
   play(pet, 5000);
   assert.equal(thrown(), true);
 });

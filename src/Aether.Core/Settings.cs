@@ -21,7 +21,7 @@ public sealed partial class Settings
 {
     private const string Template = """
         # 设置文件格式版本，由程序维护
-        format_version: 3
+        format_version: 4
 
         # 日志设置，修改后重启程序生效
         log:
@@ -106,8 +106,8 @@ public sealed partial class Settings
           sleepy_minutes: 60
           # 宝箱小游戏：捣蛋鬼最多每几分钟自己来一次，有人在看、她闲着时才来；0 表示只在主播叫它时来
           prankster_minutes: 30
-          # 拔河时每个纸团是幸运纸团的几率，0 到 100（%），0 表示不出幸运纸团；砸中谁，对面 10 秒内送的入伙礼物算双倍
-          lucky_percent: 10
+          # 拔河时每个纸团是幸运纸团的几率，0 到 100（%），0 表示不出幸运纸团；砸中谁，对面 20 秒内送的入伙礼物算双倍
+          lucky_percent: 30
           # 平静时隔几秒做一个日常小动作，在最少和最多之间随机；必须为正整数，最少不能比最多大
           daily_min_seconds: 20
           daily_max_seconds: 40
@@ -178,7 +178,7 @@ public sealed partial class Settings
     private static readonly Definition<int> PetGloomyMinutes = Register(Definition.Number("desktop_pet.gloomy_minutes", 40, "必须为非负整数。", minutes => minutes >= 0));
     private static readonly Definition<int> PetSleepyMinutes = Register(Definition.Number("desktop_pet.sleepy_minutes", 60, "必须为非负整数。", minutes => minutes >= 0));
     private static readonly Definition<int> PetPranksterMinutes = Register(Definition.Number("desktop_pet.prankster_minutes", 30, "必须为非负整数。", minutes => minutes >= 0));
-    private static readonly Definition<int> PetLuckyPercent = Register(Definition.Percent("desktop_pet.lucky_percent", 10));
+    private static readonly Definition<int> PetLuckyPercent = Register(Definition.Percent("desktop_pet.lucky_percent", 30));
     private static readonly Definition<int> PetDailyMin = Register(Definition.Number("desktop_pet.daily_min_seconds", 20, "必须为正整数。", seconds => seconds > 0));
     private static readonly Definition<int> PetDailyMax = Register(Definition.Number("desktop_pet.daily_max_seconds", 40, "必须为正整数。", seconds => seconds > 0));
     private static readonly Definition<int> PetMishapPercent = Register(Definition.Percent("desktop_pet.mishap_percent", 25));

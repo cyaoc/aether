@@ -32,16 +32,16 @@ public sealed class DesktopPetSettingsTests : IAsyncDisposable
     }
 
     [Fact]
-    public void Without_its_line_one_paper_ball_in_ten_is_lucky_and_the_file_is_left_alone()
+    public void Without_its_line_three_paper_balls_in_ten_are_lucky_and_the_file_is_left_alone()
     {
         Settings.Load(h.DataDirectory);
-        var old = File.ReadAllText(SettingsPath).ReplaceLineEndings("\n").Replace("  lucky_percent: 10\n", "");
+        var old = File.ReadAllText(SettingsPath).ReplaceLineEndings("\n").Replace("  lucky_percent: 30\n", "");
         Assert.DoesNotContain("lucky_percent", old);
         Write(old);
 
         var settings = Settings.Load(h.DataDirectory);
 
-        Assert.Equal((null, 10), (settings.Error, settings.DesktopPetLuckyPercent.Value));
+        Assert.Equal((null, 30), (settings.Error, settings.DesktopPetLuckyPercent.Value));
         Assert.Equal(old, File.ReadAllText(SettingsPath));
     }
 
