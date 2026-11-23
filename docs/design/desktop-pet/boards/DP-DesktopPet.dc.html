@@ -386,7 +386,8 @@ const TIER = { SS: 5, S: 4, A: 3, B: 2, C: 1, D: 0 };
 // the lottery jackpot's (an event's glow: its reveal is the gold card of a gacha pull, though the show itself is A).
 const GLOW = { SS: '254,197,79', S: '253,183,202', A: '180,140,255', B: '124,200,255', C: '255,211,223', D: '255,255,255' };
 const EVENTS = {
-  进场: { tier: 'C', dur: 1600 }, 普通礼物: { tier: 'C', dur: 2000, gift: true }, 连着送: { tier: 'C', dur: 2600, gift: true },
+  // 进场 D, 盲盒查询 C (#401): a 账单卡 cuts a wave or a 日常 short, never a thank-you; each keeps the colour it had (glow)
+  进场: { tier: 'D', dur: 1600, glow: 'C' }, 普通礼物: { tier: 'C', dur: 2000, gift: true }, 连着送: { tier: 'C', dur: 2600, gift: true },
   '盲盒·小': { tier: 'C', dur: 2600, gift: true, results: ['赚', '平', '亏'] }, 中礼物: { tier: 'B', dur: 3500, gift: true }, '盲盒·中': { tier: 'B', dur: 4000, gift: true, results: ['赚', '平', '亏'] },
   舰长: { tier: 'B', dur: 4500, gift: true }, 大礼物: { tier: 'A', dur: 6000, gift: true }, '盲盒·大': { tier: 'A', dur: 6000, gift: true, results: ['赚', '平', '亏', '大奖'] },
   提督: { tier: 'A', dur: 8000, gift: true }, 总督: { tier: 'SS', dur: 15000, gift: true },
@@ -396,8 +397,9 @@ const EVENTS = {
   报名开场: { tier: 'A', dur: 2600 }, 报名截止: { tier: 'A', dur: 2000 }, 奖池开场: { tier: 'A', dur: 2600 }, 奖池点名: { tier: 'A', dur: 2000 },
   奖池转动: { tier: 'A', dur: 2000 }, '揭晓·大奖': { tier: 'A', dur: 5200, glow: 'SS' }, '揭晓·二奖': { tier: 'A', dur: 4600 }, '揭晓·三奖': { tier: 'A', dur: 4600 },
   没人报名: { tier: 'A', dur: 2800 }, 抽奖结束: { tier: 'A', dur: 2600 }, 日常: { tier: 'D' },
-  // a viewer's 盲盒查询: only while she is idle, never queued, and any gift cuts in (DP-BlindBoxCard.dc.html is its card)
-  盲盒查询: { tier: 'D', dur: 6000, results: ['赚', '回本', '亏', '没有记录'] },
+  // a viewer's 盲盒查询: over no show but a wave or a 日常, nor blind boxes she shakes, never queued, and any gift cuts in
+  // (DP-BlindBoxCard.dc.html is its card)
+  盲盒查询: { tier: 'C', glow: 'D', dur: 6000, results: ['赚', '回本', '亏', '没有记录'] },
   // B站 PK (README 15): she holds up her sign when it is time to act. B: a gift's thank-you does not cut it short, a big
   // gift does; the countdowns count to the server's moment however late they start (PK_SIGN)
   // the other side's card (PK_INTEL, lib/pk-intel.js), the 10 s between the match and the start
@@ -944,6 +946,8 @@ class Component extends DCLogic {
     if (this.cfg.game && opts.price) this.gameGift({ price: opts.price, n: 1 });
     // she waves at whoever comes in only while she is idle: never over a daily action or any show, and it does not queue
     if (name === '进场' && this.cur) return this.note('进场：正在演，不演');
+    // neither a wave nor a 账单卡 over blind boxes she shakes: the 盲盒·小 they open into would be dropped behind it
+    if ((name === '进场' || name === '盲盒查询') && this.shaking()) return this.note(`${name}：正摇盲盒，不演`);
     const curTier = this.cur ? TIER[EVENTS[this.cur.name].tier] : -1, tier = TIER[ev.tier];
     // A gift round that grows to 5 gifts takes over its own plain thank-you, instead of being dropped as busy.
     // The two showpieces never cut each other short: the governor waits for the castle and then goes first.
@@ -999,6 +1003,9 @@ class Component extends DCLogic {
   give(list) { const now = this.now(); list.forEach((m, i) => { for (const x of [].concat(m)) this.pending.push({ ...x, at: now + i * 350 }); }); }
 
   arrive(x) {
+    // any gift cuts a 盲盒查询 short, its card gone at once: blind boxes and a round's gift short of moving it up play no show
+    // to take it over (as a C show it would otherwise drop a 普通礼物's thank-you as busy)
+    if (this.cur?.name === '盲盒查询') { this.cur = this.seen = null; this.note('盲盒查询：礼物来了，截掉'); }
     // the first gift into a quiet room wakes her first (冷场后来了人), before the round's own show (not while the prankster is
     // here: fire)
     if (!this.round) { const wake = !this.gm.visit && ['沮丧', '犯困'].includes(this.mood(x.at, false)); this.round = { start: x.at, items: [], wake, wakeLine: wake ? this.pick('冷场后来了人') : null, played: -1 }; }

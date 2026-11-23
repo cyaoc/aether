@@ -40,7 +40,7 @@ for (const row of shows) {
 for (const [mood, minutes] of Object.entries(MOOD)) cases.push({ id: mood, ms: at(30000, [23100, 23600, 24300]),
   set: `x.lastGift = x.lastAny = x.now() - ${minutes} * 60000 - 1; ${mood === 'happy' ? 'x.recent = [x.now(), x.now(), x.now()];' : ''}` });
 cases.push({ id: 'wake-entry', set: 'x.lastGift = x.lastAny = x.now() - 41 * 60000;', ms: at(2600),
-  board: `dc.fire('进场')`, page: `pet.entry({ uid: 1, nickname: '星河' })` });
+  board: `dc.fire('进场')`, page: `pet.entry({ uid: 1, nickname: '星河', wave: true })` });
 // A 一轮 of five gifts (the fifth takes over with 连着送) and one of blind boxes shaken until its result opens them, each gift
 // message the board's gifts as Core tells them (routes.mjs).
 const flower = JSON.stringify([{ gift: '小花花', price: 10, n: 1 }]), heart = JSON.stringify([{ gift: '爱心抱枕', price: 160, n: 1, box: '心动盲盒', boxPrice: 150 }]);

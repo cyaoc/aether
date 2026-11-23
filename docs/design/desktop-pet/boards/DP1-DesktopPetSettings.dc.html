@@ -362,7 +362,7 @@ class Component extends DCLogic {
   categories() {
     const n = ['昵称'], g = ['昵称', '礼物', '个数'];
     return [
-      ['进场', [['进场', '观众进直播间时', n], ['冷场后来了人', '冷场打瞌睡时有人来了，惊醒的那一下', []]]],
+      ['进场', [['进场', '粉丝团观众进直播间时', n], ['冷场后来了人', '冷场打瞌睡时有人来了，惊醒的那一下', []]]],
       ['礼物', [['普通礼物', '一轮送了普通礼物时', g], ['连着送', '一轮送了 5 份以上普通礼物时', ['昵称', '个数']], ['中礼物', '一轮送到中礼物时', g], ['大礼物', '一轮送到大礼物时', g], ['新的第一名', '礼物榜换了第一名时', n]]],
       ['盲盒', [['盲盒赚了', '一轮盲盒开出的比投入多时', g], ['盲盒不赚不亏', '一轮盲盒开出的正好等于投入时', ['昵称', '个数']], ['盲盒亏了', '一轮盲盒开出的比投入少时', ['昵称', '个数']],
         ['盲盒出大奖', '开出的单件礼物到了大礼物门槛时', ['昵称', '礼物']]]],
@@ -475,7 +475,7 @@ class Component extends DCLogic {
       return { label, note, ...this.switchOf(t, on), toggle: () => edited({ shows: { ...shows, [label]: !on } }) };
     };
     const groups = [
-      { title: '进场和礼物', items: [item('进场', '观众进直播间'), item('普通礼物', '这一轮不到 ' + fmt(mid) + ' 电池'), item('连着送', '这一轮送了 5 份以上，不到 ' + fmt(mid) + ' 电池'),
+      { title: '进场和礼物', items: [item('进场', '粉丝团观众进直播间'), item('普通礼物', '这一轮不到 ' + fmt(mid) + ' 电池'), item('连着送', '这一轮送了 5 份以上，不到 ' + fmt(mid) + ' 电池'),
         item('中礼物', '这一轮 ' + fmt(mid) + ' – ' + below + ' 电池'), item('大礼物', '这一轮 ' + fmt(big) + ' 电池以上')] },
       { title: '盲盒和城堡', items: [item('盲盒·小', '这一轮投入不到 ' + fmt(mid) + ' 电池'), item('盲盒·中', '这一轮投入 ' + fmt(mid) + ' – ' + below + ' 电池'), item('盲盒·大', '这一轮投入 ' + fmt(big) + ' 电池以上，或开出大奖'),
         item('城堡', '盲盒开出城堡')] },
@@ -486,7 +486,7 @@ class Component extends DCLogic {
     const all = Object.fromEntries(groups.flatMap(g => g.items).map(x => [x.label, x]));
     const pk = this.props.pk === true || this.props.pk === 'true';
     const grouped = [
-      { label: '进场', desc: '观众进直播间时', items: [all.进场] },
+      { label: '进场', desc: '粉丝团观众进直播间时', items: [all.进场] },
       { label: '礼物', desc: '第一份就演，这一轮越送越多就接上更大的那段（停手 3 秒算一轮）', items: [all.普通礼物, all.连着送, all.中礼物, all.大礼物], thresholds: true },
       { label: '盲盒', desc: '按这一轮的投入分；结果跟盲盒播报：赚了欢呼、不赚不亏点头、亏了鼓腮再道谢', items: [all['盲盒·小'], all['盲盒·中'], all['盲盒·大']] },
       { label: '城堡', desc: '盲盒开出的城堡礼物', items: [all.城堡] },

@@ -189,7 +189,8 @@ public sealed partial class AetherClient
                     service.SetDesktopPetRoom(false);
                     break;
                 case DanmakuProtocol.EntryReceived { Entry: var entry }:
-                    service.TellDesktopPet(DesktopPet.Entry, new { entry.Uid, entry.Nickname });
+                    // she waves only at a viewer wearing this room's 粉丝团 (FanClubLevel is null for anyone else's)
+                    service.TellDesktopPet(DesktopPet.Entry, new { entry.Uid, entry.Nickname, Wave = entry.FanClubLevel is not null });
                     break;
                 // The account's own, such as the bot's thanks, is no viewer: it neither wakes her nor takes a side. What a viewer
                 // wrote never reaches the stream.

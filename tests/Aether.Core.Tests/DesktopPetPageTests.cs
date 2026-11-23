@@ -97,10 +97,17 @@ public sealed class DesktopPetPageTests
         await using var __ = updates;
 
         await h.Server.PushRoomMessageAsync(EntryV2Fixture.Message(uid: 20002, nickname: "进场观众"));
+        await h.Server.PushRoomMessageAsync(EntryV2Fixture.Message(uid: 20003, nickname: "别家粉丝", fanClubRoom: 1));
+        await h.Server.PushRoomMessageAsync(EntryV2Fixture.Message(uid: 20004, nickname: "路人", fanClubRoom: 0, fanClubLevel: 0));
         await h.Server.PushRoomMessageAsync("""{"cmd":"DANMU_MSG","info":[[],"不该上直播画面的话",[30003,"观众"]]}""");
 
-        var (name, entry) = await pet.NextAsync();
-        Assert.Equal(("entry", 20002L, "进场观众"), (name, entry.GetProperty("uid").GetInt64(), entry.GetProperty("nickname").GetString()));
+        // she waves only at a viewer wearing this room's 粉丝团; anyone else is told all the same, for 犯困 (#401)
+        foreach (var (uid, nickname, wave) in new[] { (20002L, "进场观众", true), (20003L, "别家粉丝", false), (20004L, "路人", false) })
+        {
+            var (name, entry) = await pet.NextAsync();
+            Assert.Equal(("entry", uid, nickname, wave),
+                (name, entry.GetProperty("uid").GetInt64(), entry.GetProperty("nickname").GetString(), entry.GetProperty("wave").GetBoolean()));
+        }
         Assert.Equal(("danmaku", """{"uid":30003,"nickname":"\u89C2\u4F17","side":0}"""),
             (await pet.NextAsync()) is var (danmaku, data) ? (danmaku, data.GetRawText()) : default);
     }

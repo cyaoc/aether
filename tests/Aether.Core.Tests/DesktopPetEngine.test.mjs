@@ -2,7 +2,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
-import { DAILY, Engine, PK_SIGN, seeded } from '../../src/Aether.Core/Pages/desktop-pet/engine.mjs';
+import { DAILY, Engine, GLOW, PK_SIGN, seeded } from '../../src/Aether.Core/Pages/desktop-pet/engine.mjs';
 import { PK_INTEL } from '../../src/Aether.Core/Pages/desktop-pet/pk-intel.mjs';
 import { SETTINGS } from './Support/DesktopPetSettings.mjs';
 import { MEASURE, box, gamePet, gifts, item, play, playing, round, state } from './Support/DesktopPetGame.mjs';
@@ -93,25 +93,28 @@ test('a round thanks for the gift priced highest though it was paid less for, an
   assert.deepEqual([discounted.cur.opts.gift, alike.cur.opts.gift, alike.cur.opts.count], ['小电视飞船', '小花花', 2]);
 });
 
+// A viewer coming in wearing this room's 粉丝团, whom she waves at (DesktopPetFeature).
+const fan = uid => ({ uid, nickname: '进场观众', wave: true });
+
 test('an entry plays only while she is idle, over no show nor 日常小动作, and does not queue', () => {
   const engine = pet();
-  engine.entry({ uid: 1, nickname: '进场观众' });
+  engine.entry(fan(1));
   assert.equal(playing(engine), 'entry');
   advance(engine, 1600);
   engine.gift(gifts(1, 100));
-  engine.entry({ uid: 2, nickname: '进场观众' });
+  engine.entry(fan(2));
   assert.deepEqual([playing(engine), engine.queue], ['gift', []]);
   advance(engine, 2000);
   advance(engine, 40000);
   assert.ok(['hum', 'gym', 'hike', 'bike', 'ski'].includes(playing(engine)));
   const daily = engine.cur;
-  engine.entry({ uid: 3, nickname: '进场观众' });
+  engine.entry(fan(3));
   assert.equal(engine.cur, daily);
 });
 
 test('her line says a viewer\'s whole nickname, however long', () => {
   const engine = pet(), nickname = '星河一只很长的昵称啊啊啊啊长长长长长长长';
-  engine.entry({ uid: 1, nickname });
+  engine.entry({ ...fan(1), nickname });
   advance(engine, 500);
   const text = engine.stateAt(engine.now()).bubble.text;
   assert.ok(text.includes(nickname));
@@ -122,14 +125,14 @@ test('her line says a viewer\'s whole nickname, however long', () => {
 test('an entry does not play while she shakes a round\'s blind boxes', () => {
   const engine = pet();
   engine.gift(box(1));
-  engine.entry({ uid: 2, nickname: '进场观众' });
+  engine.entry(fan(2));
   assert.deepEqual([playing(engine), engine.stateAt(engine.now()).pose], [null, 'shakeBox']);
 });
 
 // A viewer's 盲盒查询 as its reply went out (BlindBoxQueryResult).
 const query = (uid, so) => ({ uid, nickname: '观众' + uid, period: '本月', result: 'Loss', spend: '45', profit: '12.5', ...so });
 
-test('a 盲盒查询 plays only while she is idle, over no show nor blind boxes she shakes, and does not queue', () => {
+test('a 盲盒查询 (C) cuts a wave or a 日常小动作 short, plays over no thank-you nor blind boxes she shakes, and does not queue', () => {
   const engine = pet();
   engine.blindBoxQuery(query(1));
   assert.equal(playing(engine), 'blindBoxQuery');
@@ -146,6 +149,40 @@ test('a 盲盒查询 plays only while she is idle, over no show nor blind boxes 
   assert.equal(playing(engine), 'blindBoxSmall');
   advance(engine, 2600);
   assert.equal(playing(engine), null);
+  engine.entry(fan(5));
+  engine.blindBoxQuery(query(6));
+  assert.equal(playing(engine), 'blindBoxQuery');
+  engine.entry(fan(7));
+  assert.deepEqual([playing(engine), engine.queue], ['blindBoxQuery', []]);
+  advance(engine, 6000);
+  advance(engine, 40000);
+  assert.ok(DAILY[playing(engine)]);
+  engine.blindBoxQuery(query(8));
+  assert.equal(playing(engine), 'blindBoxQuery');
+});
+
+test('a gift cuts a wave short: no thank-you is dropped for someone coming in (#401)', () => {
+  const engine = pet();
+  engine.entry(fan(1));
+  engine.gift(gifts(2, 100));
+  assert.equal(playing(engine), 'gift');
+});
+
+test('she waves only at a viewer wearing this room\'s 粉丝团; anyone else coming in still wakes her from 犯困', () => {
+  const engine = pet();
+  advance(engine, 60 * MINUTE);
+  assert.equal(engine.mood(engine.now()), 'sleepy');
+  engine.entry({ uid: 1, nickname: '路人', wave: false });
+  assert.deepEqual([playing(engine), engine.mood(engine.now())], [null, 'gloomy']);
+});
+
+test('a wave and a 账单卡 keep the colour they had before they moved tier', () => {
+  const engine = pet();
+  engine.entry(fan(1));
+  assert.equal(engine.stateAt(engine.now()).glow, GLOW.C);
+  advance(engine, 1600);
+  engine.blindBoxQuery(query(2));
+  assert.equal(engine.stateAt(engine.now()).glow, GLOW.D);
 });
 
 test('a gift cuts a 盲盒查询 short, its 账单卡 gone at once and never played again', () => {
@@ -195,7 +232,7 @@ test('a 盲盒查询 turned off does not play', () => {
 
 test('开心 counts gifts, blind boxes and 大航海, not entries', () => {
   const engine = pet();
-  for (const uid of [1, 2, 3]) engine.entry({ uid, nickname: '进场观众' });
+  for (const uid of [1, 2, 3]) engine.entry(fan(uid));
   assert.equal(engine.mood(engine.now()), 'calm');
   engine.gift(gifts(1, 100));
   engine.gift(box(2));
@@ -212,7 +249,7 @@ test('犯困 comes after an hour with nothing and ends on an entry or a danmaku;
   engine.danmaku({ uid: 1, nickname: '观众1', side: 0 });
   assert.equal(engine.mood(engine.now()), 'gloomy');
   advance(engine, 60 * MINUTE);
-  engine.entry({ uid: 1, nickname: '进场观众' });
+  engine.entry(fan(1));
   assert.deepEqual([playing(engine), engine.cur.pre], ['entry', 1000]);
   assert.equal(engine.mood(engine.now()), 'gloomy');
 });
@@ -352,7 +389,7 @@ test('a castle a merged 盲盒播报 has not reached yet still plays, with the r
 test('a show turned off does not play, nor a lesser one in its place', () => {
   const engine = pet({ off: ['bigGift', 'entry'] });
   engine.gift(gifts(1, 1000000));
-  engine.entry({ uid: 2, nickname: '进场观众' });
+  engine.entry(fan(2));
   assert.equal(playing(engine), null);
   engine.gift(gifts(3, 100000));
   assert.equal(playing(engine), 'midGift');
@@ -655,6 +692,14 @@ test('a PK countdown told 10 s before its moment counts down on her sign from 10
   assert.equal(engine.stateAt(engine.now()).pose, 'idle');
   play(engine, 400);
   assert.equal(playing(engine), null);
+});
+
+test('a PK countdown cuts a 账单卡 short: it is held up at once, never kept waiting behind a viewer\'s 盲盒查询', () => {
+  const engine = inPk();
+  engine.blindBoxQuery(query(1));
+  assert.equal(playing(engine), 'blindBoxQuery');
+  engine.pkCountdown(countdown('last'));
+  assert.equal(playing(engine), 'pkLastSeconds');
 });
 
 test('in a PK she starts no 日常小动作, and once it is over she does as before', () => {
