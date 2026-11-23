@@ -52,9 +52,13 @@ paid, as the chest does:
 A `blindBoxQuery` tells a viewer's 盲盒查询 as its reply went out, sent or given up (a first rate limit waits for its retry),
 for the 账单卡: `uid`, `nickname`, `period` (今日, 本月 or 今年), `result` (`Gain`, `Even`, `Loss`, or `None` with no blind box
 recorded) and `spend` and `profit`, the 投入 and the 盈亏 without its sign as the reply writes them (`BlindBoxTally.Shown()`),
-null for `None`. She shows it only while she is idle, as she waves at an entry: never over a show or blind boxes she shakes,
-never queued, never while the 捣蛋鬼 is here; and any gift cuts it short at once, blind boxes and a round's gift that plays
-nothing too.
+null for `None`. It is a C show (#401): it cuts a 日常小动作 or her wave short, but plays over no other show nor blind boxes she
+shakes, never queued, never while the 捣蛋鬼 is here; and any gift cuts it short at once, blind boxes and a round's gift that
+plays nothing too.
+
+An `entry` tells a viewer coming in: `uid`, `nickname` and `wave`, whether they wear this room's 粉丝团 (`FanClubLevel`).
+She waves only at those; anyone else coming in still counts as something happening for 犯困, as a `danmaku` does. Her wave is
+a D show, only while she is idle, and anything cuts it short.
 
 A PK is told event by event only while it is 1-on-1: a `PK_INFO`'s `pk_basic.type` 2 (random) or 6 (invited), its `members`
 exactly two and this room one of them, sides told apart by `room_id`. Before a `PK_INFO` says so none is told, and in one of

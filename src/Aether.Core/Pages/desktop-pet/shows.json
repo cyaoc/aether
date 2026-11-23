@@ -1,13 +1,13 @@
 {
   "groups": [
-    { "id": "entry", "label": "进场", "note": "观众进直播间时" },
+    { "id": "entry", "label": "进场", "note": "粉丝团观众进直播间时" },
     { "id": "gift", "label": "礼物", "note": "第一份就演，这一轮越送越多就接上更大的那段（停手 3 秒算一轮）" },
     { "id": "blindBox", "label": "盲盒", "note": "按这一轮的投入分；结果跟盲盒播报：赚了欢呼、不赚不亏点头、亏了鼓腮再道谢" },
     { "id": "castle", "label": "城堡", "note": "盲盒开出的城堡礼物" },
     { "id": "guard", "label": "大航海", "note": "开通或续费大航海，三档各演各的" },
     { "id": "newFirst", "label": "新的第一名", "note": "这一笔让礼物榜换了第一名，接在主演出后面；礼物榜没在统计时没有榜，不演" },
     { "id": "lottery", "label": "抽奖", "note": "报名抽奖和奖池抽奖的每一步" },
-    { "id": "blindBoxQuery", "label": "盲盒查询", "note": "观众查盲盒时精灵吐出账单卡；她闲着才演，没开盲盒统计时不演" },
+    { "id": "blindBoxQuery", "label": "盲盒查询", "note": "观众查盲盒时精灵吐出账单卡；能打断日常和进场，没开盲盒统计时不演" },
     { "id": "pk", "label": "PK", "note": "1 对 1 PK 时；多人 PK 不演" },
     { "id": "mood", "label": "心情" },
     { "id": "daily", "label": "日常" },
@@ -16,7 +16,7 @@
     { "id": "prankster", "label": "小游戏·它" }
   ],
   "shows": [
-    { "id": "entry", "group": "entry", "label": "进场", "note": "观众进直播间", "tier": "C", "lines": ["entry"], "tests": [null] },
+    { "id": "entry", "group": "entry", "label": "进场", "note": "粉丝团观众进直播间", "tier": "D", "lines": ["entry"], "tests": [null] },
     { "id": "gift", "group": "gift", "label": "普通礼物", "note": "这一轮不到 {mid} 电池", "tier": "C", "lines": ["gift"], "tests": [null] },
     { "id": "giftStreak", "group": "gift", "label": "连着送", "note": "这一轮送了 5 份以上，不到 {mid} 电池", "tier": "C", "lines": ["giftStreak"], "tests": [null] },
     { "id": "midGift", "group": "gift", "label": "中礼物", "note": "这一轮 {mid} – {big-1} 电池", "tier": "B", "lines": ["midGift"], "tests": [null] },
@@ -36,7 +36,7 @@
       "lines": ["lotteryEntryOpen", "lotteryEntryOngoing", "lotteryEntryClosed", "lotteryWaiting", "lotteryPoolOpen", "lotteryPoolCall", "lotteryPoolSpin",
         "lotteryGrand", "lotterySecond", "lotteryThird", "lotteryNoEntries", "lotteryEnd"],
       "tests": ["EntryOpen", "EntryClosed", "PoolOpen", "PoolCall", "PoolSpin", "RevealGrand", "RevealSecond", "RevealThird", "NoEntries", "End"] },
-    { "id": "blindBoxQuery", "group": "blindBoxQuery", "label": "盲盒查询", "note": "bot 回复观众的盲盒查询时", "tier": "D",
+    { "id": "blindBoxQuery", "group": "blindBoxQuery", "label": "盲盒查询", "note": "bot 回复观众的盲盒查询时", "tier": "C",
       "lines": ["queryGain", "queryEven", "queryLoss", "queryNone"], "tests": ["Gain", "Even", "Loss", "None"] },
     { "id": "pkOpponent", "group": "pk", "label": "对手情报卡", "note": "匹配上、开打前 10 秒时", "tier": "B", "lines": [], "tests": [null] },
     { "id": "pkCondition", "group": "pk", "label": "双倍条件", "note": "双倍彩蛋提示差几票、几人时", "tier": "B", "lines": ["pkCondition"], "tests": [null] },
@@ -67,7 +67,7 @@
     { "id": "chestRobbed", "group": "chestGame", "label": "被偷了", "tier": "B", "lines": ["chestRobbed", "chestRobbedGloomy"], "tests": [] }
   ],
   "lines": [
-    { "id": "entry", "group": "entry", "label": "进场", "note": "观众进直播间时", "placeholders": ["昵称"] },
+    { "id": "entry", "group": "entry", "label": "进场", "note": "粉丝团观众进直播间时", "placeholders": ["昵称"] },
     { "id": "wake", "group": "entry", "label": "冷场后来了人", "note": "冷场打瞌睡时有人来了，惊醒的那一下", "placeholders": [] },
     { "id": "gift", "group": "gift", "label": "普通礼物", "note": "一轮送了普通礼物时", "placeholders": ["昵称", "礼物", "个数"] },
     { "id": "giftStreak", "group": "gift", "label": "连着送", "note": "一轮送了 5 份以上普通礼物时", "placeholders": ["昵称", "个数"] },

@@ -11,10 +11,10 @@ public sealed class ShowTableTests
     {
         Assert.Equal(
         [
-            ("entry", "entry", "C"), ("gift", "gift", "C"), ("giftStreak", "gift", "C"), ("midGift", "gift", "B"), ("bigGift", "gift", "A"),
+            ("entry", "entry", "D"), ("gift", "gift", "C"), ("giftStreak", "gift", "C"), ("midGift", "gift", "B"), ("bigGift", "gift", "A"),
             ("blindBoxSmall", "blindBox", "C"), ("blindBoxMedium", "blindBox", "B"), ("blindBoxLarge", "blindBox", "A"), ("castle", "castle", "S"),
             ("captain", "guard", "B"), ("admiral", "guard", "A"), ("governor", "guard", "SS"), ("newFirst", "newFirst", "C"), ("lottery", "lottery", "A"),
-            ("blindBoxQuery", "blindBoxQuery", "D"),
+            ("blindBoxQuery", "blindBoxQuery", "C"),
             ("pkOpponent", "pk", "B"), ("pkCondition", "pk", "B"), ("pkChallenge", "pk", "B"), ("pkDouble", "pk", "B"), ("pkDoubleEnding", "pk", "B"),
             ("pkLastSeconds", "pk", "B"), ("pkSwing", "pk", "C"), ("pkResult", "pk", "B"),
             ("happy", "mood", "D"), ("calm", "mood", "D"), ("bored", "mood", "D"), ("gloomy", "mood", "D"), ("sleepy", "mood", "D"), ("wake", "mood", "D"),

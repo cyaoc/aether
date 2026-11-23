@@ -82,13 +82,14 @@ const LOTTERY = {
 };
 // How long each show lasts and, for the lottery, its steps; its 演出档 and group are the 演出表's (shows.json).
 const EVENTS = {
-  entry: { dur: 1600 }, gift: { dur: 2000 }, giftStreak: { dur: 2600 },
+  // (glow: the colour of a show's effects where it is not its tier's: the two moved tier in #401 and kept their look)
+  entry: { dur: 1600, glow: 'C' }, gift: { dur: 2000 }, giftStreak: { dur: 2600 },
   blindBoxSmall: { dur: 2600 }, midGift: { dur: 3500 }, blindBoxMedium: { dur: 4000 },
   captain: { dur: 4500 }, bigGift: { dur: 6000 }, blindBoxLarge: { dur: 6000 },
   admiral: { dur: 8000 }, governor: { dur: 15000 }, castle: { dur: 11500 }, newFirst: { dur: 2600 }, lottery: { steps: LOTTERY },
   // the chest game's: the 捣蛋鬼 knocked away, beaten off (zapDur: the longer show after the lightning), gone with the chest
   pranksterKnocked: { dur: 4300 }, chestKept: { dur: 4800, zapDur: 7200 }, chestRobbed: { dur: 5600 },
-  blindBoxQuery: { dur: 6000 },
+  blindBoxQuery: { dur: 6000, glow: 'D' },
   // B站 PK (design package README 15): she holds up her sign when it is time to act (PK_SIGN)
   pkCondition: { dur: 7600 }, pkDouble: { dur: 6900 }, pkDoubleEnding: { dur: 10900 }, pkLastSeconds: { dur: 10900 },
   // the other side's card (PK_INTEL, pk-intel.mjs), the 10 s between the match and the start
@@ -147,9 +148,9 @@ const PK_GAP = {
     return null;
   }
 };
-// Shown only while she is idle: never over a show, a 日常小动作 or blind boxes she shakes, never queued, and not while the
-// 捣蛋鬼 is here, which they do not scare off (fire).
-const IDLE_ONLY = ['entry', 'blindBoxQuery'];
+// Shows that give way: neither plays while the 捣蛋鬼 is here, which they do not scare off (fire), nor over blind boxes she
+// shakes, as the 盲盒·小 they open into would be dropped behind it; otherwise each goes by its tier.
+const YIELDING = ['entry', 'blindBoxQuery'];
 // 盲盒查询 (queryShow): the show's steps (ms); her pose and the sprite's once it is home, by the result; and what a 试演 of each
 // result says, the board's buttons' (今日).
 const QUERY = { print: [800, 1500], stamp: 1900, react: 2100, down: 2200, side: 3000, roll: [5200, 5700], done: 5600 };
@@ -419,14 +420,13 @@ export class Engine extends EventTarget {
     // while the 捣蛋鬼 is here she waves at no one, and anything else scares it off, a show turned off too; the show then waits
     // while the sprite takes the chest home (scared, a gift's sender named; the game's own shows are opts.game)
     if (vis && !opts.game) {
-      if (IDLE_ONLY.includes(name)) return;
+      if (YIELDING.includes(name)) return;
       opts = { ...opts, ...this.scared(now, ev.gift && opts.nickname) };
     }
     // a 大航海's 电池 go into the chest like a gift's (after the scare: the chest it saved goes home with them)
     if (opts.spend) this.gameGift({ spend: opts.spend, count: 1 });
     if (this.settings.off.includes(name)) { if (opts.frizz) this.gm.fix = { start: now, pose: opts.frizz }; return; }
-    // she waves at whoever comes in, or shows a 账单卡, only while she is idle
-    if (IDLE_ONLY.includes(name) && (this.cur || this.shaking())) return;
+    if (YIELDING.includes(name) && this.shaking()) return;
     const curTier = this.cur ? TIER[this.events[this.cur.name].tier] : -1, tier = TIER[ev.tier];
     // A gift round that grows to 5 gifts takes over its own plain thank-you, instead of being dropped as busy.
     // The two showpieces never cut each other short: the governor waits for the castle and then goes first.
@@ -585,7 +585,9 @@ export class Engine extends EventTarget {
     this.unopened.get(uid).push({ r, n: count });
   }
 
-  entry(e) { this.fire('entry', { nickname: e.nickname }); }
+  // She waves only at a viewer wearing this room's 粉丝团 (Core's wave), and as a D show only while she is idle; anyone else
+  // coming in still counts for 犯困.
+  entry(e) { if (e.wave) this.fire('entry', { nickname: e.nickname }); else this.lastAny = this.now(); }
 
   // A viewer's 盲盒查询 as its reply went out (BlindBoxQueryResult): its 账单卡 says what the reply said. Its 投入 is no gift, so
   // it is kept out of opts.spend, which goes in her chest (fire).
@@ -1592,8 +1594,8 @@ export class Engine extends EventTarget {
 
   // A show's state t ms in; a lottery's is its step's (opts.result).
   eventState(name, t, opts, line) {
-    const st = this.base(), step = this.events[name]?.steps?.[opts.result], key = step ? opts.result : name;
-    st._t = t; st.glow = GLOW[step?.glow || this.events[name]?.tier || 'D'];
+    const st = this.base(), ev = this.events[name], step = ev?.steps?.[opts.result], key = step ? opts.result : name;
+    st._t = t; st.glow = GLOW[step?.glow || ev?.glow || ev?.tier || 'D'];
     const say = (from, text = line) => { if (t >= from && text) st.bubble = { text, t: t - from }; };
     const hop = (a, h = 10) => { st.y -= h * bump(t, a, a + 320); if (h >= 10) st.fx.push(['dust', a + 300]); };  // a puff where she lands
     switch (key) {
