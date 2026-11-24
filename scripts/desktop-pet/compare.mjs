@@ -76,6 +76,11 @@ cases.push({ id: 'pkLastSeconds-cut', ms: [1900, 2050, 2150, 2250, 2350, 2450, 2
 cases.push({ id: 'pkOpponent-cut', ms: [1000, 1400, 3000, 6150, 6250, 6400, 6550, 6700, 6900],
   board: `dc.start('PK·对手', {}); later(6200, () => dc.start('大礼物', {}))`,
   page: `pet.start('pkOpponent', {}); later(6200, () => pet.start('bigGift', { nickname: '星河' }))` });
+// The 扭蛋 cut short by a gift before the capsule opens, hopping home with it (won) and twisting it open (empty): she goes into
+// her bow without opening it, no plush nor empty halves on the way; a moment every 100 ms of the second after.
+for (const [mishap, cut] of [[false, 8500], [true, 10100]]) cases.push({ id: `gacha${mishap ? '-Mishap' : ''}-cut`, ms: [cut - 100, ...Array.from({ length: 11 }, (_, i) => cut + i * 100)],
+  board: `dc.start('日常', { kind: '扭蛋', mishap: ${mishap} }); later(${cut}, () => dc.start('普通礼物', {}))`,
+  page: `pet.start('gacha', { mishap: ${mishap} }); later(${cut}, () => pet.start('gift', { nickname: '星河' }))` });
 // The 宝箱小游戏's routes: the board's own steps, which the page plays through drive (routes.mjs).
 for (const [route, steps] of Object.entries(ROUTES)) cases.push({ id: 'game-' + route, steps });
 const chosen = args.length ? cases.filter(c => args.includes(c.id)) : cases;
