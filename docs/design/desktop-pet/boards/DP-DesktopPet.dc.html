@@ -56,7 +56,14 @@ const BLOB = {
   av0: 'c620d7f4bc5af562ce5ffd444676ff76', av1: 'fe74bf47e64cdfb2bcb9e7b82e0b5fb9', av2: '0f4430b615cac01b7810b7521a933def', av3: 'b983e6ae5179fd006a444e444faa6b9f',
   av4: '6d0f7caff30f5aeb137edd01a4566882', av5: 'e6fca7276cf94c054a7f9f49c542d0c9', av6: '8a343577fdd5c70379a9198a27823463', av7: '9a8ff6273af0377beb655e5a706329d3',
   // her PK sign poses (README 15): the board draws the sign itself over codex's, at the place SIGN gives
-  pkSign: 'c15daf813967f3d29a48b21cb9bbded5'
+  pkSign: 'c15daf813967f3d29a48b21cb9bbded5',
+  gacha19: '6c23b1496a3e0ffbca64fb8cbca4fd2f',
+  gacha20: '7c9a0af5555871a2012ffd524c8bd444',
+  sp4: '7f1b34e83af7e79b82775e6d053fba20',
+  gachaBox: '0605b89116b529d3380d1aff2a612fc9',
+  battery: 'ad0c4f07dbbef115cd0118d1c7af7df7',
+  plush: '3cdc7a62d86216cff93e959f2a6fb913',
+  gacha22: 'c33c1c6041addb5be17d269e2367d128'
 };
 // Every sheet's first cell is the same everyday standing drawing at the same size (gen-sheet.py draws the other cells
 // beside it), so it is every sheet's ruler and one scale fits them all.
@@ -78,7 +85,14 @@ const POSE = {
   lunge: ['game16', 1], tug: ['game16', 2], tugZap: ['game16', 3], dragged: ['game16', 4], draggedZap: ['game16', 5],
   reachUp: ['game17', 1],
   signHide: ['pkSign', 1], signUp: ['pkSign', 2], signCheer: ['pkSign', 3], signUrge: ['pkSign', 4], signJump: ['pkSign', 5],
-  capSalute: ['voyage', 1], govJump: ['voyage', 4], spyglass: ['voyage', 2], admSalute: ['voyage', 3], govPoint: ['voyage', 4], govWave: ['voyage', 5]
+  capSalute: ['voyage', 1], govJump: ['voyage', 4], spyglass: ['voyage', 2], admSalute: ['voyage', 3], govPoint: ['voyage', 4], govWave: ['voyage', 5],
+  // the 扭蛋 daily (#403): holding the battery, shaking the capsule by her ear, twisting it open, hugging the plush, frozen
+  // over the empty halves; wailing on her knees, wiping her tears, pointing home, rubbing her hands, looking at the capsule
+  gBattery: ['gacha19', 1], gShake: ['gacha19', 2], gTwist: ['gacha19', 3], gHug: ['gacha19', 4], gEmpty: ['gacha19', 5],
+  gWail: ['gacha20', 1], gWipe: ['gacha20', 2], gPointHome: ['gacha20', 3], gRub: ['gacha20', 4], gCapsule: ['gacha20', 5],
+  // at the 扭蛋 cabinet, standing in front of it (drawn with it, then cut out of it: wip-gacha/cut-mask.py): pressing the
+  // battery into its bay, turning its knob, squatting to take the capsule out; each lines up on the cabinet (gachaX)
+  gPress: ['gacha22', 1], gTurn: ['gacha22', 2], gTake: ['gacha22', 3]
 };
 // What she drops stays where it lands: these poses have the things lying on the ground exactly where the earlier pose
 // left them (gen-sheet.py lays them in), so they are lined up with that pose's centre, not their own (her centre moves
@@ -90,7 +104,7 @@ const SAME_SPOT = { gymRub: 'gymHurt', gymWipe: 'gymHurt', skiShake: 'skiPopOut'
 // skiDown with skiShake, so the poles lying by the snow heap do not jump either.
 const BODY = { bikeReady: -15, bikeUp: 29, gymWipe: 17, skiShake: 19, skiDown: 19 };
 // Frame strips (textures/frames/<name>.webp, four frames in a row; tools/gen-frames.sh, tools/frame-patch.py), by blob.
-const FRAMES = {admOut: '91e056de5cd4063deb27f4109039d48a', admRaise: 'd2d4ed17ed52087444df30293d2696b0', announceIn: '67bd8c1e8793dc668515454c831f01f3', announceOut: '727cbd8779e3cfbeb66e63aea6d52986', awake: '7dff45f96f8afa599948e836d08db5ee', bikeIn: '9e22c561d15ec993fe800b8bc9c06b3c', bikeOut: 'e2297c45766af454d4883e8db6cc933b', bored: '9bde503d05645406b3874e7ce7c5e6f7', boredGloomy: '89b25f72028ce12e9ce60b50d2b2adf3', bowIn: '6c5a81a6ff12cc92171b1ee6a83dd3a6', boxOpen: 'fa71447b831ac81ca742010ff8b7ec57', brushUp: 'd7320ffbfefff45ca29f5c5979046635', capOut: '8017c7d6bdc433418c074ccc0844c3e9', capRaise: '30d30532e32f4da3275ce3bd0d329d73', cheer: 'bbc46902a152a76619875191c6d32442', cheerOut: '7aba5acd537b9c4f4b4517831cceaee3', clap: 'c5a840b398245670381c6e41cc24e575', clapOut: '0b358a767fbf33d45a4cf73452436b28', crackIn: '01cb1a37cda171945ad5ed38c58685b3', crackOut: 'bd2791d816ef5a7ec28baf9e63b75ed6', crashKnee: 'b42d092f81da2c465d6d1d572d521eb0', crouchGloomy: '6dbf0a4983ab31b965aac41bdb8b2766', crownIn: 'aee77cc52647f785b17083bb8710ba70', curl: '4fb4dbdcdf8e689580a0b94d01496ece', curlDrop: '9d37cc7e509a218ab9d99bd6fec8e134', curlIn: 'cc1f3ee7a5a09af127ff69269dc61be3', curtsy: 'b90cd277e9f93a6e86d355bfd826e163', curtsyTurn: 'a0a880992fc33da52ca23c5097aafaf0', dejectedIn: '6c6565c56c617d26e938b33823a77b62', doze: '27f1f7d258dae9cd8c1a4f0fb4c34d1b', dragPull: '492f38c8f828816dc515cc4d749739ce', dragPullZap: 'f880e504575602f022897908c7f654ae', gameBonk: 'eae3432f002303f1e8ba32a620846757', gameBonkZap: '039110d316febf9a83aae81dd3fbbc47', gameCheer: 'b3ac0659914339562f7acc3f55b1ccb5', gameCheerZap: 'd6e547817905d40608edb1ed665f4205', gameDraggedUp: 'e88b4ef06a5e43377e5069bf0391026e', gameDraggedUpZap: '377d86b4ed1c73678dd17291703a10b1', gameFlat: 'aee9a626cd4e46b38c11eeac9a33dfaf', gameFlatGrab: '3fa820579fe439433048940134811690', gameFlatGrabZap: 'fe3095b8437c6321fccc631abcb832b5', gameFlatZap: '96e5055bed281acc3753eda32fb1d863', gameKneel: 'c47d6a8ce2dd8bfc51c0cd0d56a998e1', gameKneelZap: 'a94842ef699ff8c3ab75bdf5f276a80b', gameLetGo: 'e2d2e281b192f4d6a1395e3b97cc1196', gameLetGoStand: '97981617b3703213ec50791651349644', gameLetGoZap: '1d71f4fa91f9f5a1d5022f86656ad7ef', gameLookUp: '1a355610d0bff306a902d2fc6bd3456b', gameLunge: 'a3d7bad153ff6cb51afd45432610e681', gameReachKneel: '65ea507af41884cedb6fff103002f609', gameReachUp: '4b425527c21339261b1373dd15f238fa', gameSorry: '8ecbfa420e89b927459c58ef6a97099c', gameSorryOut: '231ce44291e55e737461f4eed07b18a1', gameSorrySurprise: 'ce3a322b40049d0e89ee632c951fdbfe', gameStartle: 'a9fb83c5e59a5feffc5abdf1d48c0bb1', gameTugIn: '7e721c943f781de3748314a2ee71b8dc', gameZapOut: '22b91257fe1d447b801ae9f86426eb4a', giftCheer: 'df0da21e74f2474f56868021a91fe58f', giftIn: '8664b6e7ebe4ef626cfcbaff7fd0eb2a', gloomy: '1ae6abc54fbb45127e4a865fd4ff92cd', gloomyDoze: '1d569f125c7cdf706445c14c0e5ab860', govIn: 'f0bce8e160a21d3193d7603201ec6649', govOut: 'def1ececd3228c9dc4b87769d633d2df', govPointWave: 'b39715eab29752d0c852deec88f1c14e', govWave: '23e285a2e68d30056546709df3889024', gymHop: '411357d96cdf7929b3fd56df3eb98734', gymIn: '23317f355510b01999908ebce5c2c1db', gymOut: 'a845ed1aab7d6f83b9f35aedccc54df9', hairSmoothCheer: '4537aeecbf13f0f335c7c1a3c0110aff', hairSmoothCry: '9e226b44aa43eb0dac6563b61d629995', hikeIn: '4e1c3d30d195ee5d86e39f3fba7a7968', hikeOut: '59cc9c8cead9e441af98f41d37481c11', hopSit: 'f0265ab734e46dadad5b6c69aca109a2', hopeAnnounce: 'da03442a1df016febf5bc0d9cd27fcec', hopeCheer: 'd28ad9fc86c1e59dee6ac8b51d4dfd5d', hopeClap: 'a44decb7a7ed962d2cee38b91d243ac1', hopeIn: 'f608564e06e6cf0dda108cf0868a2d87', hopeNod: '25a897673f65574d54537b345029850c', hum: '037c3bf8f7fadbc5c2adaf0305899cf0', humIn: '76560ad0f962070a720ab211d69364d3', humWave: 'e8a2661f4ffbfacc50d77d3159160fdb', idle: '528beadfc04d1d591ee7057771afab95', jump: '46835a523d27d7b82fc2f2673657f47a', kneeRise: 'df5012f4f710a8bd367b03139f6cd062', lookBackIn: 'fa859bb03ddf93d584c8e21b4d92545f', lookBackOut: 'e3539733da0c2b59f79eaea6866a7a37', mount: 'a9a36a95a67221dc016c50fc4ff14223', nod: '8d49e528bcd2aaa8bcd5e7d8fbe94aa5', nodOut: '4f274071432533a4f44522dd4b8baf89', openPout: 'f67dfabdde4d19fa468aecf56d8414d3', openSurprised: '708c47a6d8891f95daea06391cea0e48', pedal: '42c962e45330ceda6acffbc41ccf3069', pedalCrash: '9309dfb1f48d0826e46ab427b8603680', pkBolt: 'bbbad6efaed5a1b6e180c3f4e9f7049f', pkDeflate: '6a9cc5cb8ed7894264cb420d99e8c38a', pkGrab: '9812f4e37f5d21d9b6d61b573567ebc0', pkHaul: 'f1d2b0835fa0bf7f2636723cd53e7fd9', pkHaulFlat: '5c70e7d3716d4ce5084ce21202892d57', pkHaulIn: 'e9df47d473e87a1b28e20a44c50e460b', pkHaulOuch: '7eed22425aa2b9205be44a785cc35812', pkLaugh: '94b09e91a7c09f385751ea76298ad818', pkLaughOut: 'ce8b6907b269b8ebbeac1970ee6fdc07', pkLetGo: 'bd05014303eb4cb660d8c0512b5c0d6f', pkLetGoTug: '08ca4c772fc7fc37c5fe2fe5c3446fad', pkLift: 'dd20cba4b9c72c0f31325c9e53530303', pkOuch: '34bdc8683cf560994a4864cf2d4c8d59', pkPeer: 'b63a5b950ea4bf6591ebe5fccfb00469', pkPeerLaugh: 'bdff47d79cf61d6dd614b19073af2f83', pkShrug: '76f905c2ff79afe2b5211986b3ad09e8', pkShrugLaugh: 'f5c1542d45330452c122c7d29b266ce3', pkSit: '91b54f8c302be3a742c15ec897d3b986', pkSitDown: 'fcf259f2da8f91db57e1dd40ba489b30', pkSitLaugh: 'e997c6c7f62df2e87c43ebaa4f46dd70', pkThrow: 'cb7f75ad408709fb17fbf2a750a801a7', pkThrowLaugh: 'b6d72d6d92b52c56f83b5a3d44ed9b3f', pkThunder: '3ef17acdf3282a7919cea366498d7796', pkThunderFlat: 'fa2690852b1ffc3e83509f30f55538bb', pkThunderHaul: 'b4347ed3d41d244c200f6c9e4805451e', pkTug: '24cc34a1ec5580506aea71c9ae73f4ef', pointIn: '1041f290497098db17e710fcffed6bbc', poutOut: 'f67ef4f471ea9058de6265f65e40a890', robbedGloomy: '7e63873789b76ba43f5260ef7aa95e5f', rubUp: '2b41ac673f265add50298a8f142702a5', shakeBox: 'f4c6800928af98603e36db6314956857', shakeIn: '78ccb0fbac701231cf87785e5c5ecfe4', shakeSnow: '09a43889115c318f28c176c6d7a2cdcb', shy: 'a3abdceddc4d81cb31c39a7708617762', shyIn: '6e4c3085211198ef846005f9e527a08d', signBounce: '411292937b43b02dde8444156c81174b', signCheerRaise: '7f9b83f4aa5b09558b10f805079ca3ed', signHideIn: '997e8452722c5b403185f0c4e3dd0649', signPump: '65407912e7f26dad0b705765abdd63ff', signRaise: 'f3fe2faaab8cd698eac4319241b41c94', signSwayL: 'f6274606e839a209f51870c8fef9cdd3', signSwayR: 'cbd9d6ff4599cecbf8e24963d080326d', signUrgeRaise: '4f244a0dce9409026118040938c4bf57', sitBored: '5d634deb99fd563d95762aae109de924', sitDoze: 'a95b681a7aa43c48df2861587b5bfae5', skiFall: '76512d024c568bd3bd97ffeed0a05b52', skiGlide: '2f6ea8efa98be75327342cce66054414', skiGo: 'f40b9977dcb4bcf241eac37a574c2d54', skiIn: 'f60b51987ea38e68ba0f346d92d1a4e3', skiOut: '4c984499f6067970f582a73d8c2399d1', skiPop: '6238ed2d55742a53bcd35bcac40c669d', skiUp: '97ff2e1aa8496fda3ba13fbf4532659e', slipUp: 'd24e5aa8cd55e86e8e58ad8028233ed3', spFlag: '2e0e9fb19d5a8be126b12532f67cb877', spFly1: '83a5a48403903d4f39f9da51e0012294', spFly2: '87600b97c197c44a1cb9fc55cc76b84d', spFly3: '2f06f4e2aba9c2855b1c2fee22f6a1f4', spGlow: '0ae9d33e8e08c4cb20797bd64fcaeb0a', spHappy: '6fea3a2cde9432871a2a4a7b4b3a3b05', spHide: 'b3b7a681028216547fced194378e4642', spIdle: '70d620c5f164e57bd46e95154a9c8396', spNod: '631236e3cb235cf6e45d906ac4f70b41', spPat: '2e897fd4048e4fb2ba4e2fa9832931dd', spSleep: '5415e0a5fc476a9ac06e7427a3a9627c', spSurprised: '2a71af2381fb09f67fce34682a09c9e3', spYawn: '5dfd246affdea738a053630d72d7a726', spin: 'e4878b3f26f95745cc23b73f1ec071be', spinCurtsy: '9975e9a6a1a1968b344a8bf188423d91', spyRaise: '2d3ce641a512560c97e080a3cc39ce28', spySalute: 'b56e9494c23d8d3cd789e00f4ea9c907', surprisedCheer: '4da2805c40ccb8c90d12c1accec7f216', surprisedIn: '0d735d9fcd308c75bfe8adf66cff59d8', surprisedOut: 'a5776b0a77dc8a3b8d2f058d580a8956', trek: '7aef8a528ed9640410f134f38d867ab0', trekIn: '0b9588db4b41791779771558e8b5064d', trekSlip: '7ad34d7a11106e89075340758874dd47', tugPull: '563c260a7bd607affe2bf214708eca68', tugPullZap: '010bc17cfac2fa5f8be3188b4b5a056f', walk: '6431ef43dbef6befe72a158e5cccdce7', wave: '273270295ba8e757e80c6e511b3955aa', waveIn: '45b35bc2f45fa3bf60405f8d5f4b20e6', wipe: '3aac87354721601e5c22ad31876fcb68', wipeIn: '8dbc55fe74cf8ad449dbf508ebeb1e5c'};
+const FRAMES = {admOut: '91e056de5cd4063deb27f4109039d48a', admRaise: 'd2d4ed17ed52087444df30293d2696b0', announceIn: '67bd8c1e8793dc668515454c831f01f3', announceOut: '727cbd8779e3cfbeb66e63aea6d52986', awake: '7dff45f96f8afa599948e836d08db5ee', bikeIn: '9e22c561d15ec993fe800b8bc9c06b3c', bikeOut: 'e2297c45766af454d4883e8db6cc933b', bored: '9bde503d05645406b3874e7ce7c5e6f7', boredGloomy: '89b25f72028ce12e9ce60b50d2b2adf3', bowIn: '6c5a81a6ff12cc92171b1ee6a83dd3a6', boxOpen: 'fa71447b831ac81ca742010ff8b7ec57', brushUp: 'd7320ffbfefff45ca29f5c5979046635', capOut: '8017c7d6bdc433418c074ccc0844c3e9', capRaise: '30d30532e32f4da3275ce3bd0d329d73', cheer: 'bbc46902a152a76619875191c6d32442', cheerOut: '7aba5acd537b9c4f4b4517831cceaee3', clap: 'c5a840b398245670381c6e41cc24e575', clapOut: '0b358a767fbf33d45a4cf73452436b28', crackIn: '01cb1a37cda171945ad5ed38c58685b3', crackOut: 'bd2791d816ef5a7ec28baf9e63b75ed6', crashKnee: 'b42d092f81da2c465d6d1d572d521eb0', crouchGloomy: '6dbf0a4983ab31b965aac41bdb8b2766', crownIn: 'aee77cc52647f785b17083bb8710ba70', curl: '4fb4dbdcdf8e689580a0b94d01496ece', curlDrop: '9d37cc7e509a218ab9d99bd6fec8e134', curlIn: 'cc1f3ee7a5a09af127ff69269dc61be3', curtsy: 'b90cd277e9f93a6e86d355bfd826e163', curtsyTurn: 'a0a880992fc33da52ca23c5097aafaf0', dejectedIn: '6c6565c56c617d26e938b33823a77b62', doze: '27f1f7d258dae9cd8c1a4f0fb4c34d1b', dragPull: '492f38c8f828816dc515cc4d749739ce', dragPullZap: 'f880e504575602f022897908c7f654ae', gBatteryPress: 'a8e9332d4282c86a82f7d6702b594657', gCapsuleShake: 'a9a9b668e205f24bd02b5c15afcd64f0', gEmptyWail: '423aae690adc058551a9a71a47e54786', gHugIdle: '6c16ed656df770e439e1891acae8630c', gPointIn: '54be806f2deb17544eef74beb4709f6a', gPointRub: '32db2b496d2f1638a814ed334cd89077', gPressTurn: '69a302bd83ae9770583eee91b39873da', gRubBattery: 'd96b6e17415a7246a09c0699bcb8a4df', gShakeTwist: 'a52aad19c80596bd4778edb9bc56bc6b', gTakeCapsule: '50b91cf6295672bba9a5742fcb36dbcc', gTurn: 'cc0a9ffdf03ccac0d0261db4c46ec970', gTurnTake: '1cfd3fe88e768e253dfa916b79545d19', gTwistEmpty: 'ac0afc23a862f9e9857af3386cea880b', gTwistHug: 'd5a93651803b08063faae540b2ab176c', gWailWipe: '198238cab24086d3cabeb9c4d51e9d77', gWipeIdle: 'e82312786b3f181349a3a4d33d1b8bc0', gameBonk: 'eae3432f002303f1e8ba32a620846757', gameBonkZap: '039110d316febf9a83aae81dd3fbbc47', gameCheer: 'b3ac0659914339562f7acc3f55b1ccb5', gameCheerZap: 'd6e547817905d40608edb1ed665f4205', gameDraggedUp: 'e88b4ef06a5e43377e5069bf0391026e', gameDraggedUpZap: '377d86b4ed1c73678dd17291703a10b1', gameFlat: 'aee9a626cd4e46b38c11eeac9a33dfaf', gameFlatGrab: '3fa820579fe439433048940134811690', gameFlatGrabZap: 'fe3095b8437c6321fccc631abcb832b5', gameFlatZap: '96e5055bed281acc3753eda32fb1d863', gameKneel: 'c47d6a8ce2dd8bfc51c0cd0d56a998e1', gameKneelZap: 'a94842ef699ff8c3ab75bdf5f276a80b', gameLetGo: 'e2d2e281b192f4d6a1395e3b97cc1196', gameLetGoStand: '97981617b3703213ec50791651349644', gameLetGoZap: '1d71f4fa91f9f5a1d5022f86656ad7ef', gameLookUp: '1a355610d0bff306a902d2fc6bd3456b', gameLunge: 'a3d7bad153ff6cb51afd45432610e681', gameReachKneel: '65ea507af41884cedb6fff103002f609', gameReachUp: '4b425527c21339261b1373dd15f238fa', gameSorry: '8ecbfa420e89b927459c58ef6a97099c', gameSorryOut: '231ce44291e55e737461f4eed07b18a1', gameSorrySurprise: 'ce3a322b40049d0e89ee632c951fdbfe', gameStartle: 'a9fb83c5e59a5feffc5abdf1d48c0bb1', gameTugIn: '7e721c943f781de3748314a2ee71b8dc', gameZapOut: '22b91257fe1d447b801ae9f86426eb4a', giftCheer: 'df0da21e74f2474f56868021a91fe58f', giftIn: '8664b6e7ebe4ef626cfcbaff7fd0eb2a', gloomy: '1ae6abc54fbb45127e4a865fd4ff92cd', gloomyDoze: '1d569f125c7cdf706445c14c0e5ab860', govIn: 'f0bce8e160a21d3193d7603201ec6649', govOut: 'def1ececd3228c9dc4b87769d633d2df', govPointWave: 'b39715eab29752d0c852deec88f1c14e', govWave: '23e285a2e68d30056546709df3889024', gymHop: '411357d96cdf7929b3fd56df3eb98734', gymIn: '23317f355510b01999908ebce5c2c1db', gymOut: 'a845ed1aab7d6f83b9f35aedccc54df9', hairSmoothCheer: '4537aeecbf13f0f335c7c1a3c0110aff', hairSmoothCry: '9e226b44aa43eb0dac6563b61d629995', hikeIn: '4e1c3d30d195ee5d86e39f3fba7a7968', hikeOut: '59cc9c8cead9e441af98f41d37481c11', hopSit: 'f0265ab734e46dadad5b6c69aca109a2', hopeAnnounce: 'da03442a1df016febf5bc0d9cd27fcec', hopeCheer: 'd28ad9fc86c1e59dee6ac8b51d4dfd5d', hopeClap: 'a44decb7a7ed962d2cee38b91d243ac1', hopeIn: 'f608564e06e6cf0dda108cf0868a2d87', hopeNod: '25a897673f65574d54537b345029850c', hum: '037c3bf8f7fadbc5c2adaf0305899cf0', humIn: '76560ad0f962070a720ab211d69364d3', humWave: 'e8a2661f4ffbfacc50d77d3159160fdb', idle: '528beadfc04d1d591ee7057771afab95', jump: '46835a523d27d7b82fc2f2673657f47a', kneeRise: 'df5012f4f710a8bd367b03139f6cd062', lookBackIn: 'fa859bb03ddf93d584c8e21b4d92545f', lookBackOut: 'e3539733da0c2b59f79eaea6866a7a37', mount: 'a9a36a95a67221dc016c50fc4ff14223', nod: '8d49e528bcd2aaa8bcd5e7d8fbe94aa5', nodOut: '4f274071432533a4f44522dd4b8baf89', openPout: 'f67dfabdde4d19fa468aecf56d8414d3', openSurprised: '708c47a6d8891f95daea06391cea0e48', pedal: '42c962e45330ceda6acffbc41ccf3069', pedalCrash: '9309dfb1f48d0826e46ab427b8603680', pkBolt: 'bbbad6efaed5a1b6e180c3f4e9f7049f', pkDeflate: '6a9cc5cb8ed7894264cb420d99e8c38a', pkGrab: '9812f4e37f5d21d9b6d61b573567ebc0', pkHaul: 'f1d2b0835fa0bf7f2636723cd53e7fd9', pkHaulFlat: '5c70e7d3716d4ce5084ce21202892d57', pkHaulIn: 'e9df47d473e87a1b28e20a44c50e460b', pkHaulOuch: '7eed22425aa2b9205be44a785cc35812', pkLaugh: '94b09e91a7c09f385751ea76298ad818', pkLaughOut: 'ce8b6907b269b8ebbeac1970ee6fdc07', pkLetGo: 'bd05014303eb4cb660d8c0512b5c0d6f', pkLetGoTug: '08ca4c772fc7fc37c5fe2fe5c3446fad', pkLift: 'dd20cba4b9c72c0f31325c9e53530303', pkOuch: '34bdc8683cf560994a4864cf2d4c8d59', pkPeer: 'b63a5b950ea4bf6591ebe5fccfb00469', pkPeerLaugh: 'bdff47d79cf61d6dd614b19073af2f83', pkShrug: '76f905c2ff79afe2b5211986b3ad09e8', pkShrugLaugh: 'f5c1542d45330452c122c7d29b266ce3', pkSit: '91b54f8c302be3a742c15ec897d3b986', pkSitDown: 'fcf259f2da8f91db57e1dd40ba489b30', pkSitLaugh: 'e997c6c7f62df2e87c43ebaa4f46dd70', pkThrow: 'cb7f75ad408709fb17fbf2a750a801a7', pkThrowLaugh: 'b6d72d6d92b52c56f83b5a3d44ed9b3f', pkThunder: '3ef17acdf3282a7919cea366498d7796', pkThunderFlat: 'fa2690852b1ffc3e83509f30f55538bb', pkThunderHaul: 'b4347ed3d41d244c200f6c9e4805451e', pkTug: '24cc34a1ec5580506aea71c9ae73f4ef', pointIn: '1041f290497098db17e710fcffed6bbc', poutOut: 'f67ef4f471ea9058de6265f65e40a890', robbedGloomy: '7e63873789b76ba43f5260ef7aa95e5f', rubUp: '2b41ac673f265add50298a8f142702a5', shakeBox: 'f4c6800928af98603e36db6314956857', shakeIn: '78ccb0fbac701231cf87785e5c5ecfe4', shakeSnow: '09a43889115c318f28c176c6d7a2cdcb', shy: 'a3abdceddc4d81cb31c39a7708617762', shyIn: '6e4c3085211198ef846005f9e527a08d', signBounce: '411292937b43b02dde8444156c81174b', signCheerRaise: '7f9b83f4aa5b09558b10f805079ca3ed', signHideIn: '997e8452722c5b403185f0c4e3dd0649', signPump: '65407912e7f26dad0b705765abdd63ff', signRaise: 'f3fe2faaab8cd698eac4319241b41c94', signSwayL: 'f6274606e839a209f51870c8fef9cdd3', signSwayR: 'cbd9d6ff4599cecbf8e24963d080326d', signUrgeRaise: '4f244a0dce9409026118040938c4bf57', sitBored: '5d634deb99fd563d95762aae109de924', sitDoze: 'a95b681a7aa43c48df2861587b5bfae5', skiFall: '76512d024c568bd3bd97ffeed0a05b52', skiGlide: '2f6ea8efa98be75327342cce66054414', skiGo: 'f40b9977dcb4bcf241eac37a574c2d54', skiIn: 'f60b51987ea38e68ba0f346d92d1a4e3', skiOut: '4c984499f6067970f582a73d8c2399d1', skiPop: '6238ed2d55742a53bcd35bcac40c669d', skiUp: '97ff2e1aa8496fda3ba13fbf4532659e', slipUp: 'd24e5aa8cd55e86e8e58ad8028233ed3', spFlag: '2e0e9fb19d5a8be126b12532f67cb877', spFly1: '83a5a48403903d4f39f9da51e0012294', spFly2: '87600b97c197c44a1cb9fc55cc76b84d', spFly3: '2f06f4e2aba9c2855b1c2fee22f6a1f4', spGlow: '0ae9d33e8e08c4cb20797bd64fcaeb0a', spHappy: '6fea3a2cde9432871a2a4a7b4b3a3b05', spHide: 'b3b7a681028216547fced194378e4642', spIdle: '70d620c5f164e57bd46e95154a9c8396', spNod: '631236e3cb235cf6e45d906ac4f70b41', spPat: '2e897fd4048e4fb2ba4e2fa9832931dd', spSleep: '5415e0a5fc476a9ac06e7427a3a9627c', spSurprised: '2a71af2381fb09f67fce34682a09c9e3', spYawn: '5dfd246affdea738a053630d72d7a726', spin: 'e4878b3f26f95745cc23b73f1ec071be', spinCurtsy: '9975e9a6a1a1968b344a8bf188423d91', spyRaise: '2d3ce641a512560c97e080a3cc39ce28', spySalute: 'b56e9494c23d8d3cd789e00f4ea9c907', surprisedCheer: '4da2805c40ccb8c90d12c1accec7f216', surprisedIn: '0d735d9fcd308c75bfe8adf66cff59d8', surprisedOut: 'a5776b0a77dc8a3b8d2f058d580a8956', trek: '7aef8a528ed9640410f134f38d867ab0', trekIn: '0b9588db4b41791779771558e8b5064d', trekSlip: '7ad34d7a11106e89075340758874dd47', tugPull: '563c260a7bd607affe2bf214708eca68', tugPullZap: '010bc17cfac2fa5f8be3188b4b5a056f', walk: '6431ef43dbef6befe72a158e5cccdce7', wave: '273270295ba8e757e80c6e511b3955aa', waveIn: '45b35bc2f45fa3bf60405f8d5f4b20e6', wipe: '3aac87354721601e5c22ad31876fcb68', wipeIn: '8dbc55fe74cf8ad449dbf508ebeb1e5c'};
 // Poses that move: the strip f, drawn from the pose's own cell, as a loop at ms per frame, a loop of [frame, ms] steps, or
 // once: [frame, ms] steps from when the pose begins, holding the last.
 const STRIP = {
@@ -111,7 +125,10 @@ const STRIP = {
   // up on her toes); the sway is two strips, f to her left and f2 to her right (frames 4-7), through the middle each time
   signUp: { f: 'signSwayL', f2: 'signSwayR', loop: [[0, 130], [1, 110], [2, 220], [1, 110], [3, 130], [5, 110], [6, 220], [5, 110]] },
   signCheer: { f: 'signBounce', loop: [[0, 90], [1, 90], [2, 120], [1, 90], [0, 90], [3, 120]] },
-  signUrge: { f: 'signPump', loop: [[3, 100], [0, 80], [1, 80], [2, 110], [1, 80], [0, 80]] }
+  signUrge: { f: 'signPump', loop: [[3, 100], [0, 80], [1, 80], [2, 110], [1, 80], [0, 80]] },
+  // the 扭蛋 daily: rubbing her hands, shaking the capsule by her ear, nuzzling the plush, sobbing on her knees
+  gRub: { f: 'gRub', ms: 120 }, gShake: { f: 'gShake', ms: 90 }, gHug: { f: 'gHug', ms: 230 }, gWail: { f: 'gWail', ms: 200 },
+  gTurn: { f: 'gTurn', ms: 150 }
 };
 // The sprite's drawings that move, [strip, ms per frame]; v1–v3 are its turnaround views flying.
 const SSTRIP = {
@@ -121,6 +138,22 @@ const SSTRIP = {
 // In-betweens: changing pose A>B plays frames 2 and 3 of strip f (drawn from A's cell, ending on B), 90 ms each, instead of
 // fading; B>A plays them backwards.
 const TRANS = {
+  // the 扭蛋 daily (#403)
+  'gPress>gTurn': 'gPressTurn',
+  'gTurn>gTake': 'gTurnTake',
+  'gTake>gCapsule': 'gTakeCapsule',
+  'gBattery>gPress': 'gBatteryPress',
+  'gHug>idle': 'gHugIdle',
+  'gWail>gWipe': 'gWailWipe',
+  'gRub>gBattery': 'gRubBattery',
+  'gWipe>idle': 'gWipeIdle',
+  'gTwist>gHug': 'gTwistHug',
+  'gTwist>gEmpty': 'gTwistEmpty',
+  'gShake>gTwist': 'gShakeTwist',
+  'gPointHome>gRub': 'gPointRub',
+  'idle>gPointHome': 'gPointIn',
+  'gEmpty>gWail': 'gEmptyWail',
+  'gCapsule>gShake': 'gCapsuleShake',
   // her frizzed hair settling under her sprite's magic (the chest game; played slowly, SLOW)
   'robbedZap>robbed': 'hairSmoothCry', 'cheerZap>cheer': 'hairSmoothCheer',
   // having cried over the stolen chest she wipes her tears and curls up to sulk (the chest game, played slowly)
@@ -166,9 +199,11 @@ const TRANS = {
 const CUT = new Set(['govPoint>govJump', 'govJump>govPoint', 'idle>capSalute', 'idle>spyglass', 'pIdle>idle', 'idle>spin',
   'tug>tugZap',   // (the chest game: her hair frizzes in the lightning's flash)
   'signCheer>signJump', 'signJump>signCheer']);   // (B站 PK: in the air her legs tuck up; her hands and the sign go on where they were)
-const SPRITE = { flag: ['sp1', 1], nod: ['sp1', 2], surprised: ['sp1', 3], yawn: ['sp1', 4], sleep: ['sp1', 5], pat: ['sp2', 1], crown: ['sp2', 2], sailor: ['sp2', 3], glow: ['sp2', 4], hide: ['sp2', 5], hold: ['sp3', 1], hold2: ['sp3', 2], lift: ['sp3', 3], lift2: ['sp3', 4], lid: ['sp3', 5] };
+const SPRITE = { flag: ['sp1', 1], nod: ['sp1', 2], surprised: ['sp1', 3], yawn: ['sp1', 4], sleep: ['sp1', 5], pat: ['sp2', 1], crown: ['sp2', 2], sailor: ['sp2', 3], glow: ['sp2', 4], hide: ['sp2', 5], hold: ['sp3', 1], hold2: ['sp3', 2], lift: ['sp3', 3], lift2: ['sp3', 4], lid: ['sp3', 5],
+  // the 扭蛋 daily: carrying the battery, handing it over, peeking at the window, listening to the capsule, hugging the plush
+  sCarry: ['sp4', 1], sGive: ['sp4', 2], sPeek: ['sp4', 3], sListen: ['sp4', 4], sPlush: ['sp4', 5] };
 // The sprite keeps these drawings while it flies, since they carry something.
-const CARRY = new Set(['crown', 'glow', 'lift', 'lift2', 'lid']);
+const CARRY = new Set(['crown', 'glow', 'lift', 'lift2', 'lid', 'sCarry', 'sGive', 'sPlush']);   // (sCarry, sGive, sPlush: the 扭蛋 daily's battery and plush, never dropped in flight)
 // ---- The chest game (#372), on when the board's game is 开. Nothing of it is on the page until the prankster comes,
 // and nothing of it stays: her shows are all as they were, and her chest is at home, off the left of the page, where the
 // game only counts what the stream's gifts put in it. When gifts have stopped the prankster comes by with the chest it
@@ -237,6 +272,11 @@ const PATS = 900, GATHER = 500, SETTLE = 1000, HAIR = { robbed: [0.5, 0.27], che
 // In-betweens played slower than the 90 ms a frame of the rest: her hair settling under the sprite's magic; her
 // curling up to sulk after crying over the chest.
 const SLOW = { 'robbedZap>robbed': 300, 'cheerZap>cheer': 300, 'robbed>gloomy': 260,
+  // the 扭蛋 daily: stepping along the cabinet from its bay to its knob, then down to its outlet, moves her 40-60 px
+  'gPress>gTurn': 230, 'gTurn>gTake': 200,
+  // her arms flung open wide while the plush rises out of the capsule over her head and hangs there, then closing round it
+  // as it comes down into them (it used to be in her arms 350 ms after the capsule opened: 太快了不太自然)
+  'gTwist>gHug': [820, 120],
   // B站 PK: her arms go up for her sign and down as it flies back (PK_SIGN.raise)
   'idle>signUp': 130, 'signUp>idle': 130, 'idle>signCheer': 130, 'signCheer>idle': 130, 'idle>signUrge': 130, 'signUrge>idle': 130 };
 // A gift falls DROP ms before it lands; a disguise holds FREEZE ms; the lightning set piece lasts ZAP ms (the countdown
@@ -473,7 +513,9 @@ const LINES = {
   举哑铃: ['今天也要锻炼！'], 哼歌: ['♪啦啦啦～'], 爬山: ['下次一起去爬山吧！', '山顶的风好舒服～'], 骑车: ['叮铃叮铃～', '骑车去兜风！'],
   砸到脚: ['好痛痛痛！', '又、又砸到了…'], 破音: ['咳、咳…刚才不算！', '破、破音了…'], 摔屁股墩: ['哎呦…屁股好痛…', '山路好滑…'],
   骑车摔倒: ['车、车子不听话…', '呜…又摔了…'],
-  滑雪: ['滑雪好开心～', '看我的！'], 滑雪摔跤: ['噗…全是雪…', '雪、雪好冰！'], 拍拍土: ['拍拍土…没事没事！', '再来！这次小心点～'], 贴创可贴: ['贴一下就好啦！', '创可贴…又要用完了']
+  滑雪: ['滑雪好开心～', '看我的！'], 滑雪摔跤: ['噗…全是雪…', '雪、雪好冰！'], 拍拍土: ['拍拍土…没事没事！', '再来！这次小心点～'], 贴创可贴: ['贴一下就好啦！', '创可贴…又要用完了'],
+  扭蛋: ['去拿节电池扭一个！', '这次一定出好东西～'], 扭中了: ['中啦！是精灵玩偶！', '好可爱～抱抱！'], 扭空: ['空、空的…？', '诶…什么都没有？'],
+  没扭中: ['呜哇——白扭了…', '我的电池…呜呜…'], 打起精神: ['下次…下次一定中！', '没关系…再攒电池！']
 };
 const NAMES = { 普通昵称: '星河', 长昵称: '星河一只很长的昵称啊啊啊啊长长长长长长长', 中英混排: 'Lily月下' };
 // 盲盒查询: the 账单卡 (the same drawing as boards/DP-BlindBoxCard.dc.html) and the show's steps (ms). The sprite flies up
@@ -749,6 +791,21 @@ const SPORTS = {
 // [main, more when it goes wrong]: dressing 0.7 s, getting ready 0.4 s, the act, the stop, dressing back 0.9 s
 const DAILY = { 哼歌: [4000, 1500] };
 for (const [k, sp] of Object.entries(SPORTS)) DAILY[k] = [1100 + sp.act[1] + sp.calmMs + 900, sp.fallMs - sp.calmMs];
+// The 扭蛋 daily (#403): she points home, the sprite fetches a battery from her chest there, spins the cabinet up at her
+// right; she hops over, presses the battery into its bay, turns the knob, squats to take the capsule out, hops back,
+// shakes it by her ear and twists it open: the plush pops out (she hugs it, the sprite takes it home) or it is empty (she
+// wails, the sprite pats her head, she wipes her tears). The cabinet (textures/gacha.webp, taller than her) stands with
+// its bottom middle at x on her ground line; its parts in its picture's px: the window, the bay, the knob, the outlet.
+// cell: its left edge in the cells of the gacha22 sheet, where she was drawn in front of it (gachaX lines her up).
+const GACHA = { x: 392, cell: 265, win: [22, 100, 215, 278], bay: [164.5, 334], knob: [66, 335, 40], outlet: [117, 430], capR: 13,
+  // the show's steps (ms); won: the plush's ending, lost: the empty one's
+  t: { fetch: 900, back: 1700, give: 2300, spin: 2700, up: 3300, hop: [3600, 4200], press: 4200, drop: 4700, turn: 4900,
+    out: 7000, take: 7300, stand: 7900, home: [8300, 8900], shake: 8900, twist: 9900, open: 10400,
+    // won: the plush rises out of the capsule over her head (rise), hangs there (hang), comes down into her arms (down),
+    // and she hugs it (hug, when her in-between with its 820 + 120 ms frames is done: SLOW)
+    won: { rise: 450, hang: 680, down: 820, hug: 11340, spin: 12800, gone: [13300, 13600], take: 13800, away: 14000, end: 14800 },
+    lost: { empty: 10400, wail: 11300, pat: 11600, wipe: 13400, spin: 13500, gone: [14100, 14400], idle: 14600, end: 15200 } } };
+DAILY.扭蛋 = [GACHA.t.won.end, GACHA.t.lost.end - GACHA.t.won.end];
 
 const seeded = seed => () => { seed |= 0; seed = seed + 0x6D2B79F5 | 0; let t = Math.imul(seed ^ seed >>> 15, 1 | seed); t = t + Math.imul(t ^ t >>> 7, 61 | t) ^ t; return ((t ^ t >>> 14) >>> 0) / 4294967296; };
 const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
@@ -798,7 +855,7 @@ class Component extends DCLogic {
     // first cell (the idle ruler).
     this.cells = {};
     const signAt = (e, ox, oy) => e && { x: ox + e[0], y: oy + e[1], a: e[2], e: e[3], hold: e[4], h: e[5] };   // SIGN_AT in the image's pixels
-    for (const k of ['common', 'lottery', 'daily1', 'moods', 'gifts', 'castleSheet', 'voyage', 'gym10', 'hike11', 'cycle12', 'ski9', 'sp1', 'sp2', 'sp3', 'game13', 'game14', 'game15', 'game16', 'game17', 'pkSign', 'pk1', 'pk2', 'pk3', 'pk4', 'pk5', 'pk6']) {
+    for (const k of ['common', 'lottery', 'daily1', 'moods', 'gifts', 'castleSheet', 'voyage', 'gym10', 'hike11', 'cycle12', 'ski9', 'sp1', 'sp2', 'sp3', 'game13', 'game14', 'game15', 'game16', 'game17', 'pkSign', 'pk1', 'pk2', 'pk3', 'pk4', 'pk5', 'pk6', 'gacha19', 'gacha20', 'gacha22', 'sp4']) {
       const im = img[k], cw = im.width / 3, ch = im.height / 2, list = [];
       for (let i = 0; i < 6; i++) list.push(box(im, (i % 3) * cw, Math.floor(i / 3) * ch, cw, ch));
       const ground = [0, 1].map(r => Math.max(...list.slice(r * 3, r * 3 + 3).filter(Boolean).map(b => b.y + b.h)));
@@ -842,7 +899,8 @@ class Component extends DCLogic {
       if (im) this.sstrips[key] = [0, 1, 2, 3].map(i => ({ im, ...box(im, i * im.width / 4, 0, im.width / 4, im.height), cx: c.cx - c.ox + i * im.width / 4, cy: c.cy - c.oy, ruler: c.ruler }));
     }
     this.castle = { closed: img.castleClosed, open: img.castleOpen, box: box(img.castleClosed, 0, 0, img.castleClosed.width, img.castleClosed.height) };
-    this.props = { flagship: img.flagship, admship: img.admship, emblem: img.emblem, giftbox: img.giftbox, giftboxOpen: img.giftboxOpen, balloons: img.balloons, chest: img.chest, chestOpen: img.chestOpen, chestRing: img.chestRing };
+    this.props = { flagship: img.flagship, admship: img.admship, emblem: img.emblem, giftbox: img.giftbox, giftboxOpen: img.giftboxOpen, balloons: img.balloons, chest: img.chest, chestOpen: img.chestOpen, chestRing: img.chestRing,
+      gacha: img.gachaBox, battery: img.battery, plush: img.plush };
     // the chest game: its paper ball, the lucky one the same ball blushing pink (its glow and sparkles are drawn), the
     // board's viewers' avatars, and the two sides' gift icons, which load from B站 later or never (a gift box then)
     const lucky = document.createElement('canvas'), lg = lucky.getContext('2d');
@@ -2422,6 +2480,7 @@ class Component extends DCLogic {
   // line: the show's own line; what she says as it goes wrong is a line of its kind (key).
   daily(t, st, o, line) {
     if (SPORTS[o.kind]) return this.sport(t, st, o, line);
+    if (o.kind === '扭蛋') return this.gacha(t, st, o, line);
     // humming: the sprite sways along; when her voice cracks it hides its head
     const main = DAILY[o.kind][0];
     st._t = t;
@@ -2429,6 +2488,157 @@ class Component extends DCLogic {
     if (t < main) { st.pose = 'hum'; st.fx.push(['notes', 0]); st.sprite = 'sHappy'; st.sp = ['home', 6 * Math.sin(2 * Math.PI * t / 1280), 0]; say(200); return st; }
     st.pose = 'crack'; st.sprite = 'hide'; st.fx.push(['brokenNote', main], ['shock', main], ['sweat', main + 300]); say(main, '破音');
     return st;
+  }
+
+  // The 扭蛋 daily (GACHA): won (o.mishap false) the plush, lost an empty capsule. She moves only by hopping (never a slide)
+  // and stands in front of the cabinet where each of her drawings at it has her (gachaX); the cabinet and what happens in
+  // it are drawn by drawGacha behind her, the plush popping out of the capsule in front of her.
+  gacha(t, st, o, line) {
+    st._t = t;
+    const T = GACHA.t, W = T.won, L = T.lost, k = H / ANCHOR, im = this.props.gacha, left = GACHA.x - im.width * k / 2, top = FOOT.y - im.height * k;
+    const at2 = (px, py) => ({ x: left + px * k, y: top + py * k });   // a point of the cabinet's picture on the page
+    // each line for its own stretch only (until): the show is 14 s, and its first line hung over the whole of it
+    const say = (from, until, key) => { if (t >= from && t < until) st.bubble = { text: key ? this.saying(key, o.seed + from) : line, t: t - from }; };
+    const press = this.gachaX('gPress'), turn = this.gachaX('gTurn'), take = this.gachaX('gTake');
+    // hopping from x0 to x1 between a and b in n hops
+    const hops = (a, b, x0, x1, n) => { const w = k01(t, a, b); st.x = x0 + (x1 - x0) * w; st.y -= HOP * 0.45 * Math.abs(Math.sin(Math.PI * n * w)); };
+    const end = o.mishap ? L.gone : W.gone, spinAt = o.mishap ? L.spin : W.spin;
+    const shown = k01(t, T.up, T.up + 200) * (1 - k01(t, end[0], end[1]));
+    const g = st.gacha = { left, top, k, a: shown, s: 0.85 + 0.15 * ease(k01(t, T.up, T.up + 300)) + 0.06 * bump(t, T.up + 150, T.up + 450) - 0.3 * ease(k01(t, end[0], end[1])) };
+    const centre = at2(im.width / 2, im.height * 0.45);
+    // the sprite spins round where the cabinet comes (and goes), glowing, and it flashes there
+    const spin = a => { const u = t - a, ang = u / 130; st.sprite = 'glow'; st.sp = ['at', centre.x + 78 * Math.cos(ang), centre.y + 26 * Math.sin(ang)]; st.fx.push(['trail', a]); };
+    st.fx.push(['flash', T.up, 0.8, { x: centre.x, y: centre.y + 60 }], ['flash', end[0], 0.8, { x: centre.x, y: centre.y + 60 }]);
+
+    // ---- she points home, the sprite fetches the battery and hands it over, spins the cabinet up
+    if (t < T.fetch) { st.pose = 'gPointHome'; st.sprite = 'nod'; }
+    // it holds the battery out until it goes into her hands, her in-between's frame 3 (90 ms on): its drawing fades over
+    // 150 ms, so it lets go 60 ms before, and the two batteries are never seen at once
+    else if (t < T.give) { st.pose = 'gRub'; if (t < T.back) { st.sprite = 'sHappy'; st.sp = ['at', -80, FOOT.y - 0.5 * H]; } else { st.sprite = t < T.give - 300 ? 'sCarry' : t < T.give - 60 ? 'sGive' : 'sHappy'; st.sp = ['rel', 0.05, 0.36]; } }
+    else if (t < T.spin) { st.pose = 'gBattery'; st.sprite = 'sHappy'; st.sp = ['rel', 0.05, 0.36]; }
+    else if (t < T.hop[0]) { st.pose = 'gBattery'; spin(T.spin); }
+    say(200, T.up);
+    if (t < T.hop[0]) return st;
+
+    // ---- at the cabinet: she hops over with the battery, presses it in, turns the knob, squats for the capsule
+    st.slide = true;   // her drawings at the cabinet stand where each has her: the in-betweens move her between them
+    if (t < T.press) { st.pose = 'gBattery'; hops(T.hop[0], T.hop[1], FOOT.x, press, 2); }
+    else if (t < T.turn) { st.pose = 'gPress'; st.x = press; }
+    else if (t < T.take) { st.pose = 'gTurn'; st.x = turn; }
+    else if (t < T.stand) { st.pose = 'gTake'; st.x = take; }
+    else if (t < T.home[1]) { st.pose = 'gCapsule'; if (t < T.home[0]) st.x = take; else hops(T.home[0], T.home[1], take, FOOT.x, 2); }
+    if (t >= T.drop) g.bay = { y: 14 * ease(k01(t, T.drop + 150, T.drop + 550)), a: 1 - k01(t, T.drop + 350, T.drop + 550) };   // in, and down out of sight
+    if (t >= T.turn && t < T.out) { const u = t - T.turn; g.knob = u / 260; g.jig = [2.2 * Math.sin(u / 40), 1.6 * Math.sin(u / 55)]; g.shake = 0.8 * Math.sin(u / 35); }
+    if (t >= T.out && t < T.take + 180) g.cap = { y: -(GACHA.outlet[1] - GACHA.win[3]) * (1 - ease(k01(t, T.out, T.out + 220))) - 10 * bump(t, T.out + 220, T.out + 380) };
+    // as she hops over it goes ahead to the top of the cabinet's sign (following her, it crossed her face)
+    if (t < T.turn) { st.sprite = 'sHappy'; st.sp = ['at', left + 25 * k, top + 60 * k]; }
+    else if (t < T.out) { st.sprite = 'sPeek'; st.sp = ['at', left + 175 * k, top + 160 * k + 2 * Math.sin(t / 120)]; st.fx.push(['sweat', T.turn + 600, 900]); }
+    else if (t < T.home[1]) { st.sprite = 'sHappy'; st.sp = ['rel', 1.0, 0.25]; }
+    if (t < T.shake) return st;
+
+    // ---- back at her place: she shakes the capsule by her ear (the sprite listens) and twists it open
+    st.slide = false;
+    if (t < T.twist) { st.pose = 'gShake'; st.sprite = 'sListen'; st.sp = ['rel', 1.02, 0.1]; return st; }
+    if (t < T.open) { st.pose = 'gTwist'; st.sprite = 'sHappy'; st.sp = ['rel', 1.0, 0.3]; st.fx.push(['shock', T.twist + 200]); return st; }
+
+    if (!o.mishap) {
+      // the plush pops out of the capsule and into her arms; she hugs it, hopping; the sprite circles her, spins the cabinet
+      // away, takes the plush and flies it home
+      // the plush: out of her hands, growing as it rises over her head with a little wobble, hanging there bobbing, then
+      // down into her arms where her drawing hugs it (41 px right of her centre, 87 px up: the gHug cell), fading into it
+      const u = t - T.open;
+      if (u < W.down + 60) {
+        const r = 1 - Math.pow(1 - k01(u, 0, W.rise), 3), d = ease(k01(u, W.hang, W.down));
+        const hx = FOOT.x + 14 + 18 * r, hy = FOOT.y - 0.3 * H + (FOOT.y - H - 10 - (FOOT.y - 0.3 * H)) * r + (u >= W.rise ? 4 * Math.sin((u - W.rise) / 60) : 0);
+        st.pop = { x: hx + (FOOT.x + 41 - hx) * d, y: hy + (FOOT.y - 87 - hy) * d, s: 0.25 + 0.75 * r, a: 1 - k01(u, W.down, W.down + 60) };
+        if (u < W.rise) st.fx.push(['sparkles', T.open]);
+      }
+      st.halves = this.halves(t, T.open, 'pop', 1 - k01(t, W.gone[0], W.gone[1]));
+      st.pose = t < W.take ? 'gHug' : 'idle';
+      // the sprite watches from her side while the plush is in the air (tossed from the start, it hung over her head
+      // right where the plush comes), and is tossed for joy once she hugs it
+      if (t < W.hug) { st.sprite = 'surprised'; st.sp = ['rel', 1.05, 0.3]; }
+      else if (t < W.spin) { st.y -= 12 * bump(t, W.hug + 300, W.hug + 620) + 10 * bump(t, W.hug + 900, W.hug + 1220); this.toss(st, t, W.hug, 900); }
+      else if (t < W.gone[1]) spin(W.spin);
+      else if (t < W.away) { st.sprite = t < W.take ? 'sHappy' : 'sPlush'; st.sp = ['rel', 0.5, 0.42]; }
+      else { st.sprite = 'sPlush'; st.sp = ['at', -90, FOOT.y - 0.55 * H]; }
+      st.fx.push(['sparkles', T.open], ['confetti', T.open + 100]);
+      say(W.hug, W.spin, '扭中了');
+      return st;
+    }
+    // empty: frozen over the halves; she drops them and wails on her knees (the sprite pats her head), wipes her tears and
+    // gets up; the sprite spins the cabinet and the halves away
+    st.pose = at(t - L.empty, [[0, 'gEmpty'], [L.wail - L.empty, 'gWail'], [L.wipe - L.empty, 'gWipe'], [L.idle - L.empty, 'idle']]);
+    if (t >= L.wail) st.halves = this.halves(t, L.wail, 'drop', 1 - k01(t, L.gone[0], L.gone[1]));
+    if (t < L.pat) { st.sprite = 'surprised'; st.sp = ['rel', 1.0, 0.3]; }
+    else if (t < L.wipe) { st.sprite = 'pat'; st.sp = 'head'; }
+    else if (t < L.gone[1]) spin(L.spin);
+    else st.sprite = 'sHappy';
+    st.fx.push(['shock', L.empty], ['sweat', L.empty + 300, 900]);
+    if (t >= L.wail) st.fx.push(['tears', L.wail + 100, L.wipe - L.wail]);
+    say(L.empty + 100, L.wail, '扭空'); say(L.wail + 150, L.wipe, '没扭中'); say(L.wipe + 150, L.end, '打起精神');
+    return st;
+  }
+
+  // The capsule's two halves leaving her hands at a: popping off to either side as the plush comes out (pop), or slipping
+  // from her hands as she sinks to her knees (drop); both come to lie by her feet, where they stay till the cabinet goes.
+  halves(t, a, how, alpha) {
+    const u = t - a, p = k01(u, 0, how === 'pop' ? 450 : 260);
+    return { a: alpha, pts: [[-1, -6, -52], [1, 14, 58]].map(([half, sx, tx]) => {
+      const x0 = FOOT.x + sx, y0 = FOOT.y - 0.3 * H, x1 = FOOT.x + tx, y1 = FOOT.y - 2;
+      const y = how === 'pop' ? y0 + (y1 - y0) * p - 70 * Math.sin(Math.PI * p) : y0 + (y1 - y0) * p * p;
+      // both end dome up, on their rims: the pink top half is dome up as it is (0), the white bottom half turned over (π);
+      // popping off they tumble on the way (a whole turn, a turn and a half), dropped they only tip a little
+      const rot = how === 'pop' ? (half < 0 ? -2 * Math.PI * p : 3 * Math.PI * p) : (half < 0 ? 0.25 * p : Math.PI + 0.3 * p);
+      return { half, x: x0 + (x1 - x0) * p, y, rot };
+    }) };
+  }
+
+  // Where she stands (her drawing's centre) for a drawing of hers at the cabinet, so the cabinet in its cell meets the one on
+  // the page: the cell's cabinet edge at GACHA.cell, the page's at the cabinet picture's left.
+  gachaX(pose) {
+    const c = this.cells.gacha22?.[POSE[pose][1]], k = H / ANCHOR, left = GACHA.x - this.props.gacha.width * k / 2;
+    return c ? left - (c.ox + GACHA.cell - c.cx) * H / c.ruler : FOOT.x;
+  }
+
+  // The cabinet (st.gacha): popping up and shrinking away with its alpha a and scale s about its bottom middle; while she
+  // turns the knob the capsules in its window tumble (the window drawn again, shaken, jig), the knob turns (knob, in
+  // turns) and the cabinet trembles (shake); the battery sinks into its bay (bay); the capsule drops into its outlet (cap,
+  // its height above it); the empty capsule's halves lie at her feet (st.halves, drawn here with it).
+  drawGacha(g, c) {
+    const im = this.props.gacha, k = c.k * c.s, w = im.width * k, h = im.height * k, x0 = GACHA.x - w / 2 + (c.shake || 0), y0 = FOOT.y - h;
+    if (!c.a) return;
+    g.save(); g.globalAlpha = c.a;
+    g.drawImage(im, x0, y0, w, h);
+    const P = (px, py) => [x0 + px * k, y0 + py * k];
+    if (c.jig) {   // the capsules tumbling: the window again, shaken inside its own frame
+      const [wx0, wy0] = P(GACHA.win[0] + 4, GACHA.win[1] + 4), [wx1, wy1] = P(GACHA.win[2] - 4, GACHA.win[3] - 4);
+      g.save(); g.beginPath(); g.rect(wx0, wy0, wx1 - wx0, wy1 - wy0); g.clip();
+      g.drawImage(im, x0 + c.jig[0], y0 + c.jig[1], w, h); g.restore();
+    }
+    if (c.knob) {   // the knob turning
+      const [kx, ky] = P(GACHA.knob[0], GACHA.knob[1]), r = GACHA.knob[2] * k;
+      g.save(); g.beginPath(); g.arc(kx, ky, r, 0, Math.PI * 2); g.clip();
+      g.translate(kx, ky); g.rotate(c.knob * Math.PI * 2); g.translate(-kx, -ky); g.drawImage(im, x0, y0, w, h); g.restore();
+    }
+    if (c.bay && c.bay.a > 0) {   // the battery in its bay, sinking out of sight below the bay's rim
+      const b = this.props.battery, [bx, by] = P(GACHA.bay[0], GACHA.bay[1]), bw = b.width * k, bh = b.height * k;
+      g.save(); g.beginPath(); g.rect(bx - bw, by - bh / 2 - 2, bw * 2, bh + 2); g.clip();
+      g.globalAlpha = c.a * c.bay.a; g.drawImage(b, bx - bw / 2, by - bh / 2 + c.bay.y, bw, bh); g.restore();
+    }
+    if (c.cap) { const [ox, oy] = P(GACHA.outlet[0], GACHA.outlet[1]); this.capsule(g, ox, oy + c.cap.y * k - GACHA.capR * k, GACHA.capR * k, 0); }
+    g.restore();
+  }
+
+  // A capsule (the one she holds: clear pale pink over white), or one half of it lying on its dome (half: -1 the pink
+  // top half, 1 the white bottom half).
+  capsule(g, x, y, r, rot, half) {
+    g.save(); g.translate(x, y); g.rotate(rot); g.lineWidth = 1.6; g.strokeStyle = '#4A2E2A';
+    const dome = (from, to, fill) => { g.beginPath(); g.arc(0, 0, r, from, to); g.closePath(); g.fillStyle = fill; g.fill(); g.stroke(); };
+    if (half !== 1) dome(Math.PI, Math.PI * 2, 'rgba(255,170,198,0.92)');
+    if (half !== -1) dome(0, Math.PI, '#FFFFFF');
+    g.fillStyle = 'rgba(255,255,255,0.8)'; g.beginPath(); g.ellipse(-r * 0.35, -r * 0.45, r * 0.25, r * 0.15, -0.5, 0, Math.PI * 2); g.fill();
+    g.restore();
   }
 
   // A sport (SPORTS): the sprite joins in (cheers her lifts with its flag, leads her hike, flies beside her bike or skis); if
@@ -2994,6 +3204,8 @@ class Component extends DCLogic {
     if (st.castle) this.drawCastle(g, st.castle);
     if (st.ship) this.drawShip(g, st.ship);
     if (st.admShip) this.drawAdmShip(g, st.admShip);
+    if (st.gacha) this.drawGacha(g, st.gacha);
+    if (st.halves?.a) { g.save(); g.globalAlpha = st.halves.a; for (const h of st.halves.pts) this.capsule(g, h.x, h.y, 12, h.rot, h.half); g.restore(); }   // the capsule's halves, off her hands and by her feet
     if (st.emblem) this.drawProp(g, this.props.emblem, st.emblem.x, st.emblem.y + this.props.emblem.height * H / ANCHOR * st.emblem.s / 2, st.emblem.s, st.emblem.a);
     const rt = performance.now(), dt = Math.min(100, rt - (this.rt ?? rt)) * this.cfg.speed;
     this.rt = rt;
@@ -3014,6 +3226,7 @@ class Component extends DCLogic {
     }
     if (sp && st.sBehind) this.drawSprite(g, st, sp, now);
     if (!st.hide) this.drawHer(g, st, now);
+    if (st.pop) this.drawProp(g, this.props.plush, st.pop.x, st.pop.y, st.pop.s, st.pop.a);   // the plush out of the capsule
     const flying = (f, words) => { g.save(); g.translate(f.x, f.y); g.rotate(f.a); g.scale(f.k, f.k); g.translate(-SIGN.W / 2, -SIGN.H / 2); SIGN.draw(g, words); g.restore(); };
     if (st.signFly && !this.signShown) flying(st.signFly, st.sign || []);
     if (this.signBack) {   // let go of: from where she held it, small, into her sprite
@@ -3086,7 +3299,9 @@ class Component extends DCLogic {
     if (st.pose !== hv.pose) Object.assign(hv, { tween: this.route(hv.pose, st.pose), ms: SLOW[`${hv.pose}>${st.pose}`] || 90, pose: st.pose, at: rt, since: this.clock, fromX: hv.x ?? st.x });
     // she breathes in every pose, in-between frames too (breathing that stopped when she left her idle pose made her head
     // jump up to 3 px at the change): her drawing scaled at her feet, a touch taller and narrower, then shorter and wider
-    const i = Math.floor(el(hv.at) / (hv.ms || 90)), s = 1 + 0.012 * Math.sin(now / 600), c = hv.tween?.[i] || this.cell(hv.pose);
+    // (SLOW may give each frame its own time: [frame 2, frame 3], then 90 ms for any further frames of a route)
+    const e = el(hv.at), i = Array.isArray(hv.ms) ? (() => { let n = 0, acc = 0; while (e >= acc + (hv.ms[n] ?? 90)) acc += hv.ms[n++] ?? 90; return n; })() : Math.floor(e / (hv.ms || 90));
+    const s = 1 + 0.012 * Math.sin(now / 600), c = hv.tween?.[i] || this.cell(hv.pose);
     // In the chest game her place goes with her pose (her fists on the ring, wherever each drawing has them): through the
     // in-betweens she moves from where the earlier pose stood to the later one's, a share at each frame (st.slide), not
     // all at once on the first of them.
@@ -3841,7 +4056,7 @@ class Component extends DCLogic {
     const d = (kind, mishap) => () => this.fire('日常', { kind, mishap });
     group('日常', [['举哑铃', d('举哑铃', false)], ['砸到脚', d('举哑铃', true)], ['哼歌', d('哼歌', false)], ['破音', d('哼歌', true)],
       ['爬山', d('爬山', false)], ['摔屁股墩', d('爬山', true)], ['骑车', d('骑车', false)], ['骑车摔倒', d('骑车', true)],
-      ['滑雪', d('滑雪', false)], ['滑雪摔跤', d('滑雪', true)]]);
+      ['滑雪', d('滑雪', false)], ['滑雪摔跤', d('滑雪', true)], ['扭蛋', d('扭蛋', false)], ['扭蛋落空', d('扭蛋', true)]]);
     group('时间', [['快进 10 分钟', () => this.fastForward(10)], ['快进 30 分钟', () => this.fastForward(30)], ['回到刚有礼物', () => { this.lastGift = this.lastAny = this.now(); }]]);
     // the chest game (the board's game 开): the prankster comes at once; a danmaku and the gifts are the 事件 group's buttons
     // a 人气票 or 小花花 comes from one of the board's viewers, rather one on no side yet, so the avatars fill up; a danmaku

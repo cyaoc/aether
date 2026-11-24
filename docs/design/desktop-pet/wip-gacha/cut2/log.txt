@@ -1,0 +1,3 @@
+已用内置图像工具移除机器并保存：[her.png](/Users/cyao/aether/docs/design/desktop-pet/wip-gacha/cut2/her.png)（1536×1024 PNG）。
+
+未做逐像素比对；无法保证人物像素完全不变或绿底精确为 #00FF00。

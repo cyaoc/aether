@@ -12,7 +12,8 @@ const port = process.argv[2] || 8820;
 const board = fs.readFileSync(here + '../boards/DP-DesktopPet.dc.html', 'utf8');
 const block = name => board.match(new RegExp(`const ${name} = \\{([\\s\\S]*?)\\};`))[1];
 const events = [...block('EVENTS').matchAll(/'?([^\s',{}]+?)'?: \{ tier: '\w+', dur:/g)].map(m => m[1]);
-const kinds = [...block('DAILY').matchAll(/(\S+): \[/g), ...block('SPORTS').matchAll(/^\s+(\S+): \{ ready:/gm)].map(m => m[1]);
+// (and the ones given their own lines after it, DAILY.扭蛋 = ...)
+const kinds = [...block('DAILY').matchAll(/(\S+): \[/g), ...block('SPORTS').matchAll(/^\s+(\S+): \{ ready:/gm), ...board.matchAll(/^DAILY\.(\S+) = /gm)].map(m => m[1]);
 
 const js = `(() => {
   const pairs = {}, EVENTS = ${JSON.stringify(events)}, KINDS = ${JSON.stringify(kinds)};
