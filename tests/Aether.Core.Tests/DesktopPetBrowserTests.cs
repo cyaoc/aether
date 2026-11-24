@@ -408,7 +408,8 @@ public sealed class DesktopPetBrowserTests
         await page.Browser.EvaluateAsync($"{Clock}.currentTime += 61000; {TwoFrames}");
         Assert.Equal("bored", (await page.Browser.EvaluateAsync("window.pet.mood(window.pet.now())")).GetString());
 
-        await page.ApplyAsync(("desktop_pet.bored_minutes", "0"), ("desktop_pet.shows_off", "[hum, gym, hike, bike, gacha]"), ("desktop_pet.mishap_percent", "0"));
+        var allButSki = ShowTable.Current.Shows.Where(show => show.Group == ShowGroup.Daily && show.Id != "ski").Select(show => show.Id);
+        await page.ApplyAsync(("desktop_pet.bored_minutes", "0"), ("desktop_pet.shows_off", $"[{string.Join(", ", allButSki)}]"), ("desktop_pet.mishap_percent", "0"));
         Assert.Equal("""["ski",false]""", (await page.Browser.EvaluateAsync("JSON.stringify([window.pet.cur?.name, window.pet.cur?.opts.mishap])")).GetString());
         Assert.Empty(page.Browser.Errors);
     }

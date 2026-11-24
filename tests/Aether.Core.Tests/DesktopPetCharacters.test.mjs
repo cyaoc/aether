@@ -41,14 +41,8 @@ function routing(character) {
 function poseChanges(character) {
   const engine = gamePet(character), changes = {};
   for (const row of shows.filter(row => row.group !== MOOD)) for (const variant of row.tests) {
-    const opts = { result: variant, mishap: variant === 'Mishap' };
-    engine.start(row.id, opts);
-    let pose = 'idle';
-    for (let t = 0; t <= engine.cur.dur + 20; t += 20) {
-      const next = t > engine.cur.dur ? 'idle' : engine.eventState(row.id, t, { ...opts, seed: 0 }, 'x').pose;
-      if (next !== pose) changes[`${pose}>${next}`] ??= row.id + (variant ? '·' + variant : '');
-      pose = next;
-    }
+    const poses = [...showPoses(engine, row.id, { result: variant, mishap: variant === 'Mishap', seed: 0 }), 'idle'];
+    poses.slice(1).forEach((pose, i) => { if (pose !== poses[i]) changes[`${poses[i]}>${pose}`] ??= row.id + (variant ? '·' + variant : ''); });
   }
   return changes;
 }

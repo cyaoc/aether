@@ -235,7 +235,7 @@ public sealed class DesktopPetSettingsTests
         Assert.DoesNotContain("小游戏·她", page.FindControl<ListBox>("ShowGroupList")!.Items.Cast<DesktopPetShowGroup>().Select(group => group.Group.Label));
         Assert.DoesNotContain("守住了", TestLabels(page));
         GuiHarness.Tab(page, 3);
-        Assert.Subset(page.FindControl<ListBox>("LineKindList")!.Items.OfType<DesktopPetLineKind>().Select(kind => kind.Kind.Label).ToHashSet(),
+        Assert.Subset(LineKindLabels(page).ToHashSet(),
             new HashSet<string> { "别丢啦", "绝杀守住", "点名", "回嘴", "露破绽", "趁现在", "收下小花花", "绝杀得手" });
         Pick(page, "LineKindList", "守住了");
         Assert.Contains("把它打跑、宝箱回家时；每次随机一句，不连着重复", Texts(page));
@@ -406,7 +406,7 @@ public sealed class DesktopPetSettingsTests
         Assert.Subset(TestLabels(page).ToHashSet(), new HashSet<string> { "扭蛋", "扭蛋：出事" });
         Switch(page, "扭蛋").IsChecked = false;
         GuiHarness.Tab(page, 3);
-        Assert.Subset(page.FindControl<ListBox>("LineKindList")!.Items.OfType<DesktopPetLineKind>().Select(kind => kind.Kind.Label).ToHashSet(),
+        Assert.Subset(LineKindLabels(page).ToHashSet(),
             new HashSet<string> { "扭蛋", "扭中了", "扭空", "没扭中", "打起精神" });
         PickLines(page, "扭空", "拧开扭蛋是空的、愣住时；每次随机一句，不连着重复", "gachaEmpty");
         Line(page, 1).Text = "空的？";

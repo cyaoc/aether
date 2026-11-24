@@ -27,6 +27,10 @@ internal static class DesktopPetForm
     public static IEnumerable<string> TestLabels(DesktopPetSettingsPage page) =>
         page.FindControl<ComboBox>("TestShowInput")!.Items.Cast<DesktopPetTest>().Select(test => test.Label);
 
+    /// <summary>The labels of the kinds of lines listed.</summary>
+    public static IEnumerable<string> LineKindLabels(DesktopPetSettingsPage page) =>
+        page.FindControl<ListBox>("LineKindList")!.Items.OfType<DesktopPetLineKind>().Select(kind => kind.Kind.Label);
+
     public static ToggleSwitch Switch(DesktopPetSettingsPage page, string name) => Shown<ToggleSwitch>(page, name);
 
     public static NumericUpDown Number(DesktopPetSettingsPage page, string name) => Shown<NumericUpDown>(page, name);
