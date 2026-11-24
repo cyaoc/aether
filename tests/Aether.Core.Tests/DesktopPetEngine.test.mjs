@@ -106,7 +106,7 @@ test('an entry plays only while she is idle, over no show nor 日常小动作, a
   assert.deepEqual([playing(engine), engine.queue], ['gift', []]);
   advance(engine, 2000);
   advance(engine, 40000);
-  assert.ok(['hum', 'gym', 'hike', 'bike', 'ski', 'gacha'].includes(playing(engine)));
+  assert.ok(Object.keys(DAILY).includes(playing(engine)));
   const daily = engine.cur;
   engine.entry(fan(3));
   assert.equal(engine.cur, daily);
@@ -406,7 +406,7 @@ test('a show turned off while it waits its turn does not play', () => {
 });
 
 test('only the 日常小动作 left on come, at the interval set, and none goes wrong at 0 percent', () => {
-  const engine = pet({ off: ['hum', 'gym', 'hike', 'bike', 'gacha'], dailyMinSeconds: 60, dailyMaxSeconds: 60, mishapPercent: 0 });
+  const engine = pet({ off: Object.keys(DAILY).filter(kind => kind !== 'ski'), dailyMinSeconds: 60, dailyMaxSeconds: 60, mishapPercent: 0 });
   for (let n = 0; n < 5; n++) {
     advance(engine, 6000);
     assert.deepEqual([playing(engine), engine.cur.opts.mishap], ['ski', false]);

@@ -1717,7 +1717,7 @@ export class Engine extends EventTarget {
       case 'pkResult': this.pkEndShow(t, st, opts, say, hop); break;
       case 'pkSwing': this.pkGapShow(t, st, opts, say, hop); break;
       case 'pkChallenge': this.pkChallengeShow(t, st, opts, say); break;
-      case 'hum': case 'gym': case 'hike': case 'bike': case 'ski': case 'gacha': return this.daily(t, st, { ...opts, kind: name }, line);
+      default: if (DAILY[key]) return this.daily(t, st, { ...opts, kind: key }, line);
     }
     const extra = EVENT_FX[key];
     if (extra) { st.fx.push(...extra.fx); st.shake = extra.shake; }
