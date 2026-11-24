@@ -18,7 +18,7 @@ public sealed class ShowTableTests
             ("pkOpponent", "pk", "B"), ("pkCondition", "pk", "B"), ("pkChallenge", "pk", "B"), ("pkDouble", "pk", "B"), ("pkDoubleEnding", "pk", "B"),
             ("pkLastSeconds", "pk", "B"), ("pkSwing", "pk", "C"), ("pkResult", "pk", "B"),
             ("happy", "mood", "D"), ("calm", "mood", "D"), ("bored", "mood", "D"), ("gloomy", "mood", "D"), ("sleepy", "mood", "D"), ("wake", "mood", "D"),
-            ("hum", "daily", "D"), ("gym", "daily", "D"), ("hike", "daily", "D"), ("bike", "daily", "D"), ("ski", "daily", "D"),
+            ("hum", "daily", "D"), ("gym", "daily", "D"), ("hike", "daily", "D"), ("bike", "daily", "D"), ("ski", "daily", "D"), ("gacha", "daily", "D"),
             ("pranksterKnocked", "chestGame", "B"), ("chestKept", "chestGame", "B"), ("chestRobbed", "chestGame", "B"),
         ], Table.Shows.Select(show => (show.Id, show.Group, show.Tier)));
         Assert.Equal(["进场", "礼物", "盲盒", "城堡", "大航海", "新的第一名", "抽奖", "盲盒查询", "PK", "心情", "日常", "出事", "小游戏·她", "小游戏·它"],
@@ -42,7 +42,7 @@ public sealed class ShowTableTests
             ("pkLastSeconds", [null]), ("pkSwing", ["Overtake", "Overtaken", "PullAhead", "FallBehind", "CloseIn", "CaughtUp"]),
             ("pkResult", ["BigWin", "Win", "NarrowWin", "Draw", "NarrowLoss", "Lose", "BigLoss"]),
             ("happy", []), ("calm", []), ("bored", [null]), ("gloomy", [null]), ("sleepy", [null]), ("wake", []),
-            ("hum", daily), ("gym", daily), ("hike", daily), ("bike", daily), ("ski", daily),
+            ("hum", daily), ("gym", daily), ("hike", daily), ("bike", daily), ("ski", daily), ("gacha", daily),
             ("pranksterKnocked", []), ("chestKept", []), ("chestRobbed", []),
         ], Table.Shows.Select(show => (show.Id, (string?[])[.. show.Tests])));
         Assert.All(Table.Shows.SelectMany(show => show.Tests).OfType<string>(), variant => Assert.Contains(variant, Table.Variants.Keys));
@@ -71,9 +71,10 @@ public sealed class ShowTableTests
             ("pkBigWin", "pk", ""), ("pkBigWinAfter", "pk", ""), ("pkWin", "pk", ""), ("pkNarrowWin", "pk", ""), ("pkDraw", "pk", ""),
             ("pkNarrowLoss", "pk", ""), ("pkNarrowLossAfter", "pk", ""), ("pkLose", "pk", ""), ("pkLoseAfter", "pk", ""), ("pkBigLoss", "pk", ""), ("pkBigLossAfter", "pk", ""),
             ("bored", "mood", ""), ("gloomy", "mood", ""), ("sleepy", "mood", ""), ("jolt", "mood", ""),
-            ("hum", "daily", ""), ("gym", "daily", ""), ("hike", "daily", ""), ("bike", "daily", ""), ("ski", "daily", ""),
+            ("hum", "daily", ""), ("gym", "daily", ""), ("hike", "daily", ""), ("bike", "daily", ""), ("ski", "daily", ""), ("gacha", "daily", ""), ("gachaWin", "daily", ""),
             ("voiceCrack", "mishap", ""), ("droppedOnFoot", "mishap", ""), ("slipped", "mishap", ""), ("dustOff", "mishap", ""),
             ("bikeCrash", "mishap", ""), ("plaster", "mishap", ""), ("skiFall", "mishap", ""),
+            ("gachaEmpty", "mishap", ""), ("gachaMiss", "mishap", ""), ("gachaCheerUp", "mishap", ""),
             ("chestFell", "chestGame", ""), ("pranksterHit", "chestGame", "昵称"), ("herHit", "chestGame", "昵称"), ("herPelted", "chestGame", "昵称"),
             ("chestKeptBuzzer", "chestGame", "昵称"), ("chestKept", "chestGame", "昵称 连守"),
             ("pranksterKnocked", "chestGame", "昵称"), ("chestRobbed", "chestGame", ""), ("chestRobbedGloomy", "chestGame", ""),
