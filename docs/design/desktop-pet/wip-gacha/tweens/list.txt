@@ -1,0 +1,11 @@
+gPointIn idle gPointHome
+gPointRub gPointHome gRub
+gRubBattery gRub gBattery
+gCapsuleShake gCapsule gShake
+gShakeTwist gShake gTwist
+gTwistHug gTwist gHug
+gTwistEmpty gTwist gEmpty
+gEmptyWail gEmpty gWail
+gWailWipe gWail gWipe
+gWipeIdle gWipe idle
+gHugIdle gHug idle

@@ -34,7 +34,15 @@ PROPS = {"flagship": ((1536, 1024), (170, 990), [], (2.0, 2.45)),
          "chest-open": ((1024, 1024), (300, 900), [], (0.42, 0.68)),
          # what a danmaku throws in the chest game: her fist's size, which codex draws at 0.13 of her height every time
          # (asked for 0.08, three tries 0.13-0.14), about 33 px on the page (H 250), as big as a small gift's icon
-         "paperball": ((1024, 1024), (300, 900), [], (0.10, 0.15))}
+         "paperball": ((1024, 1024), (300, 900), [], (0.10, 0.15)),
+         # the 扭蛋 daily (#403): a mall gacha cabinet, its sign at her eyes, a blank plate on the sign for B站's little-TV mark, on her right
+         # (on the page it must fit in the 165 px between her right side and the page's edge); the B站 电池 she feeds it
+         # bigger (2026-11-23, "你可以把扭蛋机画更大点、现在被遮住的太多了"): taller than her, its sign above her head and its
+         # panel at her chest, so she can stand in front of it and still leave it seen; its bay holds the battery
+         "gacha": ((1024, 1024), (220, 900), [PKG / "wip-gacha/battery-fit/battery.png"], (1.18, 1.32)),
+         "battery": ((1024, 1024), (300, 900), [], (0.10, 0.125)),
+         # what the 扭蛋 gives when it wins: a plush of her sprite, held at her chest; drawn after the sprite's picture
+         "plush": ((1024, 1024), (300, 900), [PKG.parent / "mascot/textures/sprite-idle.webp"], (0.16, 0.24))}  # it fits the bay on the cabinet: 27 x 44 px at her 360
 DRAW = ("Use your built-in image generation tool (not code) to edit the LAST attached image into ONE new image, then copy "
         "the generated PNG file to {out}. Do not write any code. The last attached image is a canvas of perfectly flat "
         "solid #00FF00 green with a chibi girl already standing in it: keep her exactly as she is, the same size, in the "

@@ -36,16 +36,20 @@ SHEETS = {1: ("common", "pet-base", None), 2: ("lottery", "pet-base", None), 3: 
           7: ("castleSheet", "princess-pose-base", "princess-sheet"), 8: ("voyage", "fleet-pose-base", "fleet-sheet"),
           9: ("ski9", "ski-pose-base", "ski-sheet"), 10: ("gym10", "outfit-pose-base", "gym-sheet"),
           11: ("hike11", "outfit-pose-base", "hike-sheet"), 12: ("cycle12", "outfit-pose-base", "cycle-sheet"),
-          18: ("pkSign", "pet-base", None)}
+          18: ("pkSign", "pet-base", None), 19: ("gacha19", "pet-base", None), 20: ("gacha20", "pet-base", None)}
+# what she holds in a sheet's cells, attached after who she is so codex copies it (the 扭蛋 daily, #403)
+GACHA = PKG / "wip-gacha"
+PROPS = {19: [GACHA / "battery-fit/battery.png", GACHA / "plush/plush.png"]}
 # a sheet drawn for the first time has no poses on the board yet: name its cells here, so the gate still measures them
 # (pkSign was named here until it went onto the board)
-FIRST_NAMES = {}
+FIRST_NAMES = {"gacha19": [None, "gBattery", "gShake", "gTwist", "gHug", "gEmpty"],
+               "gacha20": [None, "gWail", "gWipe", "gPointHome", "gRub", "gCapsule"]}
 CASTLE = [None, "pIdle", "spin", "curtsy", "walkA", "lookBack"]  # the castle's princess idle moves to cell 2
 # upright on the ground line: her eyes are as high above her feet as the anchor's
 UPRIGHT = {"wave", "cheer", "surprised", "announce", "point", "hope", "clap", "crack", "pout", "shy", "hum", "giftBox",
            "shakeBox", "crownV", "pIdle", "capSalute", "spyglass", "admSalute", "govPoint", "govWave", "gymReady", "curl",
            "gymWipe", "hikeReady", "hikeUp", "bikeReady", "bikeUp", "skiShake", "signHide", "signUp", "signCheer",
-           "signUrge"}
+           "signUrge", "gBattery", "gShake", "gTwist", "gHug", "gEmpty", "gWipe", "gPointHome", "gRub", "gCapsule"}
 NAMES = ["top-left", "top-middle", "top-right", "bottom-left", "bottom-middle", "bottom-right"]
 NEW = ("Use your built-in image generation tool (not code) to create ONE image, then copy the generated PNG file to {out}. "
        "Do not write any code. The LAST attached image is the canvas to fill; the image just before it is the approved "
@@ -163,6 +167,7 @@ def main():
         refs.append(PKG / f"textures/{outfit}.webp")
     if not first:
         refs.append(PKG / f"textures/{SHEET[key_]}.webp")
+    refs += PROPS.get(n, [])
     canvas = place_anchor(np.zeros((2 * CELL, 3 * CELL, 4), np.uint8), A)
     on_green(canvas).save(out / f"sheet-{n}-canvas.png")
 

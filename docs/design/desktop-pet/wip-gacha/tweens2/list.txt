@@ -1,0 +1,4 @@
+gBatteryPress gBattery gPress
+gPressTurn gPress gTurn
+gTurnTake gTurn gTake
+gTakeCapsule gTake gCapsule

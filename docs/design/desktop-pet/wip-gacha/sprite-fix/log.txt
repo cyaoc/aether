@@ -1,0 +1,3 @@
+已用内置图像工具编辑并保存为 [sheet.png](/Users/cyao/aether/docs/design/desktop-pet/wip-gacha/sprite-fix/sheet.png)，1536×1024 PNG。
+
+未写代码；其余四格未验证逐像素一致性。
