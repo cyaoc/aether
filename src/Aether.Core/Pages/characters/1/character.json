@@ -42,7 +42,11 @@
       "game16": "desktop-pet/pose-16-game4.webp",
       "game17": "desktop-pet/pose-17-game5.webp",
       "sp3": "desktop-pet/sprite-pose-3.webp",
-      "pkSign": "desktop-pet/pose-18-sign.webp"
+      "pkSign": "desktop-pet/pose-18-sign.webp",
+      "gacha19": "desktop-pet/pose-19-gacha.webp",
+      "gacha20": "desktop-pet/pose-20-gacha2.webp",
+      "gacha22": "desktop-pet/pose-22-gacha3.webp",
+      "sp4": "desktop-pet/sprite-pose-4.webp"
     },
     "views": "desktop-pet/sprite-views.webp",
     "props": {
@@ -53,7 +57,10 @@
       "castleOpen": "desktop-pet/castle-open.webp",
       "flagship": "desktop-pet/flagship.webp",
       "admship": "desktop-pet/admship.webp",
-      "emblem": "desktop-pet/emblem.webp"
+      "emblem": "desktop-pet/emblem.webp",
+      "gacha": "desktop-pet/gacha.webp",
+      "battery": "desktop-pet/battery.webp",
+      "plush": "desktop-pet/plush.webp"
     },
     "points": {
       "flagship": { "deck": [250, 530], "mast": [450, 60] },
@@ -137,7 +144,20 @@
       "spyglass": ["voyage", 2],
       "admSalute": ["voyage", 3],
       "govPoint": ["voyage", 4],
-      "govWave": ["voyage", 5]
+      "govWave": ["voyage", 5],
+      "gBattery": ["gacha19", 1],
+      "gShake": ["gacha19", 2],
+      "gTwist": ["gacha19", 3],
+      "gHug": ["gacha19", 4],
+      "gEmpty": ["gacha19", 5],
+      "gWail": ["gacha20", 1],
+      "gWipe": ["gacha20", 2],
+      "gPointHome": ["gacha20", 3],
+      "gRub": ["gacha20", 4],
+      "gCapsule": ["gacha20", 5],
+      "gPress": ["gacha22", 1],
+      "gTurn": ["gacha22", 2],
+      "gTake": ["gacha22", 3]
     },
     "sameSpot": {
       "gymRub": "gymHurt",
@@ -197,9 +217,25 @@
       "govJump": { "f": "jump", "once": [[0, 60], [1, 140], [2, 300], [3, 160], [0, 0]]},
       "signUp": { "f": "signSwayL", "f2": "signSwayR", "loop": [[0, 130], [1, 110], [2, 220], [1, 110], [3, 130], [5, 110], [6, 220], [5, 110]] },
       "signCheer": { "f": "signBounce", "loop": [[0, 90], [1, 90], [2, 120], [1, 90], [0, 90], [3, 120]] },
-      "signUrge": { "f": "signPump", "loop": [[3, 100], [0, 80], [1, 80], [2, 110], [1, 80], [0, 80]] }
+      "signUrge": { "f": "signPump", "loop": [[3, 100], [0, 80], [1, 80], [2, 110], [1, 80], [0, 80]] },
+      "gTurn": { "f": "gTurn", "ms": 150 }
     },
     "transitions": {
+      "gPress>gTurn": "gPressTurn",
+      "gTurn>gTake": "gTurnTake",
+      "gTake>gCapsule": "gTakeCapsule",
+      "gBattery>gPress": "gBatteryPress",
+      "gHug>idle": "gHugIdle",
+      "gWail>gWipe": "gWailWipe",
+      "gRub>gBattery": "gRubBattery",
+      "gWipe>idle": "gWipeIdle",
+      "gTwist>gHug": "gTwistHug",
+      "gTwist>gEmpty": "gTwistEmpty",
+      "gShake>gTwist": "gShakeTwist",
+      "gPointHome>gRub": "gPointRub",
+      "idle>gPointHome": "gPointIn",
+      "gEmpty>gWail": "gEmptyWail",
+      "gCapsule>gShake": "gCapsuleShake",
       "robbedZap>robbed": "hairSmoothCry",
       "cheerZap>cheer": "hairSmoothCheer",
       "robbed>gloomy": "robbedGloomy",
@@ -306,7 +342,7 @@
       "skiShake>idle": "skiOut"
     },
     "cuts": ["govPoint>govJump", "govJump>govPoint", "idle>capSalute", "idle>spyglass", "pIdle>idle", "idle>spin", "tug>tugZap", "signCheer>signJump", "signJump>signCheer"],
-    "slow": { "robbedZap>robbed": 300, "cheerZap>cheer": 300, "robbed>gloomy": 260,
+    "slow": { "robbedZap>robbed": 300, "cheerZap>cheer": 300, "robbed>gloomy": 260, "gPress>gTurn": 230, "gTurn>gTake": 200, "gTwist>gHug": [820, 120],
       "idle>signUp": 130, "signUp>idle": 130, "idle>signCheer": 130, "signCheer>idle": 130, "idle>signUrge": 130, "signUrge>idle": 130 },
     "sprite": {
       "flag": ["sp1", 1],
@@ -323,7 +359,12 @@
       "hold2": ["sp3", 2],
       "lift": ["sp3", 3],
       "lift2": ["sp3", 4],
-      "lid": ["sp3", 5]
+      "lid": ["sp3", 5],
+      "sCarry": ["sp4", 1],
+      "sGive": ["sp4", 2],
+      "sPeek": ["sp4", 3],
+      "sListen": ["sp4", 4],
+      "sPlush": ["sp4", 5]
     },
     "spriteStrips": {
       "sIdle": ["spIdle", 240],
@@ -373,6 +414,22 @@
       "doze": "desktop-pet/frames/doze.webp",
       "dragPull": "desktop-pet/frames/dragPull.webp",
       "dragPullZap": "desktop-pet/frames/dragPullZap.webp",
+      "gBatteryPress": "desktop-pet/frames/gBatteryPress.webp",
+      "gCapsuleShake": "desktop-pet/frames/gCapsuleShake.webp",
+      "gEmptyWail": "desktop-pet/frames/gEmptyWail.webp",
+      "gHugIdle": "desktop-pet/frames/gHugIdle.webp",
+      "gPointIn": "desktop-pet/frames/gPointIn.webp",
+      "gPointRub": "desktop-pet/frames/gPointRub.webp",
+      "gPressTurn": "desktop-pet/frames/gPressTurn.webp",
+      "gRubBattery": "desktop-pet/frames/gRubBattery.webp",
+      "gShakeTwist": "desktop-pet/frames/gShakeTwist.webp",
+      "gTakeCapsule": "desktop-pet/frames/gTakeCapsule.webp",
+      "gTurn": "desktop-pet/frames/gTurn.webp",
+      "gTurnTake": "desktop-pet/frames/gTurnTake.webp",
+      "gTwistEmpty": "desktop-pet/frames/gTwistEmpty.webp",
+      "gTwistHug": "desktop-pet/frames/gTwistHug.webp",
+      "gWailWipe": "desktop-pet/frames/gWailWipe.webp",
+      "gWipeIdle": "desktop-pet/frames/gWipeIdle.webp",
       "gameBonk": "desktop-pet/frames/gameBonk.webp",
       "gameBonkZap": "desktop-pet/frames/gameBonkZap.webp",
       "gameCheer": "desktop-pet/frames/gameCheer.webp",
