@@ -104,7 +104,8 @@ moment) and its drawing `pet.mjs` and `effects.mjs`, ported function for functio
 event above to the engine's handler of the same name. The board's numbers measured on her pictures are the current
 character's `desktopPet` (`../characters/README.md`); the shows' timings, effects and the sprite's ways stay here, the same for
 every character. The page plays every row of the 演出表: the 心情, the 日常小动作 and their mishaps (the 扭蛋 coming up empty is
-its mishap: `GACHA`, `gacha`, the cabinet `drawGacha`), entries, gifts, blind boxes,
+its mishap: `GACHA`, `gacha`, the cabinet `drawGacha`; the board's `GACHA` parts measured on her pictures, `win`, `bay`,
+`knob`, `outlet` and `cell`, are her `points.gacha`, its timeline `t` stays in `GACHA`), entries, gifts, blind boxes,
 castles, 大航海, a new first place on the 礼物榜 (found by the 礼物榜页's `../gift-board/changes.mjs`), each step of a lottery,
 a 盲盒查询's 账单卡 and, in a PK, the 对手情报卡 her sprite prints (`pkMatch`, `intelShow`, the card `pk-intel.mjs`, the design
 package's `lib/pk-intel.js`), her 举牌 (`pkCondition`, `pkDouble`, `pkCountdown`: the double bonus's condition, the double on, a

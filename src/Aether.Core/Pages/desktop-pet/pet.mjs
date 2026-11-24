@@ -673,27 +673,27 @@ export class Pet extends Engine {
   // turns) and the cabinet trembles (shake); the battery sinks into its bay (bay); the capsule drops into its outlet (cap,
   // its height above it); the empty capsule's halves lie at her feet (st.halves, drawn here with it).
   drawGacha(g, c) {
-    const im = this.props.gacha, k = c.k * c.s, w = im.width * k, h = im.height * k, x0 = GACHA.x - w / 2 + (c.shake || 0), y0 = FOOT.y - h;
+    const im = this.props.gacha, parts = this.art.points.gacha, k = c.k * c.s, w = im.width * k, h = im.height * k, x0 = GACHA.x - w / 2 + (c.shake || 0), y0 = FOOT.y - h;
     if (!c.a) return;
     g.save(); g.globalAlpha = c.a;
     g.drawImage(im, x0, y0, w, h);
     const P = (px, py) => [x0 + px * k, y0 + py * k];
     if (c.jig) {   // the capsules tumbling: the window again, shaken inside its own frame
-      const [wx0, wy0] = P(GACHA.win[0] + 4, GACHA.win[1] + 4), [wx1, wy1] = P(GACHA.win[2] - 4, GACHA.win[3] - 4);
+      const [wx0, wy0] = P(parts.win[0] + 4, parts.win[1] + 4), [wx1, wy1] = P(parts.win[2] - 4, parts.win[3] - 4);
       g.save(); g.beginPath(); g.rect(wx0, wy0, wx1 - wx0, wy1 - wy0); g.clip();
       g.drawImage(im, x0 + c.jig[0], y0 + c.jig[1], w, h); g.restore();
     }
     if (c.knob) {   // the knob turning
-      const [kx, ky] = P(GACHA.knob[0], GACHA.knob[1]), r = GACHA.knob[2] * k;
+      const [kx, ky] = P(parts.knob[0], parts.knob[1]), r = parts.knob[2] * k;
       g.save(); g.beginPath(); g.arc(kx, ky, r, 0, Math.PI * 2); g.clip();
       g.translate(kx, ky); g.rotate(c.knob * Math.PI * 2); g.translate(-kx, -ky); g.drawImage(im, x0, y0, w, h); g.restore();
     }
     if (c.bay && c.bay.a > 0) {   // the battery in its bay, sinking out of sight below the bay's rim
-      const b = this.props.battery, [bx, by] = P(GACHA.bay[0], GACHA.bay[1]), bw = b.width * k, bh = b.height * k;
+      const b = this.props.battery, [bx, by] = P(parts.bay[0], parts.bay[1]), bw = b.width * k, bh = b.height * k;
       g.save(); g.beginPath(); g.rect(bx - bw, by - bh / 2 - 2, bw * 2, bh + 2); g.clip();
       g.globalAlpha = c.a * c.bay.a; g.drawImage(b, bx - bw / 2, by - bh / 2 + c.bay.y, bw, bh); g.restore();
     }
-    if (c.cap) { const [ox, oy] = P(GACHA.outlet[0], GACHA.outlet[1]); this.capsule(g, ox, oy + c.cap.y * k - GACHA.capR * k, GACHA.capR * k, 0); }
+    if (c.cap) { const [ox, oy] = P(parts.outlet[0], parts.outlet[1]); this.capsule(g, ox, oy + c.cap.y * k - GACHA.capR * k, GACHA.capR * k, 0); }
     g.restore();
   }
 

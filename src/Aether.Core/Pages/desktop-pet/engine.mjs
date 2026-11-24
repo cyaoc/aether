@@ -216,9 +216,9 @@ for (const [kind, sp] of Object.entries(SPORTS)) DAILY[kind] = [1100 + sp.act[1]
 // right; she hops over, presses the battery into its bay, turns the knob, squats to take the capsule out, hops back,
 // shakes it by her ear and twists it open: the plush pops out (she hugs it, the sprite takes it home) or it is empty (she
 // wails, the sprite pats her head, she wipes her tears). The cabinet (her prop gacha, taller than her) stands with its
-// bottom middle at x on her ground line; its parts in its picture's px: the window, the bay, the knob, the outlet.
-// cell: its left edge in the cells of the gacha22 sheet, where she was drawn in front of it (gachaX lines her up).
-export const GACHA = { x: 392, cell: 265, win: [22, 100, 215, 278], bay: [164.5, 334], knob: [66, 335, 40], outlet: [117, 430], capR: 13,
+// bottom middle at x on her ground line; its parts, and its edge in the cells she was drawn in front of it, are measured
+// on her pictures (her desktopPet's points.gacha).
+export const GACHA = { x: 392, capR: 13,
   // the show's steps (ms); won: the plush's ending, lost: the empty one's
   t: { fetch: 900, back: 1700, give: 2300, spin: 2700, up: 3300, hop: [3600, 4200], press: 4200, drop: 4700, turn: 4900,
     out: 7000, take: 7300, stand: 7900, home: [8300, 8900], shake: 8900, twist: 9900, open: 10400,
@@ -1931,7 +1931,7 @@ export class Engine extends EventTarget {
     else if (t < T.home[1]) { st.pose = 'gCapsule'; if (t < T.home[0]) st.x = take; else hops(T.home[0], T.home[1], take, FOOT.x, 2); }
     if (t >= T.drop) g.bay = { y: 14 * ease(k01(t, T.drop + 150, T.drop + 550)), a: 1 - k01(t, T.drop + 350, T.drop + 550) };   // in, and down out of sight
     if (t >= T.turn && t < T.out) { const u = t - T.turn; g.knob = u / 260; g.jig = [2.2 * Math.sin(u / 40), 1.6 * Math.sin(u / 55)]; g.shake = 0.8 * Math.sin(u / 35); }
-    if (t >= T.out && t < T.take + 180) g.cap = { y: -(GACHA.outlet[1] - GACHA.win[3]) * (1 - ease(k01(t, T.out, T.out + 220))) - 10 * bump(t, T.out + 220, T.out + 380) };
+    if (t >= T.out && t < T.take + 180) g.cap = { y: -(this.art.points.gacha.outlet[1] - this.art.points.gacha.win[3]) * (1 - ease(k01(t, T.out, T.out + 220))) - 10 * bump(t, T.out + 220, T.out + 380) };
     // as she hops over it goes ahead to the top of the cabinet's sign (following her, it crossed her face)
     if (t < T.turn) { st.sprite = 'sHappy'; st.sp = ['at', left + 25 * k, top + 60 * k]; }
     else if (t < T.out) { st.sprite = 'sPeek'; st.sp = ['at', left + 175 * k, top + 160 * k + 2 * Math.sin(t / 120)]; st.fx.push(['sweat', T.turn + 600, 900]); }
@@ -1997,10 +1997,10 @@ export class Engine extends EventTarget {
   }
 
   // Where she stands (her drawing's centre) for a drawing of hers at the cabinet, so the cabinet in its cell meets the one on
-  // the page: the cell's cabinet edge at GACHA.cell, the page's at the cabinet picture's left.
+  // the page: the cell's cabinet edge at points.gacha.cell, the page's at the cabinet picture's left.
   gachaX(pose) {
     const c = this.cells.gacha22?.[this.art.poses[pose][1]], k = H / this.art.anchor, left = GACHA.x - this.props.gacha.width * k / 2;
-    return c ? left - (c.ox + GACHA.cell - c.cx) * H / c.ruler : FOOT.x;
+    return c ? left - (c.ox + this.art.points.gacha.cell - c.cx) * H / c.ruler : FOOT.x;
   }
 
   // A sport (SPORTS): the sprite joins in (cheers her lifts with its flag, leads her hike, flies beside her bike or skis); if
