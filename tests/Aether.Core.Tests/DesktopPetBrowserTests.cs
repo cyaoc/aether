@@ -300,42 +300,26 @@ public sealed class DesktopPetBrowserTests
     }
 
     [Fact]
-    public async Task A_first_PK_sign_show_while_her_signs_pictures_still_load_has_her_stand_as_she_was()
-    {
-        await using var page = await StartAsync();
-        await page.OpenAsync(480, 640);
-
+    public Task A_first_PK_sign_show_while_her_signs_pictures_still_load_has_her_stand_as_she_was() =>
         // (her sign's sheet loads as the show starts, not with the page)
-        var drawn = await page.Browser.EvaluateAsync("""
+        AssertOnAFreshPageAsync("""
             (() => {
               const loaded = !!pet.cells[pet.art.poses.signUp[0]];
               pet.start('pkLastSeconds', {}); pet.frame();
               return JSON.stringify([loaded, pet.hv.pose, pet.signShown]);
             })()
-            """);
-
-        Assert.Equal("""[false,"idle",false]""", drawn.GetString());
-        Assert.Empty(page.Browser.Errors);
-    }
+            """, """[false,"idle",false]""");
 
     [Fact]
-    public async Task A_first_扭蛋_while_its_pictures_still_load_has_her_stand_as_she_was()
-    {
-        await using var page = await StartAsync();
-        await page.OpenAsync(480, 640);
-
+    public Task A_first_扭蛋_while_its_pictures_still_load_has_her_stand_as_she_was() =>
         // (its sheets, her sprite's carrying the battery among them, load as it starts, not with the page)
-        var drawn = await page.Browser.EvaluateAsync("""
+        AssertOnAFreshPageAsync("""
             (() => {
               const loaded = !!pet.cells.sp4;
               pet.start('gacha', {}); pet.master.currentTime += 2000; const st = pet.stateAt(pet.now()); pet.frame();
               return JSON.stringify([loaded, st.pose, st.sprite, !!st.gacha]);
             })()
-            """);
-
-        Assert.Equal("""[false,"idle","sIdle",false]""", drawn.GetString());
-        Assert.Empty(page.Browser.Errors);
-    }
+            """, """[false,"idle","sIdle",false]""");
 
     [Theory]
     [InlineData("pkOpponent", "intelHeld", "intelBack")]
@@ -466,6 +450,16 @@ public sealed class DesktopPetBrowserTests
             Assert.True(compare.ExitCode == 0, $"{output}pictures of the moments that differ: {differences}");
         }
         finally { server.Kill(); }
+    }
+
+    /// <summary>Runs <paramref name="script"/> on a page just opened, where only what it loads with has loaded yet, and checks
+    /// it returns <paramref name="expected"/> without errors.</summary>
+    private static async Task AssertOnAFreshPageAsync(string script, string expected)
+    {
+        await using var page = await StartAsync();
+        await page.OpenAsync(480, 640);
+        Assert.Equal(expected, (await page.Browser.EvaluateAsync(script)).GetString());
+        Assert.Empty(page.Browser.Errors);
     }
 
     private static Process Node(params string[] arguments)

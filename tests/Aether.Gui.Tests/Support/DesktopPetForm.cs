@@ -23,6 +23,10 @@ internal static class DesktopPetForm
         tests.SelectedItem = tests.Items.Cast<DesktopPetTest>().Single(test => test.Label == label);
     }
 
+    /// <summary>The labels of the 试演 offered.</summary>
+    public static IEnumerable<string> TestLabels(DesktopPetSettingsPage page) =>
+        page.FindControl<ComboBox>("TestShowInput")!.Items.Cast<DesktopPetTest>().Select(test => test.Label);
+
     public static ToggleSwitch Switch(DesktopPetSettingsPage page, string name) => Shown<ToggleSwitch>(page, name);
 
     public static NumericUpDown Number(DesktopPetSettingsPage page, string name) => Shown<NumericUpDown>(page, name);
