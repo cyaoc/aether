@@ -12,7 +12,7 @@ const SPRITE_SPEED = 0.8;
 // Her speech bubble, all of it, at 28 px text instead of 18, legible on a phone at 1080p (README 7).
 const BUBBLE_SCALE = 28 / 18, BUBBLE_FONT = `500 ${18 * BUBBLE_SCALE}px ${SANS}`;
 // The sprite keeps these drawings while it flies, since they carry something.
-const CARRY = new Set(['crown', 'glow', 'lift', 'lift2', 'lid']);
+const CARRY = new Set(['crown', 'glow', 'lift', 'lift2', 'lid', 'sCarry', 'sGive', 'sPlush']);   // (sCarry, sGive, sPlush: the 扭蛋 daily's battery and plush, never dropped in flight)
 // The sheets a show or 日常小动作 needs beyond those she always has: they load when it starts (the lottery's too as she waits
 // through one, the chest game's when the 捣蛋鬼 is to come), not with the page, which would decode all her pictures at once
 // (design package README 11).
@@ -449,8 +449,10 @@ export class Pet extends Engine {
     if (st.pose !== hv.pose) Object.assign(hv, { tween: this.route(hv.pose, st.pose), ms: this.art.slow[`${hv.pose}>${st.pose}`] || 90, pose: st.pose, at: rt, since: this.clock, fromX: hv.x ?? st.x });
     // she breathes in every pose, in-between frames too (breathing that stopped when she left her idle pose made her head
     // jump up to 3 px at the change): her drawing scaled at her feet, a touch taller and narrower, then shorter and wider.
-    // Some in-betweens are played slower (slow: her hair settling under the sprite's magic, her curling up to sulk).
-    const i = Math.floor(el(hv.at) / (hv.ms || 90)), s = 1 + 0.012 * Math.sin(now / 600), c = hv.tween?.[i] || this.cell(hv.pose);
+    // Some in-betweens are played slower (slow: her hair settling under the sprite's magic, her curling up to sulk), and slow
+    // may give each frame its own time: [frame 2, frame 3], then 90 ms for any further frames of a route.
+    const e = el(hv.at), i = Array.isArray(hv.ms) ? (() => { let n = 0, acc = 0; while (e >= acc + (hv.ms[n] ?? 90)) acc += hv.ms[n++] ?? 90; return n; })() : Math.floor(e / (hv.ms || 90));
+    const s = 1 + 0.012 * Math.sin(now / 600), c = hv.tween?.[i] || this.cell(hv.pose);
     // In the chest game her place goes with her pose (her fists on the ring, wherever each drawing has them): through the
     // in-betweens she moves from where the earlier pose stood to the later one's, a share at each frame (st.slide), not all
     // at once on the first of them.
