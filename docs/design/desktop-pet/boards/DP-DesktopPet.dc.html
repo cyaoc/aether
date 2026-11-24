@@ -199,6 +199,9 @@ const TRANS = {
 const CUT = new Set(['govPoint>govJump', 'govJump>govPoint', 'idle>capSalute', 'idle>spyglass', 'pIdle>idle', 'idle>spin',
   'tug>tugZap',   // (the chest game: her hair frizzes in the lightning's flash)
   'signCheer>signJump', 'signJump>signCheer']);   // (B站 PK: in the air her legs tuck up; her hands and the sign go on where they were)
+// In-betweens played only as that change itself, never on the way to another pose (route), either way round: the 扭蛋's
+// capsule twisted open and what comes out, the plush or nothing (cut short before it opens, she goes on without opening it).
+const NO_WAY_THROUGH = new Set(['gShake>gTwist', 'gTwist>gHug', 'gTwist>gEmpty']);
 const SPRITE = { flag: ['sp1', 1], nod: ['sp1', 2], surprised: ['sp1', 3], yawn: ['sp1', 4], sleep: ['sp1', 5], pat: ['sp2', 1], crown: ['sp2', 2], sailor: ['sp2', 3], glow: ['sp2', 4], hide: ['sp2', 5], hold: ['sp3', 1], hold2: ['sp3', 2], lift: ['sp3', 3], lift2: ['sp3', 4], lid: ['sp3', 5],
   // the 扭蛋 daily: carrying the battery, handing it over, peeking at the window, listening to the capsule, hugging the plush
   sCarry: ['sp4', 1], sGive: ['sp4', 2], sPeek: ['sp4', 3], sListen: ['sp4', 4], sPlush: ['sp4', 5] };
@@ -3271,17 +3274,19 @@ class Component extends DCLogic {
   // An event can start, or take over a lesser one, whatever she is doing (humming, sitting bored, lying by her bike),
   // and most of those pairs have no in-betweens of their own. So she goes the shortest way through poses that have them
   // (at most five steps; standing is tried first, so it is the usual way through, and a movement played forwards before
-  // one played backwards, so after a fall she gets up rather than the fall running back), playing their frames one
-  // after another; null where there is no way (then the new pose just comes in).
+  // one played backwards, so after a fall she gets up rather than the fall running back, and never through a change kept
+  // to itself, NO_WAY_THROUGH), playing their frames one after another; null where there is no way (then the new pose just
+  // comes in).
   route(a, b) {
     const memo = this.routes ??= {}, key = `${a}>${b}`;
     if (key in memo) return memo[key];
     const from = { [a]: null }, forwards = (p, n) => this.tweens[`${p}>${n}`] || CUT.has(`${p}>${n}`);
+    const kept = (p, n) => `${p}>${n}` !== key && (NO_WAY_THROUGH.has(`${p}>${n}`) || NO_WAY_THROUGH.has(`${n}>${p}`));
     let ring = [a];
     for (let depth = 0; depth < 5 && ring.length && !(b in from); depth++) {
       const next = [];
       for (const back of [false, true]) for (const p of ring) for (const n of Object.keys(POSE)) {
-        if (!(n in from) && this.hop(p, n) && !forwards(p, n) === back) { from[n] = p; next.push(n); }
+        if (!(n in from) && this.hop(p, n) && !kept(p, n) && !forwards(p, n) === back) { from[n] = p; next.push(n); }
       }
       ring = next;
     }
