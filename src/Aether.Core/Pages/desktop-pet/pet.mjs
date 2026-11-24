@@ -481,12 +481,15 @@ export class Pet extends Engine {
     g.rotate(-s.a); g.translate(-x, -y); g.clip(); g.drawImage(c.im, c.x, c.y, c.w, c.h, b.x, b.y, b.w, b.h); g.restore();
   }
 
+  // Whether the sheets the show name loads as it first plays (SEGMENTS) are all there.
+  loaded(name) { return SEGMENTS[name].every(k => this.cells[k]); }
+
   // Her sign's sheet loads as her first sign show starts (SEGMENTS): until it is there she stands as she was and no sign flies.
-  signShow(name, t, st, opts, say) { if (SEGMENTS[name].every(k => this.cells[k])) super.signShow(name, t, st, opts, say); }
+  signShow(name, t, st, opts, say) { if (this.loaded(name)) super.signShow(name, t, st, opts, say); }
 
   // Her 扭蛋's sheets, her sprite's carrying the battery and the plush too, load as it first plays (SEGMENTS): until they are
   // there she stands as she was and no cabinet comes.
-  gacha(t, st, o, line) { return SEGMENTS.gacha.every(k => this.cells[k]) ? super.gacha(t, st, o, line) : st; }
+  gacha(t, st, o, line) { return this.loaded('gacha') ? super.gacha(t, st, o, line) : st; }
 
   // The sprite flies to where it is wanted instead of jumping there; its speed decides which way it faces.
   follow(target, dt, st) {
