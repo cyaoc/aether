@@ -1947,12 +1947,12 @@ export class Engine extends EventTarget {
       // the plush pops out of the capsule and into her arms; she hugs it, hopping; the sprite circles her, spins the cabinet
       // away, takes the plush and flies it home
       // the plush: out of her hands, growing as it rises over her head with a little wobble, hanging there bobbing, then
-      // down into her arms where her drawing hugs it (41 px right of her centre, 87 px up: the gHug cell), fading into it
-      const u = t - T.open;
+      // down into her arms where her drawing hugs it (points.gacha.hug, measured on the gHug cell), fading into it
+      const u = t - T.open, [hugX, hugY] = this.art.points.gacha.hug;
       if (u < W.down + 60) {
         const r = 1 - Math.pow(1 - k01(u, 0, W.rise), 3), d = ease(k01(u, W.hang, W.down));
         const hx = FOOT.x + 14 + 18 * r, hy = FOOT.y - 0.3 * H + (FOOT.y - H - 10 - (FOOT.y - 0.3 * H)) * r + (u >= W.rise ? 4 * Math.sin((u - W.rise) / 60) : 0);
-        st.pop = { x: hx + (FOOT.x + 41 - hx) * d, y: hy + (FOOT.y - 87 - hy) * d, s: 0.25 + 0.75 * r, a: 1 - k01(u, W.down, W.down + 60) };
+        st.pop = { x: hx + (FOOT.x + hugX - hx) * d, y: hy + (FOOT.y - hugY - hy) * d, s: 0.25 + 0.75 * r, a: 1 - k01(u, W.down, W.down + 60) };
         if (u < W.rise) st.fx.push(['sparkles', T.open]);
       }
       st.halves = this.halves(t, T.open, 'pop', 1 - k01(t, W.gone[0], W.gone[1]));
