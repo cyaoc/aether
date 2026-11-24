@@ -424,17 +424,19 @@ export class Pet extends Engine {
   // A show can start, or take over a lesser one, whatever she is doing (humming, sitting bored, lying by her bike),
   // and most of those pairs have no in-betweens of their own. So she goes the shortest way through poses that have them
   // (at most five steps; standing is tried first, so it is the usual way through, and a movement played forwards before
-  // one played backwards, so after a fall she gets up rather than the fall running back), playing their frames one
-  // after another; null where there is no way (then the new pose just comes in).
+  // one played backwards, so after a fall she gets up rather than the fall running back, and never through a change kept
+  // to itself, noWayThrough), playing their frames one after another; null where there is no way (then the new pose just
+  // comes in).
   route(a, b) {
     const memo = this.routes ??= {}, key = `${a}>${b}`;
     if (key in memo) return memo[key];
     const from = { [a]: null }, forwards = (p, n) => this.tweens[`${p}>${n}`] || this.art.cuts.includes(`${p}>${n}`);
+    const kept = (p, n) => `${p}>${n}` !== key && (this.art.noWayThrough.includes(`${p}>${n}`) || this.art.noWayThrough.includes(`${n}>${p}`));
     let ring = [a];
     for (let depth = 0; depth < 5 && ring.length && !(b in from); depth++) {
       const next = [];
       for (const back of [false, true]) for (const p of ring) for (const n of Object.keys(this.art.poses)) {
-        if (!(n in from) && this.hop(p, n) && !forwards(p, n) === back) { from[n] = p; next.push(n); }
+        if (!(n in from) && this.hop(p, n) && !kept(p, n) && !forwards(p, n) === back) { from[n] = p; next.push(n); }
       }
       ring = next;
     }

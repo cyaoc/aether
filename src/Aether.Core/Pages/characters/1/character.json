@@ -347,6 +347,7 @@
       "skiShake>idle": "skiOut"
     },
     "cuts": ["govPoint>govJump", "govJump>govPoint", "idle>capSalute", "idle>spyglass", "pIdle>idle", "idle>spin", "tug>tugZap", "signCheer>signJump", "signJump>signCheer"],
+    "noWayThrough": ["gShake>gTwist", "gTwist>gHug", "gTwist>gEmpty"],
     "slow": { "robbedZap>robbed": 300, "cheerZap>cheer": 300, "robbed>gloomy": 260, "gPress>gTurn": 230, "gTurn>gTake": 200, "gTwist>gHug": [820, 120],
       "idle>signUp": 130, "signUp>idle": 130, "idle>signCheer": 130, "signCheer>idle": 130, "idle>signUrge": 130, "signUrge>idle": 130 },
     "sprite": {
