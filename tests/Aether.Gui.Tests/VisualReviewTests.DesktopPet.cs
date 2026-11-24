@@ -51,6 +51,10 @@ public sealed partial class VisualReviewTests
                 await TurnAsync(page, on: false, "沮丧", "出事");
                 Capture("switches");
                 await TurnAsync(page, on: true, "沮丧", "出事");
+                // 做哪几样 and the mishap note sit below the narrowest window's fold.
+                page.FindControl<ScrollViewer>("MoodsTab")!.ScrollToEnd();
+                GuiHarness.Flush();
+                Capture("daily");
                 GuiHarness.Tab(page, 3);
                 Pick(page, "LineKindList", "大礼物");
                 Capture("lines");

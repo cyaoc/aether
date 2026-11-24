@@ -1,7 +1,7 @@
 // The 桌宠 on the 桌宠页's canvas, drawn as the design package's board draws her (DP-DesktopPet.dc.html), from the current
 // character's Q 版 pictures and the numbers in her manifest (characters/README.md, desktopPet).
 import { canvasOf, loadImage } from '../video/animations/toolkit.mjs';
-import { BALL, BAR, BURST, CHEST, DONE, DROP, Engine, FOOT, GAME, GLOW, H, HANG, HOOK, HOP, INTEL, LUCK, NOTICE, PAGE, PK_H, PK_SIGN, SPRITE_H, bump, clamp, ease, k01, seeded, xfade } from './engine.mjs';
+import { BALL, BAR, BURST, CHEST, DONE, DROP, Engine, FOOT, GACHA, GAME, GLOW, H, HANG, HOOK, HOP, INTEL, LUCK, NOTICE, PAGE, PK_H, PK_SIGN, SPRITE_H, bump, clamp, ease, k01, seeded, xfade } from './engine.mjs';
 import { BACK, drawFx, drawStar, giftBox } from './effects.mjs';
 import { PK_INTEL } from './pk-intel.mjs';
 import { SIGN } from './sign.mjs';
@@ -12,12 +12,12 @@ const SPRITE_SPEED = 0.8;
 // Her speech bubble, all of it, at 28 px text instead of 18, legible on a phone at 1080p (README 7).
 const BUBBLE_SCALE = 28 / 18, BUBBLE_FONT = `500 ${18 * BUBBLE_SCALE}px ${SANS}`;
 // The sprite keeps these drawings while it flies, since they carry something.
-const CARRY = new Set(['crown', 'glow', 'lift', 'lift2', 'lid']);
+const CARRY = new Set(['crown', 'glow', 'lift', 'lift2', 'lid', 'sCarry', 'sGive', 'sPlush']);   // (sCarry, sGive, sPlush: the 扭蛋 daily's battery and plush, never dropped in flight)
 // The sheets a show or 日常小动作 needs beyond those she always has: they load when it starts (the lottery's too as she waits
 // through one, the chest game's when the 捣蛋鬼 is to come), not with the page, which would decode all her pictures at once
 // (design package README 11).
 const SEGMENTS = { hum: ['daily1'], gym: ['gym10'], hike: ['hike11'], bike: ['cycle12'], ski: ['ski9'], castle: ['castleSheet'],
-  captain: ['voyage'], admiral: ['voyage'], governor: ['voyage'], lottery: ['lottery'], game: ['game13', 'game14', 'game15', 'game16', 'game17', 'sp3'],
+  gacha: ['gacha19', 'gacha20', 'gacha22', 'sp4'], captain: ['voyage'], admiral: ['voyage'], governor: ['voyage'], lottery: ['lottery'], game: ['game13', 'game14', 'game15', 'game16', 'game17', 'sp3'],
   pkCondition: ['pkSign'], pkDouble: ['pkSign'], pkDoubleEnding: ['pkSign'], pkLastSeconds: ['pkSign'],
   pkOpponent: ['lottery'], pkResult: ['lottery'], pkSwing: ['lottery'], pkChallenge: ['lottery'] };
 // The 捣蛋鬼's drawings and the chest's, the same for every character (prankster/prankster.json).
@@ -346,6 +346,8 @@ export class Pet extends Engine {
     if (st.castle) this.drawCastle(g, st.castle);
     if (st.ship) this.drawShip(g, st.ship);
     if (st.admShip) this.drawAdmShip(g, st.admShip);
+    if (st.gacha) this.drawGacha(g, st.gacha);
+    if (st.halves?.a) { g.save(); g.globalAlpha = st.halves.a; for (const h of st.halves.pts) this.capsule(g, h.x, h.y, 12, h.rot, h.half); g.restore(); }   // the capsule's halves, off her hands and by her feet
     if (st.emblem) this.drawProp(g, this.props.emblem, st.emblem.x, st.emblem.y + this.props.emblem.height * H / this.art.anchor * st.emblem.s / 2, st.emblem.s, st.emblem.a);
     const rt = performance.now(), dt = Math.min(100, rt - (this.rt ?? rt));
     this.rt = rt;
@@ -369,6 +371,7 @@ export class Pet extends Engine {
     }
     if (sp && st.sBehind) this.drawSprite(g, st, sp, now);
     this.drawHer(g, st, now);
+    if (st.pop) this.drawProp(g, this.props.plush, st.pop.x, st.pop.y, st.pop.s, st.pop.a);   // the plush out of the capsule
     // her PK sign flying, while her drawing holds none; and let go of, from where she held it, small, into her sprite
     const flying = (f, words) => { g.save(); g.translate(f.x, f.y); g.rotate(f.a); g.scale(f.k, f.k); g.translate(-SIGN.W / 2, -SIGN.H / 2); SIGN.draw(g, words); g.restore(); };
     if (st.signFly && !this.signShown) flying(st.signFly, st.sign || []);
@@ -421,17 +424,19 @@ export class Pet extends Engine {
   // A show can start, or take over a lesser one, whatever she is doing (humming, sitting bored, lying by her bike),
   // and most of those pairs have no in-betweens of their own. So she goes the shortest way through poses that have them
   // (at most five steps; standing is tried first, so it is the usual way through, and a movement played forwards before
-  // one played backwards, so after a fall she gets up rather than the fall running back), playing their frames one
-  // after another; null where there is no way (then the new pose just comes in).
+  // one played backwards, so after a fall she gets up rather than the fall running back, and never through a change kept
+  // to itself, noWayThrough), playing their frames one after another; null where there is no way (then the new pose just
+  // comes in).
   route(a, b) {
     const memo = this.routes ??= {}, key = `${a}>${b}`;
     if (key in memo) return memo[key];
     const from = { [a]: null }, forwards = (p, n) => this.tweens[`${p}>${n}`] || this.art.cuts.includes(`${p}>${n}`);
+    const kept = (p, n) => `${p}>${n}` !== key && (this.art.noWayThrough.includes(`${p}>${n}`) || this.art.noWayThrough.includes(`${n}>${p}`));
     let ring = [a];
     for (let depth = 0; depth < 5 && ring.length && !(b in from); depth++) {
       const next = [];
       for (const back of [false, true]) for (const p of ring) for (const n of Object.keys(this.art.poses)) {
-        if (!(n in from) && this.hop(p, n) && !forwards(p, n) === back) { from[n] = p; next.push(n); }
+        if (!(n in from) && this.hop(p, n) && !kept(p, n) && !forwards(p, n) === back) { from[n] = p; next.push(n); }
       }
       ring = next;
     }
@@ -449,8 +454,10 @@ export class Pet extends Engine {
     if (st.pose !== hv.pose) Object.assign(hv, { tween: this.route(hv.pose, st.pose), ms: this.art.slow[`${hv.pose}>${st.pose}`] || 90, pose: st.pose, at: rt, since: this.clock, fromX: hv.x ?? st.x });
     // she breathes in every pose, in-between frames too (breathing that stopped when she left her idle pose made her head
     // jump up to 3 px at the change): her drawing scaled at her feet, a touch taller and narrower, then shorter and wider.
-    // Some in-betweens are played slower (slow: her hair settling under the sprite's magic, her curling up to sulk).
-    const i = Math.floor(el(hv.at) / (hv.ms || 90)), s = 1 + 0.012 * Math.sin(now / 600), c = hv.tween?.[i] || this.cell(hv.pose);
+    // Some in-betweens are played slower (slow: her hair settling under the sprite's magic, her curling up to sulk), and slow
+    // may give each frame its own time: [frame 2, frame 3], then 90 ms for any further frames of a route.
+    const e = el(hv.at), i = Array.isArray(hv.ms) ? (() => { let n = 0, acc = 0; while (e >= acc + (hv.ms[n] ?? 90)) acc += hv.ms[n++] ?? 90; return n; })() : Math.floor(e / (hv.ms || 90));
+    const s = 1 + 0.012 * Math.sin(now / 600), c = hv.tween?.[i] || this.cell(hv.pose);
     // In the chest game her place goes with her pose (her fists on the ring, wherever each drawing has them): through the
     // in-betweens she moves from where the earlier pose stood to the later one's, a share at each frame (st.slide), not all
     // at once on the first of them.
@@ -476,8 +483,15 @@ export class Pet extends Engine {
     g.rotate(-s.a); g.translate(-x, -y); g.clip(); g.drawImage(c.im, c.x, c.y, c.w, c.h, b.x, b.y, b.w, b.h); g.restore();
   }
 
+  // Whether the sheets the show name loads as it first plays (SEGMENTS) are all there.
+  loaded(name) { return SEGMENTS[name].every(k => this.cells[k]); }
+
   // Her sign's sheet loads as her first sign show starts (SEGMENTS): until it is there she stands as she was and no sign flies.
-  signShow(name, t, st, opts, say) { if (SEGMENTS[name].every(k => this.cells[k])) super.signShow(name, t, st, opts, say); }
+  signShow(name, t, st, opts, say) { if (this.loaded(name)) super.signShow(name, t, st, opts, say); }
+
+  // Her 扭蛋's sheets, her sprite's carrying the battery and the plush too, load as it first plays (SEGMENTS): until they are
+  // there she stands as she was and no cabinet comes.
+  gacha(t, st, o, line) { return this.loaded('gacha') ? super.gacha(t, st, o, line) : st; }
 
   // The sprite flies to where it is wanted instead of jumping there; its speed decides which way it faces.
   follow(target, dt, st) {
@@ -657,6 +671,46 @@ export class Pet extends Engine {
       g.save(); g.translate(b.x + u * 0.12, top + lidH * k / 2 - u * 0.55 + 0.0004 * u * u); g.rotate(u / 400);
       this.drawProp(g, box, 0, lidH * k / 2, b.s, 1 - u / 900, [0, 0, box.width, lidH]); g.restore();
     }
+  }
+
+  // The cabinet (st.gacha): popping up and shrinking away with its alpha a and scale s about its bottom middle; while she
+  // turns the knob the capsules in its window tumble (the window drawn again, shaken, jig), the knob turns (knob, in
+  // turns) and the cabinet trembles (shake); the battery sinks into its bay (bay); the capsule drops into its outlet (cap,
+  // its height above it); the empty capsule's halves lie at her feet (st.halves, drawn here with it).
+  drawGacha(g, c) {
+    const im = this.props.gacha, parts = this.art.points.gacha, k = c.k * c.s, w = im.width * k, h = im.height * k, x0 = GACHA.x - w / 2 + (c.shake || 0), y0 = FOOT.y - h;
+    if (!c.a) return;
+    g.save(); g.globalAlpha = c.a;
+    g.drawImage(im, x0, y0, w, h);
+    const P = (px, py) => [x0 + px * k, y0 + py * k];
+    if (c.jig) {   // the capsules tumbling: the window again, shaken inside its own frame
+      const [wx0, wy0] = P(parts.win[0] + 4, parts.win[1] + 4), [wx1, wy1] = P(parts.win[2] - 4, parts.win[3] - 4);
+      g.save(); g.beginPath(); g.rect(wx0, wy0, wx1 - wx0, wy1 - wy0); g.clip();
+      g.drawImage(im, x0 + c.jig[0], y0 + c.jig[1], w, h); g.restore();
+    }
+    if (c.knob) {   // the knob turning
+      const [kx, ky] = P(parts.knob[0], parts.knob[1]), r = parts.knob[2] * k;
+      g.save(); g.beginPath(); g.arc(kx, ky, r, 0, Math.PI * 2); g.clip();
+      g.translate(kx, ky); g.rotate(c.knob * Math.PI * 2); g.translate(-kx, -ky); g.drawImage(im, x0, y0, w, h); g.restore();
+    }
+    if (c.bay && c.bay.a > 0) {   // the battery in its bay, sinking out of sight below the bay's rim
+      const b = this.props.battery, [bx, by] = P(parts.bay[0], parts.bay[1]), bw = b.width * k, bh = b.height * k;
+      g.save(); g.beginPath(); g.rect(bx - bw, by - bh / 2 - 2, bw * 2, bh + 2); g.clip();
+      g.globalAlpha = c.a * c.bay.a; g.drawImage(b, bx - bw / 2, by - bh / 2 + c.bay.y, bw, bh); g.restore();
+    }
+    if (c.cap) { const [ox, oy] = P(parts.outlet[0], parts.outlet[1]); this.capsule(g, ox, oy + c.cap.y * k - GACHA.capR * k, GACHA.capR * k, 0); }
+    g.restore();
+  }
+
+  // A capsule (the one she holds: clear pale pink over white), or one half of it lying on its dome (half: -1 the pink
+  // top half, 1 the white bottom half).
+  capsule(g, x, y, r, rot, half) {
+    g.save(); g.translate(x, y); g.rotate(rot); g.lineWidth = 1.6; g.strokeStyle = '#4A2E2A';
+    const dome = (from, to, fill) => { g.beginPath(); g.arc(0, 0, r, from, to); g.closePath(); g.fillStyle = fill; g.fill(); g.stroke(); };
+    if (half !== 1) dome(Math.PI, Math.PI * 2, 'rgba(255,170,198,0.92)');
+    if (half !== -1) dome(0, Math.PI, '#FFFFFF');
+    g.fillStyle = 'rgba(255,255,255,0.8)'; g.beginPath(); g.ellipse(-r * 0.35, -r * 0.45, r * 0.25, r * 0.15, -0.5, 0, Math.PI * 2); g.fill();
+    g.restore();
   }
 
   // ---- the chest game's drawings (gameState places them) -------------------------------------------------------------

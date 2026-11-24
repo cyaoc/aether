@@ -233,9 +233,9 @@ public sealed class DesktopPetSettingsTests
     public Task The_chest_game_lines_are_edited_like_hers_and_its_say_its_bubble_is_narrow_while_the_shows_tab_lists_none() => WithPage(async (page, harness) =>
     {
         Assert.DoesNotContain("小游戏·她", page.FindControl<ListBox>("ShowGroupList")!.Items.Cast<DesktopPetShowGroup>().Select(group => group.Group.Label));
-        Assert.DoesNotContain("守住了", page.FindControl<ComboBox>("TestShowInput")!.Items.Cast<DesktopPetTest>().Select(test => test.Label));
+        Assert.DoesNotContain("守住了", TestLabels(page));
         GuiHarness.Tab(page, 3);
-        Assert.Subset(page.FindControl<ListBox>("LineKindList")!.Items.OfType<DesktopPetLineKind>().Select(kind => kind.Kind.Label).ToHashSet(),
+        Assert.Subset(LineKindLabels(page).ToHashSet(),
             new HashSet<string> { "别丢啦", "绝杀守住", "点名", "回嘴", "露破绽", "趁现在", "收下小花花", "绝杀得手" });
         Pick(page, "LineKindList", "守住了");
         Assert.Contains("把它打跑、宝箱回家时；每次随机一句，不连着重复", Texts(page));
@@ -384,17 +384,47 @@ public sealed class DesktopPetSettingsTests
         string[] rows = ["对手情报卡", "双倍条件", "双倍挑战", "2倍加成中", "双倍还剩10秒", "最后10秒", "中途比分", "PK 结果"];
         Assert.Equal(rows, page.FindControl<ItemsControl>("ShowRows")!.Items.Cast<DesktopPetShowRow>().Select(row => row.Show.Label));
         Assert.All(rows, row => Assert.True(Switch(page, row).IsEnabled));
-        Assert.Subset(page.FindControl<ComboBox>("TestShowInput")!.Items.Cast<DesktopPetTest>().Select(test => test.Label).ToHashSet(),
+        Assert.Subset(TestLabels(page).ToHashSet(),
             new HashSet<string> { "对手情报卡", "最后10秒", "双倍挑战：挑战失败", "中途比分：被追近", "PK 结果：险胜", "PK 结果：输" });
         Switch(page, "PK 结果").IsChecked = false;
         GuiHarness.Tab(page, 3);
-        Pick(page, "LineKindList", "惨败·收尾");
-        Assert.Contains("惨败后，她站起来鞠躬时；每次随机一句，不连着重复", Texts(page));
-        Assert.Equal(Character.Current.Lines["pkBigLossAfter"][0], Line(page, 1).Text);
+        PickLines(page, "惨败·收尾", "惨败后，她站起来鞠躬时；每次随机一句，不连着重复", "pkBigLossAfter");
 
         await GuiHarness.SaveAsync(page);
         Assert.Equal(["pkResult"], Settings.Load(harness.DataDirectory).DesktopPetShowsOff.Value);
     });
+
+    [Fact]
+    public Task The_gacha_is_a_sixth_daily_on_in_a_file_from_before_it_its_lines_are_edited_like_the_others_and_turned_off_it_saves_by_its_id() =>
+        WithPage(async (page, harness) =>
+    {
+        GuiHarness.Tab(page, 1);
+        Assert.Equal(["哼歌", "举哑铃", "爬山", "骑车", "滑雪", "扭蛋"],
+            page.FindControl<ItemsControl>("DailyRows")!.Items.Cast<DesktopPetShowRow>().Select(row => row.Show.Label));
+        Assert.Equal((false, true), (Switch(page, "哼歌").IsChecked, Switch(page, "扭蛋").IsChecked));
+        Assert.Contains("砸到脚、破音、摔一跤、扭蛋落空", Texts(page));
+        Assert.Subset(TestLabels(page).ToHashSet(), new HashSet<string> { "扭蛋", "扭蛋：出事" });
+        Switch(page, "扭蛋").IsChecked = false;
+        GuiHarness.Tab(page, 3);
+        Assert.Subset(LineKindLabels(page).ToHashSet(),
+            new HashSet<string> { "扭蛋", "扭中了", "扭空", "没扭中", "打起精神" });
+        PickLines(page, "扭空", "拧开扭蛋是空的、愣住时；每次随机一句，不连着重复", "gachaEmpty");
+        Line(page, 1).Text = "空的？";
+
+        await GuiHarness.SaveAsync(page);
+        var saved = Settings.Load(harness.DataDirectory);
+        Assert.Equal(["hum", "gacha"], saved.DesktopPetShowsOff.Value);
+        Assert.Equal(["空的？", .. Character.Current.Lines["gachaEmpty"].Skip(1)], saved.DesktopPetChangedLines["gachaEmpty"].Value);
+    }, prepare: harness => harness.SaveSettings(("desktop_pet.shows_off", "[hum]")));
+
+    /// <summary>Picks the kind of lines <paramref name="label"/>: it says <paramref name="note"/>, and its first line is the
+    /// character's first of <paramref name="id"/>.</summary>
+    private static void PickLines(DesktopPetSettingsPage page, string label, string note, string id)
+    {
+        Pick(page, "LineKindList", label);
+        Assert.Contains(note, Texts(page));
+        Assert.Equal(Character.Current.Lines[id][0], Line(page, 1).Text);
+    }
 
     private static Task WithPage(Func<DesktopPetSettingsPage, Task> test) => WithPage((page, _) => test(page));
 

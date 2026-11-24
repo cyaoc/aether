@@ -41,16 +41,18 @@ function routing(character) {
 function poseChanges(character) {
   const engine = gamePet(character), changes = {};
   for (const row of shows.filter(row => row.group !== MOOD)) for (const variant of row.tests) {
-    const opts = { result: variant, mishap: variant === 'Mishap' };
-    engine.start(row.id, opts);
-    let pose = 'idle';
-    for (let t = 0; t <= engine.cur.dur + 20; t += 20) {
-      const next = t > engine.cur.dur ? 'idle' : engine.eventState(row.id, t, { ...opts, seed: 0 }, 'x').pose;
-      if (next !== pose) changes[`${pose}>${next}`] ??= row.id + (variant ? '·' + variant : '');
-      pose = next;
-    }
+    const poses = [...showPoses(engine, row.id, { result: variant, mishap: variant === 'Mishap', seed: 0 }), 'idle'];
+    poses.slice(1).forEach((pose, i) => { if (pose !== poses[i]) changes[`${poses[i]}>${pose}`] ??= row.id + (variant ? '·' + variant : ''); });
   }
   return changes;
+}
+
+// The poses a show plays one after another, from standing in.
+function showPoses(pet, show, opts) {
+  const poses = ['idle'];
+  pet.start(show, opts);
+  for (let t = 0; t <= pet.cur.dur; t += 20) { const pose = pet.eventState(show, t, opts, 'x').pose; if (pose !== poses.at(-1)) poses.push(pose); }
+  return poses;
 }
 
 // Each change of her pose and the 捣蛋鬼's (facing the same way: turning round it simply switches, its in-betweens drawn facing
@@ -82,7 +84,7 @@ for (const folder of readdirSync(new URL('characters/', pages), { withFileTypes:
     const character = read(`characters/${folder}/character.json`), art = character.desktopPet, states = everyState(character);
     for (const pose of new Set(states.map(st => st.pose))) assert.ok(art.sheets[art.poses[pose]?.[0]], `pose ${pose}`);
     for (const drawing of new Set(states.flatMap(st => [st.sprite, st.sView ?? 'v1']))) assert.ok(SINGLES.includes(drawing) || art.sprite[drawing] || art.spriteStrips[drawing], `sprite ${drawing}`);
-    const props = { gift: ['giftbox', 'giftboxOpen', 'balloons'], castle: ['castleClosed', 'castleOpen'], ship: ['flagship'], admShip: ['admship'], emblem: ['emblem'] };
+    const props = { gift: ['giftbox', 'giftboxOpen', 'balloons'], castle: ['castleClosed', 'castleOpen'], ship: ['flagship'], admShip: ['admship'], emblem: ['emblem'], gacha: ['gacha', 'battery'], pop: ['plush'] };
     for (const [thing, names] of Object.entries(props)) if (states.some(st => st[thing])) for (const prop of names) assert.ok(art.props[prop], `prop ${prop}`);
   });
 
@@ -93,11 +95,17 @@ for (const folder of readdirSync(new URL('characters/', pages), { withFileTypes:
   });
 
   test(`character ${folder}'s 被反超 goes from startled to stomping by her standing, never by way of opening a blind box`, () => {
-    const pet = routing(read(`characters/${folder}/character.json`)), opts = { result: 'Overtaken', seed: 0 }, poses = ['idle'];
-    pet.start('pkSwing', opts);
-    for (let t = 0; t <= pet.cur.dur; t += 20) { const pose = pet.eventState('pkSwing', t, opts, 'x').pose; if (pose !== poses.at(-1)) poses.push(pose); }
+    const pet = routing(read(`characters/${folder}/character.json`)), poses = showPoses(pet, 'pkSwing', { result: 'Overtaken', seed: 0 });
     assert.deepEqual(poses, ['idle', 'surprised', 'idle', 'pout', 'idle']);
     assert.deepEqual(poses.slice(1).flatMap((pose, i) => pet.route(poses[i], pose)).filter(pair => pair.includes('Box')), []);
+  });
+
+  test(`character ${folder}'s 扭蛋 cut short before the capsule opens never goes on to open it: from none of its poses to any other show's is there a way through twisting it open, the plush or the empty halves`, () => {
+    const character = read(`characters/${folder}/character.json`), pet = routing(character);
+    const won = showPoses(pet, 'gacha', { mishap: false, seed: 0 }), lost = showPoses(pet, 'gacha', { mishap: true, seed: 0 });
+    const before = won.slice(1, won.indexOf('gTwist') + 1), others = Object.keys(character.desktopPet.poses).filter(pose => pose === 'idle' || ![...won, ...lost].includes(pose));
+    const through = before.flatMap(from => others.flatMap(to => (pet.route(from, to) ?? []).filter(pair => /gTwist|gHug|gEmpty/.test(pair)).map(pair => `${from}>${to}: ${pair}`)));
+    assert.deepEqual([...new Set(through)], []);
   });
 
   test(`character ${folder} has a way across every change of pose on the 宝箱小游戏's routes, and the 捣蛋鬼 its in-betweens or a cut written down`, async () => {
@@ -121,8 +129,9 @@ for (const folder of readdirSync(new URL('characters/', pages), { withFileTypes:
     for (const [drawing, [strip, ms]] of Object.entries(art.spriteStrips)) assert.ok((SINGLES.includes(drawing) || art.sprite[drawing] || /^v[1-3]$/.test(drawing)) && art.frames[strip] && ms > 0, drawing);
     for (const [pose, spot] of Object.entries(art.sameSpot)) assert.equal(art.poses[pose][0], art.poses[spot][0], pose);
     for (const [pose, dx] of Object.entries(art.body)) assert.ok(art.poses[pose] && typeof dx === 'number', pose);
-    for (const pair of art.cuts) assert.ok(pair.split('>').every(pose => art.poses[pose]), pair);
-    const { flagship, admship, castleClosed } = art.points;
-    for (const point of [flagship.deck, flagship.mast, admship.mast, ...admship.rig, castleClosed.gate]) assert.ok(point.length === 2 && point.every(Number.isFinite), 'points');
+    for (const pair of [...art.cuts, ...art.noWayThrough]) assert.ok(pair.split('>').every(pose => art.poses[pose]), pair);
+    const { flagship, admship, castleClosed, gacha } = art.points;
+    for (const point of [flagship.deck, flagship.mast, admship.mast, ...admship.rig, castleClosed.gate, gacha.bay, gacha.outlet, gacha.hug]) assert.ok(point.length === 2 && point.every(Number.isFinite), 'points');
+    assert.deepEqual([gacha.win.length, gacha.knob.length, typeof gacha.cell], [4, 3, 'number'], 'the 扭蛋 cabinet\'s window, knob and cell');
   });
 }

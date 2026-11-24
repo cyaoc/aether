@@ -106,7 +106,7 @@ test('an entry plays only while she is idle, over no show nor 日常小动作, a
   assert.deepEqual([playing(engine), engine.queue], ['gift', []]);
   advance(engine, 2000);
   advance(engine, 40000);
-  assert.ok(['hum', 'gym', 'hike', 'bike', 'ski'].includes(playing(engine)));
+  assert.ok(Object.keys(DAILY).includes(playing(engine)));
   const daily = engine.cur;
   engine.entry(fan(3));
   assert.equal(engine.cur, daily);
@@ -406,7 +406,7 @@ test('a show turned off while it waits its turn does not play', () => {
 });
 
 test('only the 日常小动作 left on come, at the interval set, and none goes wrong at 0 percent', () => {
-  const engine = pet({ off: ['hum', 'gym', 'hike', 'bike'], dailyMinSeconds: 60, dailyMaxSeconds: 60, mishapPercent: 0 });
+  const engine = pet({ off: Object.keys(DAILY).filter(kind => kind !== 'ski'), dailyMinSeconds: 60, dailyMaxSeconds: 60, mishapPercent: 0 });
   for (let n = 0; n < 5; n++) {
     advance(engine, 6000);
     assert.deepEqual([playing(engine), engine.cur.opts.mishap], ['ski', false]);
@@ -429,6 +429,52 @@ test('a 日常小动作 going wrong says a line of its kind at random, never the
     said.push(['甲', '乙', '丙'].filter(line => seen.has(line)));
   }
   assert.deepEqual(said, [['乙'], ['丙']]);
+});
+
+// A 扭蛋 started on her page, won or come up empty, and what she is doing ms into it on the page's clock.
+function gacha(mishap) {
+  const engine = gamePet(character);
+  engine.start('gacha', { mishap });
+  const { start } = engine.cur;
+  return [engine, ms => { engine.master.currentTime = start + ms; return engine.stateAt(engine.now()); }];
+}
+
+test('a 扭蛋 takes her to the cabinet and back: won she hugs the plush, 14.8 s; empty she wails and wipes her tears, 15.2 s', () => {
+  for (const [mishap, poses, end] of [
+    [false, { 0: 'gPointHome', 4300: 'gPress', 5000: 'gTurn', 7400: 'gTake', 9000: 'gShake', 10000: 'gTwist', 11400: 'gHug', 14000: 'idle' }, 14800],
+    [true, { 10500: 'gEmpty', 11400: 'gWail', 13500: 'gWipe', 14700: 'idle' }, 15200]]) {
+    const [engine, at] = gacha(mishap);
+    assert.deepEqual(Object.keys(poses).map(ms => at(+ms).pose), Object.values(poses));
+    at(end - 1);
+    assert.equal(playing(engine), 'gacha');
+    at(end);
+    assert.equal(playing(engine), null);
+  }
+});
+
+test('her sprite hands her the battery and lets go of its drawing holding one 60 ms before hers has it, never two at once', () => {
+  const [, at] = gacha(false);
+  assert.deepEqual([1800, 2239, 2240].map(ms => at(ms).sprite), ['sCarry', 'sGive', 'sHappy']);
+});
+
+test('a gift cutting her 扭蛋 short as she turns the knob takes the cabinet, the battery and the capsule with it', () => {
+  const [engine, at] = gacha(false), turning = at(6000);
+  assert.ok(turning.gacha.knob && turning.gacha.bay);
+  engine.gift(gifts(1, 100));
+  const st = engine.stateAt(engine.now());
+  assert.deepEqual([playing(engine), st.gacha, st.halves, st.pop], ['gift', undefined, undefined, undefined]);
+});
+
+test('a 扭蛋 comes as one of the 日常小动作 left on, empty as often as one goes wrong, and never once turned off', () => {
+  const others = Object.keys(DAILY).filter(kind => kind !== 'gacha');
+  for (const [mishapPercent, empty] of [[100, true], [0, false]]) {
+    const engine = pet({ off: others, mishapPercent });
+    advance(engine, 6000);
+    assert.deepEqual([playing(engine), engine.cur.opts.mishap], ['gacha', empty]);
+  }
+  const engine = pet({ off: ['gacha'], dailyMinSeconds: 1, dailyMaxSeconds: 1 }), seen = new Set();
+  for (let s = 0; s < 800; s++) { advance(engine, 1000); seen.add(playing(engine)); }
+  assert.deepEqual([...seen].filter(Boolean).sort(), others.sort());
 });
 
 test('a 试演 plays a show from its start or holds her in a 心情 until it is stopped', () => {

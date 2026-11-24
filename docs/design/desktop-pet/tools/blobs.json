@@ -260,5 +260,9 @@
  "69a302bd83ae9770583eee91b39873da": "textures/frames/gPressTurn.webp",
  "1cfd3fe88e768e253dfa916b79545d19": "textures/frames/gTurnTake.webp",
  "50b91cf6295672bba9a5742fcb36dbcc": "textures/frames/gTakeCapsule.webp",
- "cc0a9ffdf03ccac0d0261db4c46ec970": "textures/frames/gTurn.webp"
+ "cc0a9ffdf03ccac0d0261db4c46ec970": "textures/frames/gTurn.webp",
+ "9f8d6b6998d1d0b49dc36bcb7c1de19c": "textures/frames/gRub.webp",
+ "198e3496246094b0866a1d74836bbf0b": "textures/frames/gShake.webp",
+ "05a682541c55eb7e29e58f8d687b95e3": "textures/frames/gHug.webp",
+ "d55aa03904c166f81e2a62841651e058": "textures/frames/gWail.webp"
 }

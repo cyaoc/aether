@@ -22,7 +22,7 @@ public sealed class DesktopPetBrowserTests
           return box;
         })()
         """;
-    private static readonly string[] DailySheets = ["pose-3-daily-1", "pose-9-ski", "pose-10-gym", "pose-11-hike", "pose-12-cycle"];
+    private static readonly string[] DailySheets = ["pose-3-daily-1", "pose-9-ski", "pose-10-gym", "pose-11-hike", "pose-12-cycle", "pose-19-gacha", "pose-20-gacha2", "pose-22-gacha3", "sprite-pose-4"];
 
     [Fact]
     public async Task The_page_is_transparent_while_the_desktop_pet_is_off_and_scales_with_the_browser_source_at_three_to_four()
@@ -300,23 +300,26 @@ public sealed class DesktopPetBrowserTests
     }
 
     [Fact]
-    public async Task A_first_PK_sign_show_while_her_signs_pictures_still_load_has_her_stand_as_she_was()
-    {
-        await using var page = await StartAsync();
-        await page.OpenAsync(480, 640);
-
+    public Task A_first_PK_sign_show_while_her_signs_pictures_still_load_has_her_stand_as_she_was() =>
         // (her sign's sheet loads as the show starts, not with the page)
-        var drawn = await page.Browser.EvaluateAsync("""
+        AssertOnAFreshPageAsync("""
             (() => {
               const loaded = !!pet.cells[pet.art.poses.signUp[0]];
               pet.start('pkLastSeconds', {}); pet.frame();
               return JSON.stringify([loaded, pet.hv.pose, pet.signShown]);
             })()
-            """);
+            """, """[false,"idle",false]""");
 
-        Assert.Equal("""[false,"idle",false]""", drawn.GetString());
-        Assert.Empty(page.Browser.Errors);
-    }
+    [Fact]
+    public Task A_first_扭蛋_while_its_pictures_still_load_has_her_stand_as_she_was() =>
+        // (its sheets, her sprite's carrying the battery among them, load as it starts, not with the page)
+        AssertOnAFreshPageAsync("""
+            (() => {
+              const loaded = !!pet.cells.sp4;
+              pet.start('gacha', {}); pet.master.currentTime += 2000; const st = pet.stateAt(pet.now()); pet.frame();
+              return JSON.stringify([loaded, st.pose, st.sprite, !!st.gacha]);
+            })()
+            """, """[false,"idle","sIdle",false]""");
 
     [Theory]
     [InlineData("pkOpponent", "intelHeld", "intelBack")]
@@ -405,7 +408,8 @@ public sealed class DesktopPetBrowserTests
         await page.Browser.EvaluateAsync($"{Clock}.currentTime += 61000; {TwoFrames}");
         Assert.Equal("bored", (await page.Browser.EvaluateAsync("window.pet.mood(window.pet.now())")).GetString());
 
-        await page.ApplyAsync(("desktop_pet.bored_minutes", "0"), ("desktop_pet.shows_off", "[hum, gym, hike, bike]"), ("desktop_pet.mishap_percent", "0"));
+        var allButSki = ShowTable.Current.Shows.Where(show => show.Group == ShowGroup.Daily && show.Id != "ski").Select(show => show.Id);
+        await page.ApplyAsync(("desktop_pet.bored_minutes", "0"), ("desktop_pet.shows_off", $"[{string.Join(", ", allButSki)}]"), ("desktop_pet.mishap_percent", "0"));
         Assert.Equal("""["ski",false]""", (await page.Browser.EvaluateAsync("JSON.stringify([window.pet.cur?.name, window.pet.cur?.opts.mishap])")).GetString());
         Assert.Empty(page.Browser.Errors);
     }
@@ -447,6 +451,16 @@ public sealed class DesktopPetBrowserTests
             Assert.True(compare.ExitCode == 0, $"{output}pictures of the moments that differ: {differences}");
         }
         finally { server.Kill(); }
+    }
+
+    /// <summary>Runs <paramref name="script"/> on a page just opened, where only what it loads with has loaded yet, and checks
+    /// it returns <paramref name="expected"/> without errors.</summary>
+    private static async Task AssertOnAFreshPageAsync(string script, string expected)
+    {
+        await using var page = await StartAsync();
+        await page.OpenAsync(480, 640);
+        Assert.Equal(expected, (await page.Browser.EvaluateAsync(script)).GetString());
+        Assert.Empty(page.Browser.Errors);
     }
 
     private static Process Node(params string[] arguments)

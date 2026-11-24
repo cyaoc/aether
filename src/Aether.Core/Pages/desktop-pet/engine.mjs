@@ -212,6 +212,21 @@ const SPORTS = {
 // the stop, dressing back 0.9 s
 export const DAILY = { hum: [4000, 1500] };
 for (const [kind, sp] of Object.entries(SPORTS)) DAILY[kind] = [1100 + sp.act[1] + sp.calmMs + 900, sp.fallMs - sp.calmMs];
+// The 扭蛋 daily (#403): she points home, the sprite fetches a battery from her chest there, spins the cabinet up at her
+// right; she hops over, presses the battery into its bay, turns the knob, squats to take the capsule out, hops back,
+// shakes it by her ear and twists it open: the plush pops out (she hugs it, the sprite takes it home) or it is empty (she
+// wails, the sprite pats her head, she wipes her tears). The cabinet (her prop gacha, taller than her) stands with its
+// bottom middle at x on her ground line; its parts, and its edge in the cells she was drawn in front of it, are measured
+// on her pictures (her desktopPet's points.gacha).
+export const GACHA = { x: 392, capR: 13,
+  // the show's steps (ms); won: the plush's ending, lost: the empty one's
+  t: { fetch: 900, back: 1700, give: 2300, spin: 2700, up: 3300, hop: [3600, 4200], press: 4200, drop: 4700, turn: 4900,
+    out: 7000, take: 7300, stand: 7900, home: [8300, 8900], shake: 8900, twist: 9900, open: 10400,
+    // won: the plush rises out of the capsule over her head (rise), hangs there (hang), comes down into her arms (down),
+    // and she hugs it (hug, when her in-between with its 820 + 120 ms frames is done: slow)
+    won: { rise: 450, hang: 680, down: 820, hug: 11340, spin: 12800, gone: [13300, 13600], take: 13800, away: 14000, end: 14800 },
+    lost: { empty: 10400, wail: 11300, pat: 11600, wipe: 13400, spin: 13500, gone: [14100, 14400], idle: 14600, end: 15200 } } };
+DAILY.gacha = [GACHA.t.won.end, GACHA.t.lost.end - GACHA.t.won.end];
 
 // ---- The 宝箱小游戏 (#372, #382; design package README 12). Nothing of it is on the page until the 捣蛋鬼 comes, and nothing of
 // it stays: her shows are all as they were, and her chest is at home, off the left of the page, where the game only counts
@@ -1702,7 +1717,7 @@ export class Engine extends EventTarget {
       case 'pkResult': this.pkEndShow(t, st, opts, say, hop); break;
       case 'pkSwing': this.pkGapShow(t, st, opts, say, hop); break;
       case 'pkChallenge': this.pkChallengeShow(t, st, opts, say); break;
-      case 'hum': case 'gym': case 'hike': case 'bike': case 'ski': return this.daily(t, st, { ...opts, kind: name }, line);
+      default: if (DAILY[key]) return this.daily(t, st, { ...opts, kind: key }, line);
     }
     const extra = EVENT_FX[key];
     if (extra) { st.fx.push(...extra.fx); st.shake = extra.shake; }
@@ -1867,6 +1882,7 @@ export class Engine extends EventTarget {
   // line: the show's own line; what she says as it goes wrong is a line of its kind (key).
   daily(t, st, o, line) {
     if (SPORTS[o.kind]) return this.sport(t, st, o, line);
+    if (o.kind === 'gacha') return this.gacha(t, st, o, line);
     // humming: the sprite sways along; when her voice cracks it hides its head
     const main = DAILY[o.kind][0];
     st._t = t;
@@ -1874,6 +1890,117 @@ export class Engine extends EventTarget {
     if (t < main) { st.pose = 'hum'; st.fx.push(['notes', 0]); st.sprite = 'sHappy'; st.sp = ['home', 6 * Math.sin(2 * Math.PI * t / 1280), 0]; say(200); return st; }
     st.pose = 'crack'; st.sprite = 'hide'; st.fx.push(['brokenNote', main], ['shock', main], ['sweat', main + 300]); say(main, 'voiceCrack');
     return st;
+  }
+
+  // The 扭蛋 daily (GACHA): won (o.mishap false) the plush, lost an empty capsule. She moves only by hopping (never a slide)
+  // and stands in front of the cabinet where each of her drawings at it has her (gachaX); the cabinet and what happens in
+  // it are drawn by drawGacha behind her, the plush popping out of the capsule in front of her.
+  gacha(t, st, o, line) {
+    st._t = t;
+    const T = GACHA.t, W = T.won, L = T.lost, k = H / this.art.anchor, im = this.props.gacha, left = GACHA.x - im.width * k / 2, top = FOOT.y - im.height * k;
+    const at2 = (px, py) => ({ x: left + px * k, y: top + py * k });   // a point of the cabinet's picture on the page
+    // each line for its own stretch only (until): the show is 14 s, and its first line hung over the whole of it
+    const say = (from, until, key) => { if (t >= from && t < until) st.bubble = { text: key ? this.saying(key, o.seed + from) : line, t: t - from }; };
+    const press = this.gachaX('gPress'), turn = this.gachaX('gTurn'), take = this.gachaX('gTake');
+    // hopping from x0 to x1 between a and b in n hops
+    const hops = (a, b, x0, x1, n) => { const w = k01(t, a, b); st.x = x0 + (x1 - x0) * w; st.y -= HOP * 0.45 * Math.abs(Math.sin(Math.PI * n * w)); };
+    const end = o.mishap ? L.gone : W.gone;
+    const shown = k01(t, T.up, T.up + 200) * (1 - k01(t, end[0], end[1]));
+    const g = st.gacha = { k, a: shown, s: 0.85 + 0.15 * ease(k01(t, T.up, T.up + 300)) + 0.06 * bump(t, T.up + 150, T.up + 450) - 0.3 * ease(k01(t, end[0], end[1])) };
+    const centre = at2(im.width / 2, im.height * 0.45);
+    // the sprite spins round where the cabinet comes (and goes), glowing, and it flashes there
+    const spin = a => { const u = t - a, ang = u / 130; st.sprite = 'glow'; st.sp = ['at', centre.x + 78 * Math.cos(ang), centre.y + 26 * Math.sin(ang)]; st.fx.push(['trail', a]); };
+    st.fx.push(['flash', T.up, 0.8, { x: centre.x, y: centre.y + 60 }], ['flash', end[0], 0.8, { x: centre.x, y: centre.y + 60 }]);
+
+    // ---- she points home, the sprite fetches the battery and hands it over, spins the cabinet up
+    if (t < T.fetch) { st.pose = 'gPointHome'; st.sprite = 'nod'; }
+    // it holds the battery out until it goes into her hands, her in-between's frame 3 (90 ms on): its drawing fades over
+    // 150 ms, so it lets go 60 ms before, and the two batteries are never seen at once
+    else if (t < T.give) { st.pose = 'gRub'; if (t < T.back) { st.sprite = 'sHappy'; st.sp = ['at', -80, FOOT.y - 0.5 * H]; } else { st.sprite = t < T.give - 300 ? 'sCarry' : t < T.give - 60 ? 'sGive' : 'sHappy'; st.sp = ['rel', 0.05, 0.36]; } }
+    else if (t < T.spin) { st.pose = 'gBattery'; st.sprite = 'sHappy'; st.sp = ['rel', 0.05, 0.36]; }
+    else if (t < T.hop[0]) { st.pose = 'gBattery'; spin(T.spin); }
+    say(200, T.up);
+    if (t < T.hop[0]) return st;
+
+    // ---- at the cabinet: she hops over with the battery, presses it in, turns the knob, squats for the capsule
+    st.slide = true;   // her drawings at the cabinet stand where each has her: the in-betweens move her between them
+    if (t < T.press) { st.pose = 'gBattery'; hops(T.hop[0], T.hop[1], FOOT.x, press, 2); }
+    else if (t < T.turn) { st.pose = 'gPress'; st.x = press; }
+    else if (t < T.take) { st.pose = 'gTurn'; st.x = turn; }
+    else if (t < T.stand) { st.pose = 'gTake'; st.x = take; }
+    else if (t < T.home[1]) { st.pose = 'gCapsule'; if (t < T.home[0]) st.x = take; else hops(T.home[0], T.home[1], take, FOOT.x, 2); }
+    if (t >= T.drop) g.bay = { y: 14 * ease(k01(t, T.drop + 150, T.drop + 550)), a: 1 - k01(t, T.drop + 350, T.drop + 550) };   // in, and down out of sight
+    if (t >= T.turn && t < T.out) { const u = t - T.turn; g.knob = u / 260; g.jig = [2.2 * Math.sin(u / 40), 1.6 * Math.sin(u / 55)]; g.shake = 0.8 * Math.sin(u / 35); }
+    if (t >= T.out && t < T.take + 180) g.cap = { y: -(this.art.points.gacha.outlet[1] - this.art.points.gacha.win[3]) * (1 - ease(k01(t, T.out, T.out + 220))) - 10 * bump(t, T.out + 220, T.out + 380) };
+    // as she hops over it goes ahead to the top of the cabinet's sign (following her, it crossed her face)
+    if (t < T.turn) { st.sprite = 'sHappy'; st.sp = ['at', left + 25 * k, top + 60 * k]; }
+    else if (t < T.out) { st.sprite = 'sPeek'; st.sp = ['at', left + 175 * k, top + 160 * k + 2 * Math.sin(t / 120)]; st.fx.push(['sweat', T.turn + 600, 900]); }
+    else if (t < T.home[1]) { st.sprite = 'sHappy'; st.sp = ['rel', 1.0, 0.25]; }
+    if (t < T.shake) return st;
+
+    // ---- back at her place: she shakes the capsule by her ear (the sprite listens) and twists it open
+    st.slide = false;
+    if (t < T.twist) { st.pose = 'gShake'; st.sprite = 'sListen'; st.sp = ['rel', 1.02, 0.1]; return st; }
+    if (t < T.open) { st.pose = 'gTwist'; st.sprite = 'sHappy'; st.sp = ['rel', 1.0, 0.3]; st.fx.push(['shock', T.twist + 200]); return st; }
+
+    if (!o.mishap) {
+      // the plush pops out of the capsule and into her arms; she hugs it, hopping; the sprite circles her, spins the cabinet
+      // away, takes the plush and flies it home
+      // the plush: out of her hands, growing as it rises over her head with a little wobble, hanging there bobbing, then
+      // down into her arms where her drawing hugs it (points.gacha.hug, measured on the gHug cell), fading into it
+      const u = t - T.open, [hugX, hugY] = this.art.points.gacha.hug;
+      if (u < W.down + 60) {
+        const r = 1 - Math.pow(1 - k01(u, 0, W.rise), 3), d = ease(k01(u, W.hang, W.down));
+        const hx = FOOT.x + 14 + 18 * r, hy = FOOT.y - 0.3 * H + (FOOT.y - H - 10 - (FOOT.y - 0.3 * H)) * r + (u >= W.rise ? 4 * Math.sin((u - W.rise) / 60) : 0);
+        st.pop = { x: hx + (FOOT.x + hugX - hx) * d, y: hy + (FOOT.y - hugY - hy) * d, s: 0.25 + 0.75 * r, a: 1 - k01(u, W.down, W.down + 60) };
+        if (u < W.rise) st.fx.push(['sparkles', T.open]);
+      }
+      st.halves = this.halves(t, T.open, 'pop', 1 - k01(t, W.gone[0], W.gone[1]));
+      st.pose = t < W.take ? 'gHug' : 'idle';
+      // the sprite watches from her side while the plush is in the air (tossed from the start, it hung over her head
+      // right where the plush comes), and is tossed for joy once she hugs it
+      if (t < W.hug) { st.sprite = 'surprised'; st.sp = ['rel', 1.05, 0.3]; }
+      else if (t < W.spin) { st.y -= 12 * bump(t, W.hug + 300, W.hug + 620) + 10 * bump(t, W.hug + 900, W.hug + 1220); this.toss(st, t, W.hug, 900); }
+      else if (t < W.gone[1]) spin(W.spin);
+      else if (t < W.away) { st.sprite = t < W.take ? 'sHappy' : 'sPlush'; st.sp = ['rel', 0.5, 0.42]; }
+      else { st.sprite = 'sPlush'; st.sp = ['at', -90, FOOT.y - 0.55 * H]; }
+      st.fx.push(['sparkles', T.open], ['confetti', T.open + 100]);
+      say(W.hug, W.spin, 'gachaWin');
+      return st;
+    }
+    // empty: frozen over the halves; she drops them and wails on her knees (the sprite pats her head), wipes her tears and
+    // gets up; the sprite spins the cabinet and the halves away
+    st.pose = at(t - L.empty, [[0, 'gEmpty'], [L.wail - L.empty, 'gWail'], [L.wipe - L.empty, 'gWipe'], [L.idle - L.empty, 'idle']]);
+    if (t >= L.wail) st.halves = this.halves(t, L.wail, 'drop', 1 - k01(t, L.gone[0], L.gone[1]));
+    if (t < L.pat) { st.sprite = 'surprised'; st.sp = ['rel', 1.0, 0.3]; }
+    else if (t < L.wipe) { st.sprite = 'pat'; st.sp = 'head'; }
+    else if (t < L.gone[1]) spin(L.spin);
+    else st.sprite = 'sHappy';
+    st.fx.push(['shock', L.empty], ['sweat', L.empty + 300, 900]);
+    if (t >= L.wail) st.fx.push(['tears', L.wail + 100, L.wipe - L.wail]);
+    say(L.empty + 100, L.wail, 'gachaEmpty'); say(L.wail + 150, L.wipe, 'gachaMiss'); say(L.wipe + 150, L.end, 'gachaCheerUp');
+    return st;
+  }
+
+  // The capsule's two halves leaving her hands at a: popping off to either side as the plush comes out (pop), or slipping
+  // from her hands as she sinks to her knees (drop); both come to lie by her feet, where they stay till the cabinet goes.
+  halves(t, a, how, alpha) {
+    const u = t - a, p = k01(u, 0, how === 'pop' ? 450 : 260);
+    return { a: alpha, pts: [[-1, -6, -52], [1, 14, 58]].map(([half, sx, tx]) => {
+      const x0 = FOOT.x + sx, y0 = FOOT.y - 0.3 * H, x1 = FOOT.x + tx, y1 = FOOT.y - 2;
+      const y = how === 'pop' ? y0 + (y1 - y0) * p - 70 * Math.sin(Math.PI * p) : y0 + (y1 - y0) * p * p;
+      // both end dome up, on their rims: the pink top half is dome up as it is (0), the white bottom half turned over (π);
+      // popping off they tumble on the way (a whole turn, a turn and a half), dropped they only tip a little
+      const rot = how === 'pop' ? (half < 0 ? -2 * Math.PI * p : 3 * Math.PI * p) : (half < 0 ? 0.25 * p : Math.PI + 0.3 * p);
+      return { half, x: x0 + (x1 - x0) * p, y, rot };
+    }) };
+  }
+
+  // Where she stands (her drawing's centre) for a drawing of hers at the cabinet, so the cabinet in its cell meets the one on
+  // the page: the cell's cabinet edge at points.gacha.cell, the page's at the cabinet picture's left.
+  gachaX(pose) {
+    const c = this.cells.gacha22?.[this.art.poses[pose][1]], k = H / this.art.anchor, left = GACHA.x - this.props.gacha.width * k / 2;
+    return c ? left - (c.ox + this.art.points.gacha.cell - c.cx) * H / c.ruler : FOOT.x;
   }
 
   // A sport (SPORTS): the sprite joins in (cheers her lifts with its flag, leads her hike, flies beside her bike or skis); if

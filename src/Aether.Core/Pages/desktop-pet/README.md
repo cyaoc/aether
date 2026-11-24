@@ -103,7 +103,9 @@ Its engine is `engine.mjs` (which show plays when, the 一轮送礼, the 心情 
 moment) and its drawing `pet.mjs` and `effects.mjs`, ported function for function on one Canvas 2D; `page.mjs` hands each
 event above to the engine's handler of the same name. The board's numbers measured on her pictures are the current
 character's `desktopPet` (`../characters/README.md`); the shows' timings, effects and the sprite's ways stay here, the same for
-every character. The page plays every row of the 演出表: the 心情, the 日常小动作 and their mishaps, entries, gifts, blind boxes,
+every character. The page plays every row of the 演出表: the 心情, the 日常小动作 and their mishaps (the 扭蛋 coming up empty is
+its mishap: `GACHA`, `gacha`, the cabinet `drawGacha`; the board's `GACHA` parts measured on her pictures, `win`, `bay`,
+`knob`, `outlet` and `cell`, and where the plush comes down into her arms, `hug`, are her `points.gacha`, its timeline `t` stays in `GACHA`), entries, gifts, blind boxes,
 castles, 大航海, a new first place on the 礼物榜 (found by the 礼物榜页's `../gift-board/changes.mjs`), each step of a lottery,
 a 盲盒查询's 账单卡 and, in a PK, the 对手情报卡 her sprite prints (`pkMatch`, `intelShow`, the card `pk-intel.mjs`, the design
 package's `lib/pk-intel.js`), her 举牌 (`pkCondition`, `pkDouble`, `pkCountdown`: the double bonus's condition, the double on, a
@@ -115,12 +117,13 @@ Her speech bubbles and the effects' marks are in the 礼物榜页's Noto Sans SC
 of `../gift-board/paint.mjs`), loaded before she says anything; the stream's PC need not have the board's PingFang SC.
 
 The page is 480 × 640 design px, scaled with the browser source and standing on its bottom edge, and draws her pictures at
-their own resolution. It loads her pictures and props at once but for the sheets of the 日常小动作, the castle, 大航海, the
-lottery and her PK sign, each with its strips when it first plays (the lottery's too when she first waits through one, and with
-a PK's other shows, which have poses of it), and the 宝箱小游戏's, hers and the 捣蛋鬼's, when it is first to come: all of them
-decoded take about 574 MB, the game's more. A pose whose sheet is still loading keeps her in the drawing she has, and her sign
-waits for its sheet to fly. A load that fails, as when the web service restarts, is tried again when next asked for, at the
-soonest a second later: the game's while it is still to come, a sheet's when its show next plays.
+their own resolution. It loads her pictures and props at once but for the sheets of the 日常小动作 (the 扭蛋's with her sprite's
+carrying the battery and the plush), the castle, 大航海, the lottery and her PK sign, each with its strips when it first plays
+(the lottery's too when she first waits through one, and with a PK's other shows, which have poses of it), and the 宝箱小游戏's,
+hers and the 捣蛋鬼's, when it is first to come: all of them decoded take about 574 MB, the 扭蛋's 110 MB more and the game's
+more. A pose whose sheet is still loading keeps her in the drawing she has, her sign waits for its sheet to fly, and through a
+扭蛋 she stands as she was until its sheets are there. A load that fails, as when the web service restarts, is tried again when
+next asked for, at the soonest a second later: the game's while it is still to come, a sheet's when its show next plays.
 
 ## The 宝箱小游戏
 
