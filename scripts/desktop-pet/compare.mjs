@@ -13,6 +13,7 @@
 import { execFileSync } from 'node:child_process';
 import fs from 'node:fs';
 import { NAME, ROUTES, STAR, STEP, VIEWERS, announced, drive, end, frames, itemsOf, send, spendOf, told, walk } from './routes.mjs';
+import { DAILY, GACHA } from '../../src/Aether.Core/Pages/desktop-pet/engine.mjs';
 
 const here = new URL('.', import.meta.url).pathname, eval_ = here + '../../docs/design/desktop-pet/tools/cdp-eval.mjs';
 const args = process.argv.slice(2), opt = (k, d) => { const i = args.indexOf(k); return i < 0 ? d : args.splice(i, 2)[1]; };
@@ -27,6 +28,16 @@ const KIND = { hum: '哼歌', gym: '举哑铃', hike: '爬山', bike: '骑车', 
 const MOOD = { calm: 0, happy: 0, bored: 15, gloomy: 40, sleepy: 60 };
 const { shows } = JSON.parse(fs.readFileSync(here + '../../src/Aether.Core/Pages/desktop-pet/shows.json', 'utf8'));
 const at = (dur, extra = []) => [...new Set([200, 600, Math.round(dur * 0.25), Math.round(dur * 0.5), Math.round(dur * 0.75), dur - 150, ...extra])].sort((a, b) => a - b);
+// The 扭蛋's moments besides those (GACHA.t; a moment is the first frame at or after it): her sprite's drawing holding out the
+// battery just before and after it lets go, and fading till her in-between from gRub has it, frames 2 and 3 (give); the
+// cabinet popping up (up) and shrinking away (gone). Won: her in-between as the plush rises, gTwist, frame 2 (slow: 820 ms),
+// frame 3 (120 ms) and gHug, the plush up and coming down. Empty: the halves slipping from her hands to the ground (wail).
+const T = GACHA.t, W = T.won, L = T.lost, gone = ([a, b]) => [a, (a + b) / 2, b - 20];
+const give = [T.give - 70, T.give - 60, T.give, T.give + 40, T.give + 90], up = [T.up, T.up + 100, T.up + 200, T.up + 350];
+const MOMENTS = {
+  gacha: at(DAILY.gacha[0], [...give, ...up, T.open - 20, T.open, T.open + W.rise, T.open + W.down - 20, W.hug - 100, W.hug, ...gone(W.gone)]),
+  'gacha-Mishap': at(DAILY.gacha[0] + DAILY.gacha[1], [...give, ...up, L.wail, L.wail + 130, L.wail + 260, ...gone(L.gone)])
+};
 
 // Each case: what to do on the board and on the page at its start, and the moments to compare, in ms from its start.
 const cases = [];
@@ -34,8 +45,8 @@ for (const row of shows) {
   for (const variant of row.tests) if (NAME[row.id] ?? STEP[variant]) cases.push({ id: row.id + (variant ? '-' + variant : ''),
     board: `dc.start(${JSON.stringify(NAME[row.id] ?? STEP[variant])}, ${JSON.stringify(row.id === 'blindBoxQuery' ? QUERY[variant] : variant ? { result: RESULT[variant] } : {})})`,
     page: `pet.start(${JSON.stringify(row.id)}, { nickname: '星河', result: ${JSON.stringify(variant)} })` });
-  if (KIND[row.id]) for (const mishap of [false, true]) cases.push({ id: row.id + (mishap ? '-Mishap' : ''),
-    board: `dc.start('日常', { kind: ${JSON.stringify(KIND[row.id])}, mishap: ${mishap} })`, page: `pet.start(${JSON.stringify(row.id)}, { mishap: ${mishap} })` });
+  if (KIND[row.id]) for (const mishap of [false, true]) { const id = row.id + (mishap ? '-Mishap' : ''); cases.push({ id, ms: MOMENTS[id],
+    board: `dc.start('日常', { kind: ${JSON.stringify(KIND[row.id])}, mishap: ${mishap} })`, page: `pet.start(${JSON.stringify(row.id)}, { mishap: ${mishap} })` }); }
 }
 for (const [mood, minutes] of Object.entries(MOOD)) cases.push({ id: mood, ms: at(30000, [23100, 23600, 24300]),
   set: `x.lastGift = x.lastAny = x.now() - ${minutes} * 60000 - 1; ${mood === 'happy' ? 'x.recent = [x.now(), x.now(), x.now()];' : ''}` });
