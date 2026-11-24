@@ -22,7 +22,7 @@ public sealed class DesktopPetBrowserTests
           return box;
         })()
         """;
-    private static readonly string[] DailySheets = ["pose-3-daily-1", "pose-9-ski", "pose-10-gym", "pose-11-hike", "pose-12-cycle"];
+    private static readonly string[] DailySheets = ["pose-3-daily-1", "pose-9-ski", "pose-10-gym", "pose-11-hike", "pose-12-cycle", "pose-19-gacha", "pose-20-gacha2", "pose-22-gacha3", "sprite-pose-4"];
 
     [Fact]
     public async Task The_page_is_transparent_while_the_desktop_pet_is_off_and_scales_with_the_browser_source_at_three_to_four()
@@ -318,6 +318,25 @@ public sealed class DesktopPetBrowserTests
         Assert.Empty(page.Browser.Errors);
     }
 
+    [Fact]
+    public async Task A_first_扭蛋_while_its_pictures_still_load_has_her_stand_as_she_was()
+    {
+        await using var page = await StartAsync();
+        await page.OpenAsync(480, 640);
+
+        // (its sheets, her sprite's carrying the battery among them, load as it starts, not with the page)
+        var drawn = await page.Browser.EvaluateAsync("""
+            (() => {
+              const loaded = !!pet.cells.sp4;
+              pet.start('gacha', {}); pet.master.currentTime += 2000; const st = pet.stateAt(pet.now()); pet.frame();
+              return JSON.stringify([loaded, st.pose, st.sprite, !!st.gacha]);
+            })()
+            """);
+
+        Assert.Equal("""[false,"idle","sIdle",false]""", drawn.GetString());
+        Assert.Empty(page.Browser.Errors);
+    }
+
     [Theory]
     [InlineData("pkOpponent", "intelHeld", "intelBack")]
     [InlineData("pkLastSeconds", "signHeld", "signBack")]
@@ -405,7 +424,7 @@ public sealed class DesktopPetBrowserTests
         await page.Browser.EvaluateAsync($"{Clock}.currentTime += 61000; {TwoFrames}");
         Assert.Equal("bored", (await page.Browser.EvaluateAsync("window.pet.mood(window.pet.now())")).GetString());
 
-        await page.ApplyAsync(("desktop_pet.bored_minutes", "0"), ("desktop_pet.shows_off", "[hum, gym, hike, bike]"), ("desktop_pet.mishap_percent", "0"));
+        await page.ApplyAsync(("desktop_pet.bored_minutes", "0"), ("desktop_pet.shows_off", "[hum, gym, hike, bike, gacha]"), ("desktop_pet.mishap_percent", "0"));
         Assert.Equal("""["ski",false]""", (await page.Browser.EvaluateAsync("JSON.stringify([window.pet.cur?.name, window.pet.cur?.opts.mishap])")).GetString());
         Assert.Empty(page.Browser.Errors);
     }

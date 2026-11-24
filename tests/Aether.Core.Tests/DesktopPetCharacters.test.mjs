@@ -82,7 +82,7 @@ for (const folder of readdirSync(new URL('characters/', pages), { withFileTypes:
     const character = read(`characters/${folder}/character.json`), art = character.desktopPet, states = everyState(character);
     for (const pose of new Set(states.map(st => st.pose))) assert.ok(art.sheets[art.poses[pose]?.[0]], `pose ${pose}`);
     for (const drawing of new Set(states.flatMap(st => [st.sprite, st.sView ?? 'v1']))) assert.ok(SINGLES.includes(drawing) || art.sprite[drawing] || art.spriteStrips[drawing], `sprite ${drawing}`);
-    const props = { gift: ['giftbox', 'giftboxOpen', 'balloons'], castle: ['castleClosed', 'castleOpen'], ship: ['flagship'], admShip: ['admship'], emblem: ['emblem'] };
+    const props = { gift: ['giftbox', 'giftboxOpen', 'balloons'], castle: ['castleClosed', 'castleOpen'], ship: ['flagship'], admShip: ['admship'], emblem: ['emblem'], gacha: ['gacha', 'battery'], pop: ['plush'] };
     for (const [thing, names] of Object.entries(props)) if (states.some(st => st[thing])) for (const prop of names) assert.ok(art.props[prop], `prop ${prop}`);
   });
 

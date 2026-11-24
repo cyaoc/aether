@@ -31,7 +31,7 @@ const castleBox = () => box(2, 1, { name: '浪漫城堡', castle: true });
 const castled = { uid: 2, nickname: '观众2', tally: { spend: 15000, openedValue: 2233000, outcome: 'Gain' }, boxes: 1, bestGift: '浪漫城堡', bestPrice: 2233000, castles: 1 };
 // The 盲盒播报 of a viewer's n boxes at 150 电池 each, a little to the good.
 const opened = (uid, n) => ({ uid, nickname: '观众' + uid, tally: { spend: 15000 * n, openedValue: 16000 * n, outcome: 'Gain' }, boxes: n, bestGift: '爱心抱枕', bestPrice: 16000 });
-const NO_DAILY = ['hum', 'gym', 'hike', 'bike', 'ski'];
+const NO_DAILY = ['hum', 'gym', 'hike', 'bike', 'ski', 'gacha'];
 // Every show she plays from now on, in order.
 const shown = pet => { const shows = new Set(); return [shows, () => { if (pet.cur) shows.add(pet.cur); }]; };
 
