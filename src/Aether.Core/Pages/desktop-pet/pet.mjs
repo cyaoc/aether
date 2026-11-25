@@ -538,6 +538,9 @@ export class Pet extends Engine {
   // there she stands as she was and no cabinet comes.
   gacha(t, st, o, line) { return this.loaded('gacha') ? super.gacha(t, st, o, line) : st; }
 
+  // Her 火锅's sheets load as it first plays (SEGMENTS): until they are there she stands as she was and no table comes.
+  hotpot(t, st, o, line) { return this.loaded('hotpot') ? super.hotpot(t, st, o, line) : st; }
+
   // The sprite flies to where it is wanted instead of jumping there; its speed decides which way it faces.
   follow(target, dt, st) {
     const sv = this.sv;
