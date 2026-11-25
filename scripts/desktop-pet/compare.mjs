@@ -129,8 +129,9 @@ const SNAP = `async (c, m, keep, res) => {
 }`;
 // Starting a case afresh: what the board's reset leaves of the case before (the sprite's flight and drawing, her in-betweens,
 // the 捣蛋鬼's, the chest's swing, the hair she had patted and the line she waited to say, the 心情 the game left her in, the PK
-// sign she held and the one flying back, the 对手情报卡 hung and the one rolling up).
-const AFRESH = `reset(); x.sv = x.hv = x.sc = x.orb = x.bubSide = x.pv = x.sw = x.pat = x.lineWait = x.sTarget = x.moodHold = x.signHeld = x.signBack = x.intelHeld = x.intelBack = null; x.rt = undefined; x.trail = []; x.nextDaily = Infinity;`;
+// sign she held and the one flying back, the 对手情报卡 hung and the one rolling up, her drawing at a prop and her going over
+// from the prop kept for it).
+const AFRESH = `reset(); x.sv = x.hv = x.sc = x.orb = x.bubSide = x.pv = x.sw = x.pat = x.lineWait = x.sTarget = x.moodHold = x.signHeld = x.signBack = x.intelHeld = x.intelBack = x.drawn = x.unprop = null; x.rt = undefined; x.trail = []; x.nextDaily = Infinity;`;
 
 // Plays one case from T0 on a grid of 60 frames a second, a gift or a result in the frame at or after its time, and keeps
 // each moment's hash (and picture, for the moments of keep) in the first frame at or after it.
