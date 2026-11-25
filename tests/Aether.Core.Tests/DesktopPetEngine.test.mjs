@@ -454,6 +454,11 @@ test('a 扭蛋 takes her to the cabinet and back: won she hugs the plush, 14.8 s
   assertPlays('gacha', true, { 10500: 'gEmpty', 11400: 'gWail', 13500: 'gWipe', 14700: 'idle' }, 15200);
 });
 
+test('a 火锅 has her kneel at the table her sprite brings: yum she eats and feeds it, 11.8 s; spicy it fetches her 豆奶, 12.8 s', () => {
+  assertPlays('hotpot', false, { 0: 'hHungry', 2300: 'hPray', 3100: 'hSit', 3700: 'hPickClear', 4700: 'hBlow', 5500: 'hYum', 7300: 'hFeed', 9300: 'hPray', 10500: 'idle' }, 11800);
+  assertPlays('hotpot', true, { 3700: 'hPickRed', 6000: 'hSpicy', 8300: 'hDrink', 10300: 'hPray', 11500: 'idle' }, 12800);
+});
+
 test('a 手游 on the sofa: won she cheers kicking her legs, 10.6 s; lost the phone falls on her face and she holds her nose, 11.6 s', () => {
   const lying = { 0: 'mPhone', 1699: 'mPhone', 1700: 'mSit', 2500: 'mPlay', 6599: 'mPlay' };
   assertPlays('mobileGame', false, { ...lying, 6600: 'mWin', 8800: 'mSit', 9400: 'mPhone' }, 10600);
@@ -473,7 +478,7 @@ test('a gift cutting her 扭蛋 short as she turns the knob takes the cabinet, t
   assert.deepEqual([playing(engine), st.gacha, st.halves, st.pop], ['gift', undefined, undefined, undefined]);
 });
 
-for (const [kind, label, wrongly] of [['gacha', '扭蛋', 'empty'], ['mobileGame', '手游', 'lost']]) test(`a ${label} comes as one of the 日常小动作 left on, ${wrongly} as often as one goes wrong, and never once turned off`, () => {
+for (const [kind, label, wrongly] of [['gacha', '扭蛋', 'empty'], ['hotpot', '火锅', 'spicy'], ['mobileGame', '手游', 'lost']]) test(`a ${label} comes as one of the 日常小动作 left on, ${wrongly} as often as one goes wrong, and never once turned off`, () => {
   const others = Object.keys(DAILY).filter(other => other !== kind);
   for (const [mishapPercent, wrong] of [[100, true], [0, false]]) {
     const engine = pet({ off: others, mishapPercent });

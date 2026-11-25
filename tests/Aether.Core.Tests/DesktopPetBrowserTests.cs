@@ -312,8 +312,9 @@ public sealed class DesktopPetBrowserTests
 
     [Theory]
     [InlineData("gacha", "sp4", "gacha")]
+    [InlineData("hotpot", "hotpot24", "table")]
     [InlineData("mobileGame", "sofa26", "sofa")]
-    public Task A_first_扭蛋_or_手游_while_its_pictures_still_load_has_her_stand_as_she_was(string show, string sheet, string prop) =>
+    public Task A_first_扭蛋_火锅_or_手游_while_its_pictures_still_load_has_her_stand_as_she_was(string show, string sheet, string prop) =>
         // (its sheets, the 扭蛋's with her sprite's carrying the battery, load as it starts, not with the page; no prop comes)
         AssertOnAFreshPageAsync($$"""
             (() => {
@@ -360,6 +361,33 @@ public sealed class DesktopPetBrowserTests
                 over: [after[0][1], after.at(-1)[1], after.every((f, i) => !i || f[1] <= after[i - 1][1])] });
             })()
             """, """{"kneel":["true:5","true:11","true:16","true:22","true:27"],"up":["true:27"],"tableAfter":false,"over":[27,0,true]}""");
+
+    [Theory]
+    // eating she has no way up (noWayThrough): the gift's pose comes in at once, and the table goes the frame after
+    [InlineData(6000, "true:false,false:false")]
+    // holding her bowl she gets up through her in-betweens, the bowl going by magic, the table there till she is up
+    [InlineData(3400, "true:true,true:false,false:false")]
+    public Task A_gift_cutting_her_火锅_short_takes_the_table_the_frame_after_she_is_up(int cut, string seen) =>
+        // Played from its start, its pictures loaded first, a frame every 1/60 s on one made-up clock, the page's and
+        // performance.now's (her in-betweens go by it). Each frame after the gift: whether the table is drawn, whether her
+        // drawing is one at it; the same in a row once.
+        AssertOnAFreshPageAsync($$"""
+            (async () => {
+              const g = pet.canvas.getContext('2d'), drawImage = g.drawImage.bind(g), seen = [];
+              let clock = performance.now(), table = false, cut = false;
+              performance.now = () => clock;
+              g.drawImage = (im, ...rest) => { table ||= im === pet.props.table; drawImage(im, ...rest); };
+              pet.start('hotpot', { mishap: false }); await Promise.all(Object.values(pet.loads));
+              const { start } = pet.cur;
+              for (let t = 0; t < {{cut}} + 1000; t += 1000 / 60) {
+                pet.master.currentTime = start + t; clock += 1000 / 60; pet.frame();
+                if (cut) seen.push(`${table}:${!!pet.drawn.c.prop}`);
+                table = false;
+                if (!cut && t >= {{cut}}) { pet.start('gift', { nickname: '星河' }); cut = true; }
+              }
+              return seen.filter((frame, i) => frame !== seen[i - 1]).join();
+            })()
+            """, seen);
 
     [Theory]
     [InlineData("pkOpponent", "intelHeld", "intelBack")]

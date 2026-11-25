@@ -16,7 +16,7 @@ export const MEASURE = { save() {}, restore() {}, measureText: () => ({ width: 0
 
 export function gamePet(character, settings = {}, rng = seeded(7)) {
   const art = character.desktopPet, pet = new Pet(null, { currentTime: 0 }, shows, character), size = { width: 1, height: 1 };
-  Object.assign(pet, { props: { admship: size, gacha: size, sofa: size }, castle: { closed: size, box: { h: 1 } }, cells: new Proxy({}, { get: () => Array(6).fill(CELL) }), herLeft: -60, measureG: MEASURE,
+  Object.assign(pet, { props: { admship: size, gacha: size, table: size, sofa: size }, castle: { closed: size, box: { h: 1 } }, cells: new Proxy({}, { get: () => Array(6).fill(CELL) }), herLeft: -60, measureG: MEASURE,
     prankster, chestBox: { w: 72, h: 58, open: 104, k: H / prankster.anchor }, gameLoaded: true,
     tweens: Object.fromEntries(Object.keys(art.transitions).map(pair => [pair, [CELL, CELL]])),
     pkTweens: Object.fromEntries(Object.keys(prankster.transitions).map(pair => [pair, [pair, pair]])) });

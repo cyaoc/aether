@@ -108,6 +108,30 @@ export function drawFx(g, f, st, her, now, pet) {
       for (const [dx, rr] of [[0, 7], [8, 5], [-8, 5]]) { g.beginPath(); g.arc(x + dx * (1 + p), y, rr * (1 + p * 0.8), 0, Math.PI * 2); g.fill(); g.stroke(); }
       g.restore(); break;
     }
+    // The hot pot's steam (f[2]: the middle of its rim): thin soft wisps rising from either half and drifting outwards,
+    // away from her face, so they never cloud it.
+    case 'potSteam': {
+      const p = f[2];
+      g.save(); g.fillStyle = '#fff';
+      for (let i = 0; i < 6; i++) {
+        const u = (t + i * 380) % 2300 / 2300, side = i % 2 ? 1 : -1, x = p.x + side * (22 + 14 * (i % 3) + u * 34) + 4 * Math.sin(t / 300 + i), y = p.y - 6 - u * 70;
+        g.globalAlpha = 0.32 * Math.sin(Math.PI * u) * k01(t, 0, 600); g.beginPath(); g.ellipse(x, y, 6 + u * 9, 4 + u * 6, 0, 0, Math.PI * 2); g.fill();
+      }
+      g.restore(); break;
+    }
+    // The chili burning: little flames flickering on the top of her head (out of her mouth they rose over her face), with
+    // the steam puffing at its sides, for as long as she fans her mouth.
+    case 'flame': {
+      const p = at(0.5, 0.02);
+      g.save();
+      for (let i = 0; i < 3; i++) {
+        const u = (t + i * 160) % 480 / 480, x = p.x + (i - 1) * 16 + 3 * Math.sin(t / 50 + i), y = p.y - u * 10, s = (i === 1 ? 1.5 : 1.1) * (1 - 0.3 * u) * (0.85 + 0.15 * Math.sin(t / 40 + i));
+        g.globalAlpha = 0.9 * (1 - u);
+        const fl = (r, col) => { g.fillStyle = col; g.beginPath(); g.moveTo(x, y - 18 * r); g.quadraticCurveTo(x + 9 * r, y - 4 * r, x, y + 6 * r); g.quadraticCurveTo(x - 9 * r, y - 4 * r, x, y - 18 * r); g.fill(); };
+        fl(s, '#FF6A2B'); fl(s * 0.55, '#FFD45E');
+      }
+      g.restore(); break;
+    }
     case 'steam': {
       const dur = f[2] || 1500; if (t > dur) break;
       g.save(); g.fillStyle = '#fff';

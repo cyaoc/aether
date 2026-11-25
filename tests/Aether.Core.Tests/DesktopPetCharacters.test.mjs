@@ -138,8 +138,8 @@ for (const folder of readdirSync(new URL('characters/', pages), { withFileTypes:
     for (const sheet of art.fixed) assert.ok(art.sheets[sheet], sheet);
     for (const [prop, poses] of Object.entries(art.atProp)) assert.ok(art.props[prop] && poses.every(pose => art.poses[pose]), prop);
     for (const [prop, { sheet, at }] of Object.entries(art.propSpot)) assert.ok(art.props[prop] && art.fixed.includes(sheet) && at.length === 2 && at.every(Number.isFinite), prop);
-    const { flagship, admship, castleClosed, gacha } = art.points;
-    for (const point of [flagship.deck, flagship.mast, admship.mast, ...admship.rig, castleClosed.gate, gacha.bay, gacha.outlet, gacha.hug]) assert.ok(point.length === 2 && point.every(Number.isFinite), 'points');
+    const { flagship, admship, castleClosed, gacha, hotpot } = art.points;
+    for (const point of [flagship.deck, flagship.mast, admship.mast, ...admship.rig, castleClosed.gate, gacha.bay, gacha.outlet, gacha.hug, hotpot.pot, hotpot.give.her, hotpot.give.sprite]) assert.ok(point.length === 2 && point.every(Number.isFinite), 'points');
     assert.deepEqual([gacha.win.length, gacha.knob.length, typeof gacha.cell], [4, 3, 'number'], 'the 扭蛋 cabinet\'s window, knob and cell');
   });
 }
