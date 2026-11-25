@@ -323,11 +323,11 @@ public sealed class DesktopPetBrowserTests
             """, """[false,"idle",false]""");
 
     [Theory]
-    // (their sheets load as they start, not with the page: the 扭蛋's with her sprite's carrying the battery; the 火锅's
-    // with her drawings at the table)
     [InlineData("gacha", "sp4", "gacha")]
     [InlineData("hotpot", "hotpot24", "table")]
-    public Task A_first_扭蛋_or_火锅_while_its_pictures_still_load_has_her_stand_as_she_was(string show, string sheet, string prop) =>
+    [InlineData("mobileGame", "sofa26", "sofa")]
+    public Task A_first_扭蛋_火锅_or_手游_while_its_pictures_still_load_has_her_stand_as_she_was(string show, string sheet, string prop) =>
+        // (its sheets, the 扭蛋's with her sprite's carrying the battery, load as it starts, not with the page; no prop comes)
         AssertOnAFreshPageAsync($$"""
             (() => {
               const loaded = !!pet.cells.{{sheet}};

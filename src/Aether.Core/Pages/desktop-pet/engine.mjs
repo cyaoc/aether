@@ -241,6 +241,14 @@ export const HOTPOT = { back: 27,
     yum: { feed: 7300, open: 7700, chew: 8100, grace: 9300, stand: 10500, spin: 10900, gone: [11300, 11600], end: 11800 },
     spicy: { burn: 6000, fly: 6400, back: 7600, give: 8000, drink: 8300, grace: 10300, stand: 11500, spin: 11900, gone: [12300, 12600], end: 12800 } } };
 DAILY.hotpot = [HOTPOT.t.yum.end, HOTPOT.t.spicy.end - HOTPOT.t.yum.end];
+// The 手游 daily (#411): she takes out her phone and the sprite spins the sofa up behind her; she sits, lies back on it
+// and plays; won she cheers kicking her legs (o.mishap false), lost she freezes, the phone slips onto her face and she
+// holds her nose (the sprite pats her head); she sits up, stands, the sofa goes. The sofa stands at her propSpot.sofa.
+export const MOBILE = {
+  t: { spin: 700, up: 1300, sit: 1700, lie: 2500,
+    won: { win: 6600, sit: 8800, stand: 9400, spin: 9600, gone: [10000, 10300], end: 10600 },
+    lost: { stun: 6600, smack: 7400, ouch: 8100, sit: 9800, stand: 10400, spin: 10600, gone: [11000, 11300], end: 11600 } } };
+DAILY.mobileGame = [MOBILE.t.won.end, MOBILE.t.lost.end - MOBILE.t.won.end];
 
 // ---- The 宝箱小游戏 (#372, #382; design package README 12). Nothing of it is on the page until the 捣蛋鬼 comes, and nothing of
 // it stays: her shows are all as they were, and her chest is at home, off the left of the page, where the game only counts
@@ -1898,6 +1906,7 @@ export class Engine extends EventTarget {
     if (SPORTS[o.kind]) return this.sport(t, st, o, line);
     if (o.kind === 'gacha') return this.gacha(t, st, o, line);
     if (o.kind === 'hotpot') return this.hotpot(t, st, o, line);
+    if (o.kind === 'mobileGame') return this.mobile(t, st, o, line);
     // humming: the sprite sways along; when her voice cracks it hides its head
     const main = DAILY[o.kind][0];
     st._t = t;
@@ -2073,6 +2082,49 @@ export class Engine extends EventTarget {
   atTable(st, y0) {
     st.y = this.art.atProp.table.includes(st.pose) ? y0 : FOOT.y;
     st.slide = true;
+    return st;
+  }
+
+  // The 手游 daily (MOBILE): won (o.mishap false) or lost. Her spot stays FOOT; the sofa stands behind her.
+  mobile(t, st, o, line) {
+    st._t = t;
+    const T = MOBILE.t, E = o.mishap ? T.lost : T.won, k = H / this.art.anchor;
+    const say = (from, until, key) => { if (t >= from && t < until) st.bubble = { text: key ? this.saying(key, o.seed + from) : line, t: t - from }; };
+    const im = this.props.sofa, base = this.fromSpot(this.art.propSpot.sofa.sheet, this.art.propSpot.sofa.at, FOOT.x, FOOT.y), w = im.width * k, h = im.height * k;
+    const so = st.sofa = { x: base.x + w / 2, y: base.y, w, h, ...this.popped(t, T.up, E.gone) };
+    st.fx.push(['flash', T.up, 0.8, { x: so.x, y: so.y - h / 2 }], ['flash', E.gone[0], 0.8, { x: so.x, y: so.y - h / 2 }]);
+    const spin = a => this.spinAt(st, t, a, { x: so.x, y: so.y - h * 0.55 });
+    // on the backrest's top over her legs, watching the phone from her feet's side (by her head it sat on her face and phone)
+    const perch = { x: base.x + 0.32 * w, y: base.y - 1.0 * h + 3 * Math.sin(t / 400) };
+    const seat = { x: base.x + 0.15 * w, y: base.y - 0.42 * h + 2 * Math.sin(t / 500) };   // on the seat at her left while she sits
+    const sat = (sprite, p) => { st.sprite = sprite; st.sp = ['at', p.x, p.y]; };
+    say(200, T.lie);
+    if (t < T.sit) { st.pose = 'mPhone'; if (t < T.spin) st.sprite = 'nod'; else spin(T.spin); return st; }
+    if (t < T.lie) { st.pose = 'mSit'; sat('sHappy', seat); return st; }
+    const play = o.mishap ? E.stun : E.win;
+    if (t < play) { st.pose = 'mPlay'; sat('nod', perch); st.fx.push(['sweat', T.lie + 1200, 1600]); return st; }
+    if (!o.mishap) {
+      st.pose = at(t, [[E.win, 'mWin'], [E.sit, 'mSit'], [E.stand, 'mPhone']]);
+      // waving its flag over the left armrest: over her legs it sat on the phone she holds up and on her kicking feet
+      if (t < E.sit) { sat('flag', { x: base.x + 0.04 * w, y: base.y - 1.05 * h + 3 * Math.sin(t / 300) }); st.fx.push(['confetti', E.win + 100], ['sparkles', E.win]); }
+      else if (t < E.spin) sat('sHappy', seat);
+      else if (t < E.gone[1]) spin(E.spin);
+      else st.sprite = 'sHappy';
+      say(E.win + 100, E.sit + 400, 'mobileWin');
+      return st;
+    }
+    st.pose = at(t, [[E.stun, 'mStunned'], [E.smack, 'mSmack'], [E.ouch, 'mOuch'], [E.sit, 'mSit'], [E.stand, 'mPhone']]);
+    st.fx.push(['shock', E.stun]);
+    if (t >= E.smack) st.fx.push(['impact', E.smack + 40, [0.5, 0.42]], ['dizzy', E.smack + 300, 1100, [0.7, 0.05]]);
+    if (t >= E.ouch && t < E.sit) st.fx.push(['tears', E.ouch + 100, E.sit - E.ouch]);
+    if (t >= E.smack) st.shake = [[E.smack + 40, 2, 200]];
+    if (t < E.smack) sat('surprised', perch);
+    else if (t < E.ouch) sat('hide', perch);
+    else if (t < E.sit) { st.sprite = 'pat'; st.sp = ['rel', 0.8, -0.2]; }   // over her head, at the armrest end
+    else if (t < E.spin) sat('sHappy', seat);
+    else if (t < E.gone[1]) spin(E.spin);
+    else st.sprite = 'sHappy';
+    say(E.stun + 100, E.smack, 'mobileLose'); say(E.smack + 300, E.sit, 'mobileOuch');
     return st;
   }
 
