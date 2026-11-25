@@ -310,14 +310,16 @@ public sealed class DesktopPetBrowserTests
             })()
             """, """[false,"idle",false]""");
 
-    [Fact]
-    public Task A_first_扭蛋_while_its_pictures_still_load_has_her_stand_as_she_was() =>
-        // (its sheets, her sprite's carrying the battery among them, load as it starts, not with the page)
-        AssertOnAFreshPageAsync("""
+    [Theory]
+    [InlineData("gacha", "sp4", "gacha")]
+    [InlineData("mobileGame", "sofa26", "sofa")]
+    public Task A_first_扭蛋_or_手游_while_its_pictures_still_load_has_her_stand_as_she_was(string show, string sheet, string prop) =>
+        // (its sheets, the 扭蛋's with her sprite's carrying the battery, load as it starts, not with the page; no prop comes)
+        AssertOnAFreshPageAsync($$"""
             (() => {
-              const loaded = !!pet.cells.sp4;
-              pet.start('gacha', {}); pet.master.currentTime += 2000; const st = pet.stateAt(pet.now()); pet.frame();
-              return JSON.stringify([loaded, st.pose, st.sprite, !!st.gacha]);
+              const loaded = !!pet.cells.{{sheet}};
+              pet.start('{{show}}', {}); pet.master.currentTime += 2000; const st = pet.stateAt(pet.now()); pet.frame();
+              return JSON.stringify([loaded, st.pose, st.sprite, !!st.{{prop}}]);
             })()
             """, """[false,"idle","sIdle",false]""");
 
