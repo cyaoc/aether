@@ -1,6 +1,6 @@
 """Draw the frame strip of a pose that moves in place (the board's STRIP), from its cell of the pose sheet.
 
-python gen-loop.py <pose> <out dir> [--tries 3] [--strip <name>]
+python gen-loop.py <pose> <out dir> [--tries 3] [--strip <name>] [--again]
 
 gen-frames.sh hands codex the cell as frame 1 of a 2 x 2 grid and codex draws frames 2-4 beside it; frame-patch.py
 keeps only what moves (OPTIONS per pose). Every frame's face is then measured against the cell's own (petlib.find_face,
@@ -11,6 +11,9 @@ cell (petlib.carry_props), so it does not shift from frame to frame. Nothing is 
 
 --strip draws another strip of the same pose than the board's STRIP names first (a pose whose loop runs over two strips,
 f and f2: her PK sign swaying left and right), with its own frames/<name>.txt.
+
+--again: codex is not asked again; the frames it drew last time (<strip>-try1-frames.png) are patched once more, after
+the pose's cell changed.
 
 Out: <strip>-strip.png (the four frames in a row, each the cell's size, as the board plays them) and <strip>-check.png.
 """
@@ -38,7 +41,11 @@ OPTIONS = {"wave": ["--head"], "clap": ["--head"], "cheer": ["upper"], "curl": [
            # frame is slid onto frame 1 by her head, body and arms (frame-patch.py --align), and only her shoes and hair move
            "tug": ["--align", "250,150,500,400"], "tugZap": ["--align", "230,150,500,400"],
            # the 扭蛋 daily: the plush sways with her whole upper body; rubbing her hands, the head stays
-           "gHug": ["upper"], "gRub": ["--head"], "gTurn": ["--head"]}
+           "gHug": ["upper"], "gRub": ["--head"], "gTurn": ["--head"],
+           # the 火锅 and 手游 dailies (#411): cut out at the tabletop or lying on the sofa (not in the cell), she may move only
+           # inside her drawing's outline and above its foot, so codex's legs and furniture stay out ("inside")
+           "hHungry": ["--head"], "hYum": ["inside"], "hSpicy": ["inside"], "hDrink": ["inside"], "mPlay": ["inside"],
+           "mWin": ["inside"], "mOuch": ["inside"]}
 # loops whose legs must stride: frame 2 passes between the strides, so at least LEGS_GATE[0] of the legs' outline changes
 # from frame 1, and frame 3 is the other stride, LEGS_GATE[1] (codex drew the hiking legs almost the same in every frame,
 # 0.07 in frame 3, then a frame 3 that changed less than the passing frames, 0.29, and the user still saw no step); the
@@ -53,6 +60,9 @@ def main():
         k = argv.index("--tries")
         tries = int(argv[k + 1])
         del argv[k:k + 2]
+    again = "--again" in argv
+    if again:
+        argv.remove("--again")
     named = None
     if "--strip" in argv:
         k = argv.index("--strip")
@@ -68,6 +78,8 @@ def main():
         x0, y0, x1, y1 = bbox(cell)
         if o == "legs":  # the lower 40% of her, across her whole width
             opts += ["--take", f"{x0 - 10},{int(y0 + 0.6 * (y1 - y0))},{x1 + 10},{y1 + 4}"]
+        elif o == "inside":  # within her outline (20 px round it, her kicking feet and fanning hand) and never below its foot
+            opts += ["--box", f"{max(0, x0 - 20)},{max(0, y0 - 20)},{x1 + 20},{y1}"]
         elif o == "upper":  # her upper 62%, arms and all, so no arm of the drawing's stays beside codex's (four arms)
             opts += ["--take", f"{x0 - 40},{max(0, y0 - 40)},{x1 + 40},{int(y0 + 0.62 * (y1 - y0))}"]
         else:
@@ -76,10 +88,11 @@ def main():
     m0, _, _, s0 = find_face(cell, face)
     py = sys.executable
     best = None
-    for t in range(tries):
+    for t in range(1 if again else tries):
         name = f"{strip}-try{t + 1}"
         try:
-            subprocess.run(["zsh", str(T / "gen-frames.sh"), str(out), name, ref, strip], check=True, cwd=PKG, env={**os.environ, "PYTHON": py}, capture_output=True, timeout=900)
+            if not again:
+                subprocess.run(["zsh", str(T / "gen-frames.sh"), str(out), name, ref, strip], check=True, cwd=PKG, env={**os.environ, "PYTHON": py}, capture_output=True, timeout=900)
             subprocess.run([py, "-I", str(T / "frame-patch.py"), *opts, ref, str(out / f"{name}-frames.png"), str(out / f"{name}.png"), str(out / f"{name}-check.png")], check=True, cwd=PKG, capture_output=True)
         except subprocess.CalledProcessError as e:
             print(f"try {t + 1}: {e.stderr.decode()[-300:] if e.stderr else 'failed'}")
