@@ -22,6 +22,18 @@ public sealed class DesktopPetBrowserTests
           return box;
         })()
         """;
+    // playDaily(kind, mishap, ms, each): plays the 日常小动作 kind from its start, its pictures loaded first, a frame every 1/60 s
+    // for ms on one made-up clock, the page's and performance.now's (her in-betweens go by it), calling each with the moment,
+    // ms into it, after drawing each frame.
+    private const string PlayDaily = """
+        const playDaily = async (kind, mishap, ms, each) => {
+          let clock = performance.now();
+          performance.now = () => clock;
+          pet.start(kind, { mishap }); await Promise.all(Object.values(pet.loads));
+          const { start } = pet.cur;
+          for (let t = 0; t < ms; t += 1000 / 60) { pet.master.currentTime = start + t; clock += 1000 / 60; pet.frame(); each(t); }
+        };
+        """;
     private static readonly string[] DailySheets = ["pose-3-daily-1", "pose-9-ski", "pose-10-gym", "pose-11-hike", "pose-12-cycle", "pose-19-gacha", "pose-20-gacha2", "pose-22-gacha3", "sprite-pose-4", "pose-23-daily", "pose-24-hotpot", "pose-25-hotpot2", "pose-26-sofa"];
 
     [Fact]
@@ -337,54 +349,26 @@ public sealed class DesktopPetBrowserTests
             })()
             """, "[[0,0],[0,0],[0,0],[0,0],[0,0]]");
 
-    [Fact]
-    public Task Cut_short_kneeling_behind_the_table_she_gets_up_where_she_knelt_and_the_table_stays_until_she_is_up() =>
-        // Her show has her kneel 27 px back behind the table (slide), then one without it has her calm at her place. Each frame:
-        // whether the table is drawn, how far above her place she is, whether her drawing is one at the table. Kneeling, the
-        // four in-between frames (idle to grace to her bowl) take her back a fifth of the way each; cut short, she gets up
-        // through them where she knelt, the table there till she is up, and then goes over to her place.
-        AssertOnAFreshPageAsync("""
-            (async () => {
-              await Promise.all(pet.art.fixed.map(sheet => pet.loadSheet(sheet)));
-              const { FOOT } = await import('/desktop-pet/engine.mjs'), g = document.querySelector('canvas').getContext('2d'), drawImage = g.drawImage.bind(g);
-              let clock = performance.now(), table;
-              performance.now = () => clock;
-              g.drawImage = (im, ...rest) => { table ||= im === pet.props.table; drawImage(im, ...rest); };
-              const frames = so => Array.from({ length: 60 }, () => {
-                clock += 1000 / 60; table = false;
-                pet.draw(g, { ...pet.stateAt(pet.now()), ...so }, pet.now());
-                return [table, Math.round(FOOT.y - pet.drawn.y), !!pet.drawn.c.prop];
-              });
-              const kneel = frames({ pose: 'hSit', y: FOOT.y - 27, slide: true, table: { x: 200, y: FOOT.y, w: 240, h: 90, a: 1, s: 1 } }), cut = frames({});
-              const up = cut.findIndex(f => !f[2]), after = cut.slice(up), seen = list => [...new Set(list.map(([shown, y]) => `${shown}:${y}`))];
-              return JSON.stringify({ kneel: seen(kneel), up: seen(cut.slice(0, up)), tableAfter: after.slice(1).some(([shown, , at]) => shown || at),
-                over: [after[0][1], after.at(-1)[1], after.every((f, i) => !i || f[1] <= after[i - 1][1])] });
-            })()
-            """, """{"kneel":["true:5","true:11","true:16","true:22","true:27"],"up":["true:27"],"tableAfter":false,"over":[27,0,true]}""");
-
     [Theory]
-    // eating she has no way up (noWayThrough): the gift's pose comes in at once, and the table goes the frame after
-    [InlineData(6000, "true:false,false:false")]
-    // holding her bowl she gets up through her in-betweens, the bowl going by magic, the table there till she is up
-    [InlineData(3400, "true:true,true:false,false:false")]
-    public Task A_gift_cutting_her_火锅_short_takes_the_table_the_frame_after_she_is_up(int cut, string seen) =>
-        // Played from its start, its pictures loaded first, a frame every 1/60 s on one made-up clock, the page's and
-        // performance.now's (her in-betweens go by it). Each frame after the gift: whether the table is drawn, whether her
-        // drawing is one at it; the same in a row once.
+    // eating she has no way up (noWayThrough): the gift's pose comes in at once where she knelt, and the table goes the frame after
+    [InlineData(6000, "true:false:true,false:false:false")]
+    // holding her bowl she gets up through her in-betweens where she knelt, the bowl going by magic, the table there till she is up
+    [InlineData(3400, "true:true:true,true:false:true,false:false:false")]
+    public Task A_gift_cutting_her_火锅_short_has_her_get_up_where_she_knelt_and_takes_the_table_the_frame_after_she_is_up(int cut, string seen) =>
+        // Each frame after the gift: whether the table is drawn, whether her drawing is one at it, and with the table there
+        // whether she is still HOTPOT.back up, where she knelt behind it (getting up she does not sink into it); the same in a
+        // row once.
         AssertOnAFreshPageAsync($$"""
             (async () => {
-              const g = pet.canvas.getContext('2d'), drawImage = g.drawImage.bind(g), seen = [];
-              let clock = performance.now(), table = false, cut = false;
-              performance.now = () => clock;
+              {{PlayDaily}}
+              const { FOOT, HOTPOT } = await import('/desktop-pet/engine.mjs'), g = pet.canvas.getContext('2d'), drawImage = g.drawImage.bind(g), seen = [];
+              let table = false, cut = false;
               g.drawImage = (im, ...rest) => { table ||= im === pet.props.table; drawImage(im, ...rest); };
-              pet.start('hotpot', { mishap: false }); await Promise.all(Object.values(pet.loads));
-              const { start } = pet.cur;
-              for (let t = 0; t < {{cut}} + 1000; t += 1000 / 60) {
-                pet.master.currentTime = start + t; clock += 1000 / 60; pet.frame();
-                if (cut) seen.push(`${table}:${!!pet.drawn.c.prop}`);
+              await playDaily('hotpot', false, {{cut}} + 1000, t => {
+                if (cut) seen.push([table, !!pet.drawn.c.prop, table && Math.round(FOOT.y - pet.drawn.y) === HOTPOT.back].join(':'));
                 table = false;
                 if (!cut && t >= {{cut}}) { pet.start('gift', { nickname: '星河' }); cut = true; }
-              }
+              });
               return seen.filter((frame, i) => frame !== seen[i - 1]).join();
             })()
             """, seen);
