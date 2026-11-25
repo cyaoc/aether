@@ -1905,11 +1905,10 @@ export class Engine extends EventTarget {
     // hopping from x0 to x1 between a and b in n hops
     const hops = (a, b, x0, x1, n) => { const w = k01(t, a, b); st.x = x0 + (x1 - x0) * w; st.y -= HOP * 0.45 * Math.abs(Math.sin(Math.PI * n * w)); };
     const end = o.mishap ? L.gone : W.gone;
-    const shown = k01(t, T.up, T.up + 200) * (1 - k01(t, end[0], end[1]));
-    const g = st.gacha = { k, a: shown, s: 0.85 + 0.15 * ease(k01(t, T.up, T.up + 300)) + 0.06 * bump(t, T.up + 150, T.up + 450) - 0.3 * ease(k01(t, end[0], end[1])) };
+    const g = st.gacha = { k, ...this.popped(t, T.up, end) };
     const centre = at2(im.width / 2, im.height * 0.45);
     // the sprite spins round where the cabinet comes (and goes), glowing, and it flashes there
-    const spin = a => { const u = t - a, ang = u / 130; st.sprite = 'glow'; st.sp = ['at', centre.x + 78 * Math.cos(ang), centre.y + 26 * Math.sin(ang)]; st.fx.push(['trail', a]); };
+    const spin = a => this.spinAt(st, t, a, centre);
     st.fx.push(['flash', T.up, 0.8, { x: centre.x, y: centre.y + 60 }], ['flash', end[0], 0.8, { x: centre.x, y: centre.y + 60 }]);
 
     // ---- she points home, the sprite fetches the battery and hands it over, spins the cabinet up
@@ -1980,6 +1979,24 @@ export class Engine extends EventTarget {
     if (t >= L.wail) st.fx.push(['tears', L.wail + 100, L.wipe - L.wail]);
     say(L.empty + 100, L.wail, 'gachaEmpty'); say(L.wail + 150, L.wipe, 'gachaMiss'); say(L.wipe + 150, L.end, 'gachaCheerUp');
     return st;
+  }
+
+  // The sprite glowing round the place where a prop comes (or goes) from time a, leaving a trail of stars.
+  spinAt(st, t, a, centre) {
+    const ang = (t - a) / 130;
+    st.sprite = 'glow'; st.sp = ['at', centre.x + 78 * Math.cos(ang), centre.y + 26 * Math.sin(ang)]; st.fx.push(['trail', a]);
+  }
+
+  // Where a point of a fixed sheet's cell (its px, as in HOTPOT and MOBILE) is on the page when her spot is (x, y).
+  fromSpot(sheet, [px, py], x, y) {
+    const c = this.cells[sheet][0], k = H / c.ruler;
+    return { x: x + (px - c.cx) * k, y: y + (py - c.ground) * k };
+  }
+
+  // A prop the sprite brings with a pop (from up) and takes away with a shrink (gone): its alpha and its scale about its
+  // bottom middle, as the 扭蛋 cabinet does.
+  popped(t, up, gone) {
+    return { a: k01(t, up, up + 200) * (1 - k01(t, gone[0], gone[1])), s: 0.85 + 0.15 * ease(k01(t, up, up + 300)) + 0.06 * bump(t, up + 150, up + 450) - 0.3 * ease(k01(t, gone[0], gone[1])) };
   }
 
   // The capsule's two halves leaving her hands at a: popping off to either side as the plush comes out (pop), or slipping
