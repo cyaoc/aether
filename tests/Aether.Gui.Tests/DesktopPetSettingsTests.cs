@@ -395,26 +395,31 @@ public sealed class DesktopPetSettingsTests
     });
 
     [Fact]
-    public Task The_gacha_is_a_sixth_daily_on_in_a_file_from_before_it_its_lines_are_edited_like_the_others_and_turned_off_it_saves_by_its_id() =>
+    public Task The_gacha_hotpot_and_mobile_game_are_dailies_on_in_a_file_from_before_them_their_lines_are_edited_like_the_others_and_turned_off_they_save_by_their_ids() =>
         WithPage(async (page, harness) =>
     {
+        string[] later = ["扭蛋", "火锅", "手游"];
         GuiHarness.Tab(page, 1);
-        Assert.Equal(["哼歌", "举哑铃", "爬山", "骑车", "滑雪", "扭蛋"],
+        Assert.Equal(["哼歌", "举哑铃", "爬山", "骑车", "滑雪", .. later],
             page.FindControl<ItemsControl>("DailyRows")!.Items.Cast<DesktopPetShowRow>().Select(row => row.Show.Label));
-        Assert.Equal((false, true), (Switch(page, "哼歌").IsChecked, Switch(page, "扭蛋").IsChecked));
-        Assert.Contains("砸到脚、破音、摔一跤、扭蛋落空", Texts(page));
-        Assert.Subset(TestLabels(page).ToHashSet(), new HashSet<string> { "扭蛋", "扭蛋：出事" });
-        Switch(page, "扭蛋").IsChecked = false;
+        Assert.Equal((false, true, true, true), (Switch(page, "哼歌").IsChecked, Switch(page, "扭蛋").IsChecked, Switch(page, "火锅").IsChecked, Switch(page, "手游").IsChecked));
+        Assert.Contains("砸到脚、破音、摔一跤、扭蛋落空、辣到、砸脸", Texts(page));
+        Assert.Subset(TestLabels(page).ToHashSet(), new HashSet<string> { "扭蛋", "扭蛋：出事", "火锅", "火锅：出事", "手游", "手游：出事" });
+        foreach (var label in later)
+            Switch(page, label).IsChecked = false;
         GuiHarness.Tab(page, 3);
-        Assert.Subset(LineKindLabels(page).ToHashSet(),
-            new HashSet<string> { "扭蛋", "扭中了", "扭空", "没扭中", "打起精神" });
+        Assert.Subset(LineKindLabels(page).ToHashSet(), new HashSet<string>
+            { "扭蛋", "扭中了", "扭空", "没扭中", "打起精神", "火锅", "好吃", "辣到了", "得救了", "手游", "赢了", "输了", "砸到脸" });
         PickLines(page, "扭空", "拧开扭蛋是空的、愣住时；每次随机一句，不连着重复", "gachaEmpty");
         Line(page, 1).Text = "空的？";
+        PickLines(page, "砸到脸", "手机砸到脸时；每次随机一句，不连着重复", "mobileOuch");
+        Line(page, 1).Text = "鼻子…";
 
         await GuiHarness.SaveAsync(page);
         var saved = Settings.Load(harness.DataDirectory);
-        Assert.Equal(["hum", "gacha"], saved.DesktopPetShowsOff.Value);
+        Assert.Equal(["hum", "gacha", "hotpot", "mobileGame"], saved.DesktopPetShowsOff.Value);
         Assert.Equal(["空的？", .. Character.Current.Lines["gachaEmpty"].Skip(1)], saved.DesktopPetChangedLines["gachaEmpty"].Value);
+        Assert.Equal(["鼻子…", .. Character.Current.Lines["mobileOuch"].Skip(1)], saved.DesktopPetChangedLines["mobileOuch"].Value);
     }, prepare: harness => harness.SaveSettings(("desktop_pet.shows_off", "[hum]")));
 
     /// <summary>Picks the kind of lines <paramref name="label"/>: it says <paramref name="note"/>, and its first line is the
