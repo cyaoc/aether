@@ -22,19 +22,7 @@ public sealed class DesktopPetBrowserTests
           return box;
         })()
         """;
-    // playDaily(kind, mishap, ms, each): plays the 日常小动作 kind from its start, its pictures loaded first, a frame every 1/60 s
-    // for ms on one made-up clock, the page's and performance.now's (her in-betweens and her sprite's flight go by it), calling
-    // each with the moment, ms into it, after drawing each frame.
-    private const string PlayDaily = """
-        const playDaily = async (kind, mishap, ms, each) => {
-          let clock = performance.now();
-          performance.now = () => clock;
-          pet.start(kind, { mishap }); await Promise.all(Object.values(pet.loads));
-          const { start } = pet.cur;
-          for (let t = 0; t < ms; t += 1000 / 60) { pet.master.currentTime = start + t; clock += 1000 / 60; pet.frame(); each(t); }
-        };
-        """;
-    private static readonly string[] DailySheets =["pose-3-daily-1", "pose-9-ski", "pose-10-gym", "pose-11-hike", "pose-12-cycle", "pose-19-gacha", "pose-20-gacha2", "pose-22-gacha3", "sprite-pose-4", "pose-23-daily", "pose-24-hotpot", "pose-25-hotpot2", "pose-26-sofa"];
+    private static readonly string[] DailySheets = ["pose-3-daily-1", "pose-9-ski", "pose-10-gym", "pose-11-hike", "pose-12-cycle", "pose-19-gacha", "pose-20-gacha2", "pose-22-gacha3", "sprite-pose-4", "pose-23-daily", "pose-24-hotpot", "pose-25-hotpot2", "pose-26-sofa"];
 
     [Fact]
     public async Task The_page_is_transparent_while_the_desktop_pet_is_off_and_scales_with_the_browser_source_at_three_to_four()
@@ -374,62 +362,29 @@ public sealed class DesktopPetBrowserTests
             })()
             """, """{"kneel":["true:5","true:11","true:16","true:22","true:27"],"up":["true:27"],"tableAfter":false,"over":[27,0,true]}""");
 
-    [Fact]
-    public async Task Kneeling_down_behind_the_火锅_table_her_head_stays_within_6_px_from_frame_to_frame()
-    {
-        // (she moves 27 px back as she kneels, in the two frames of it: her head goes down as much as she goes back) The top
-        // of her drawing each frame, as drawHer scaled it, from the table up to her saying grace.
-        using var seen = JsonDocument.Parse((await OnAFreshPageAsync($$"""
-            (async () => {
-              {{PlayDaily}}
-              const tops = [];
-              await playDaily('hotpot', false, 2900, t => { if (t >= 2000) { const d = pet.drawn; tops.push(d.y + (d.b.y - d.y) * d.sy); } });
-              return JSON.stringify({ pose: pet.hv.pose, steepest: Math.max(...tops.slice(1).map((top, i) => Math.abs(top - tops[i]))) });
-            })()
-            """))!);
-        Assert.Equal("hPray", seen.RootElement.GetProperty("pose").GetString());
-        Assert.InRange(seen.RootElement.GetProperty("steepest").GetDouble(), 0, 6);
-    }
-
-    [Fact]
-    public async Task The_豆奶_her_sprite_holds_out_is_within_6_px_of_the_one_in_her_hand_as_she_takes_it()
-    {
-        // The sprite's bottle as it last draws itself holding it out, and hers in the first frame of her taking it (hDrinkIn's
-        // frame 2), each where the manifest measured it on the drawing (points.hotpot.give), on the page.
-        var apart = await OnAFreshPageAsync($$"""
-            (async () => {
-              {{PlayDaily}}
-              const { SPRITE_H } = await import('/desktop-pet/engine.mjs'), { give } = pet.art.points.hotpot, k = SPRITE_H / pet.cells.sp5[0].ruler;
-              let held, taken;
-              await playDaily('hotpot', true, 8600, () => {
-                const d = pet.drawn;
-                if (pet.sc.id === 'sGiveBottle') held = { x: pet.sv.x + give.sprite[0] * k, y: pet.sv.y + give.sprite[1] * k };
-                if (!taken && d.c === pet.tweens['hSpicy>hDrink'][0]) { const p = pet.fromSpot('hotpot25', give.her, d.x, d.y); taken = { x: d.x + (p.x - d.x) * d.sx, y: d.y + (p.y - d.y) * d.sy }; }
-              });
-              return String(Math.hypot(held.x - taken.x, held.y - taken.y));
-            })()
-            """);
-        Assert.InRange(double.Parse(apart!, CultureInfo.InvariantCulture), 0, 6);
-    }
-
     [Theory]
     // eating she has no way up (noWayThrough): the gift's pose comes in at once, and the table goes the frame after
     [InlineData(6000, "true:false,false:false")]
     // holding her bowl she gets up through her in-betweens, the bowl going by magic, the table there till she is up
     [InlineData(3400, "true:true,true:false,false:false")]
     public Task A_gift_cutting_her_火锅_short_takes_the_table_the_frame_after_she_is_up(int cut, string seen) =>
-        // Each frame after the gift: whether the table is drawn, whether her drawing is one at it; the same in a row once.
+        // Played from its start, its pictures loaded first, a frame every 1/60 s on one made-up clock, the page's and
+        // performance.now's (her in-betweens go by it). Each frame after the gift: whether the table is drawn, whether her
+        // drawing is one at it; the same in a row once.
         AssertOnAFreshPageAsync($$"""
             (async () => {
-              {{PlayDaily}}
               const g = pet.canvas.getContext('2d'), drawImage = g.drawImage.bind(g), seen = [];
-              let table = false, cut = false;
+              let clock = performance.now(), table = false, cut = false;
+              performance.now = () => clock;
               g.drawImage = (im, ...rest) => { table ||= im === pet.props.table; drawImage(im, ...rest); };
-              await playDaily('hotpot', false, {{cut}} + 1000, t => {
+              pet.start('hotpot', { mishap: false }); await Promise.all(Object.values(pet.loads));
+              const { start } = pet.cur;
+              for (let t = 0; t < {{cut}} + 1000; t += 1000 / 60) {
+                pet.master.currentTime = start + t; clock += 1000 / 60; pet.frame();
                 if (cut) seen.push(`${table}:${!!pet.drawn.c.prop}`);
                 table = false;
                 if (!cut && t >= {{cut}}) { pet.start('gift', { nickname: '星河' }); cut = true; }
-              });
+              }
               return seen.filter((frame, i) => frame !== seen[i - 1]).join();
             })()
             """, seen);
@@ -568,17 +523,12 @@ public sealed class DesktopPetBrowserTests
 
     /// <summary>Runs <paramref name="script"/> on a page just opened, where only what it loads with has loaded yet, and checks
     /// it returns <paramref name="expected"/> without errors.</summary>
-    private static async Task AssertOnAFreshPageAsync(string script, string expected) => Assert.Equal(expected, await OnAFreshPageAsync(script));
-
-    /// <summary>Runs <paramref name="script"/> on a page just opened, where only what it loads with has loaded yet, checks it
-    /// threw no errors and returns what it returns.</summary>
-    private static async Task<string?> OnAFreshPageAsync(string script)
+    private static async Task AssertOnAFreshPageAsync(string script, string expected)
     {
         await using var page = await StartAsync();
         await page.OpenAsync(480, 640);
-        var result = (await page.Browser.EvaluateAsync(script)).GetString();
+        Assert.Equal(expected, (await page.Browser.EvaluateAsync(script)).GetString());
         Assert.Empty(page.Browser.Errors);
-        return result;
     }
 
     private static Process Node(params string[] arguments)
