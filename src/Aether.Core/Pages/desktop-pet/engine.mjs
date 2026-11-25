@@ -957,7 +957,7 @@ export class Engine extends EventTarget {
     // loot: there is something in the chest to fight over; span: how many 票 each end of the bar is from the middle
     gm.visit = { phase: 'peek', at: now, queue: [], hits: [], spent: 0, count: 0, freezes: 0, helped: 0,
       sides: new Map(), balls: [], struck: {}, retorted: {}, taunted: new Set(), taunt: -Infinity, lucked: -Infinity, luck: null,
-      span: clamp(Math.round(gm.chest / 20), 100, 500), net: 0, red: 0, blue: 0, favours: -1, flip: {}, drag: 0, pos: { x: -70, y: 120 }, chest: null, loot: gm.chest > 0 };
+      span: clamp(Math.round(gm.chest / 20), 300, 500), net: 0, red: 0, blue: 0, favours: -1, flip: {}, drag: 0, pos: { x: -70, y: 120 }, chest: null, loot: gm.chest > 0 };
     this.pkSay(gm.brag ? 'pranksterBrag' : gm.grudge ? 'pranksterGrudge' : 'pranksterPeek', now, gm.grudge);
     gm.brag = false; gm.grudge = null;   // (said once: it tells of its last 来访)
     this.visited('start');

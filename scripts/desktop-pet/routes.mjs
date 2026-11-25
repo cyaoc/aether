@@ -44,6 +44,14 @@ export function drive(pet, later, { NAME, STEP, VIEWERS, STAR }) {
     someone,
     visit: () => pet.summon(),
     heard: (w = someone(false), said = '') => pet.danmaku({ uid: w.uid, nickname: w.nickname, side: SIDE[said] ?? 0 }),
+    // the board's lucky(side): a 幸运纸团 for sure, which Core has no way to tell (the page draws its own chance of one)
+    lucky: side => {
+      const v = pet.gm.visit, w = someone();
+      if (v?.phase !== 'tug' || v.cut != null || v.luck) return;
+      const viewer = { uid: w.uid, name: w.nickname };
+      pet.enlist(viewer, side, 'dm');
+      v.balls.push({ at: pet.now(), side, lucky: true, w: viewer, seed: pet.rng() });
+    },
     pkOn: on => pet.receive(state({ pk: on })),
     fire: (name, opts) => GUARD[name] ? pet.guard({ ...STAR, guardLevel: GUARD[name], spend: opts.price * 100 })
       : (pet.receive(state()), pet.receive(state({ lottery: { mode: 'Entry', id: 'E1', keyword: '抽奖', phase: 'Open', entryCount: 0, draws: [], drawUntil: null } }))),

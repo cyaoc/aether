@@ -1355,6 +1355,10 @@ class Component extends DCLogic {
     return from.length ? from[Math.floor(this.rng() * from.length)] : null;
   }
 
+  // A lucky ball for sure (three in ten by chance), from someone put on side sd, while the tug is on and none is open (the
+  // 小游戏 buttons, and check-game.mjs's lucky routes).
+  lucky(sd) { const v = this.gm.visit, w = this.someone(); if (v?.phase !== 'tug' || v.cut != null || v.luck) return; this.enlist(w, sd, 'dm'); v.balls.push({ at: this.now(), side: sd, lucky: true, w, seed: this.rng() }); }
+
   // The prankster is to come: once whatever plays is over (a 日常小动作 is not cut short), gameUpdate starts its visit.
   visit() { if (this.cfg.game && !this.gm.visit && !this.gm.pk) this.gm.due = true; }
   // A PK (连麦 PK) is no time for it: it does not come, and one here goes as if scared off, with no show after: she lets
@@ -4069,12 +4073,10 @@ class Component extends DCLogic {
     const side = (gift, n) => () => this.give([{ gift, price: 1, n, viewer: this.someone() }]), dm = (on, said) => () => this.heard(this.someone(on), said);
     // ×520 is a 秒杀 whatever the chest (each end is 300 to 500 票 away); the last stretch is a jump of
     // the fight's own clock to 10 s left, to see the dragging, the 0:00 wait and a 绝杀 without waiting the minute out
-    // a lucky ball for sure (three in ten by chance), from someone put on that side, while the tug is on and none is open
-    const lucky = sd => () => { const v = this.gm.visit, w = this.someone(); if (v?.phase !== 'tug' || v.cut != null || v.luck) return; this.enlist(w, sd, 'dm'); v.balls.push({ at: this.now(), side: sd, lucky: true, w, seed: this.rng() }); };
     const last10 = () => { const v = this.gm.visit; if (v?.phase === 'tug' && v.judge == null) v.left = Math.min(v.left, GAME.sprint + 400); };
     group('小游戏', [['捣蛋鬼来了', () => this.visit()], ['人气票', side('人气票', 1)], ['人气票 ×10', side('人气票', 10)], ['人气票 ×520', side('人气票', 520)],
       ['小花花', side('小花花', 1)], ['小花花 ×5', side('小花花', 5)], ['小花花 ×520', side('小花花', 520)], ['跳到最后 10 秒', last10],
-      ['路人发弹幕', dm(false)], ['发「1」', dm(null, '1')], ['发「2」', dm(null, '2')], ['站了队的发弹幕', dm(true)], ['红方丢幸运纸团', lucky(1)], ['蓝方丢幸运纸团', lucky(-1)],
+      ['路人发弹幕', dm(false)], ['发「1」', dm(null, '1')], ['发「2」', dm(null, '2')], ['站了队的发弹幕', dm(true)], ['红方丢幸运纸团', () => this.lucky(1)], ['蓝方丢幸运纸团', () => this.lucky(-1)],
       ['别的礼物 100 电池', g([one('爱心抱枕', 100)])], ['别的礼物到中礼物', g([one('告白气球', 2000)])], ['PK 开始', () => this.pkOn(true)], ['PK 结束', () => this.pkOn(false)]]);
     const fit = () => { const r = document.getElementById('root'); if (r) r.style.zoom = Math.min(innerWidth / 1920, (innerHeight - bar.offsetHeight) / 1080); };
     addEventListener('resize', fit); setTimeout(fit, 50);
