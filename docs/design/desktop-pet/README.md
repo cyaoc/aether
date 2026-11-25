@@ -596,7 +596,7 @@ open 'http://localhost:8820/render.html?board=DP-DesktopPet.dc.html&props={"game
 - `tug-buzzer.webp`：最后 6 秒落后被拖、最后 10 张反超、0:00 下面的线在缩、闪一下、绝杀、精灵吊箱子回家时绝杀已经消失、她说“绝杀！守住啦！”。`tug-tie.webp`：0 比 0、线在缩、被偷了。
 - 条这一块原尺寸 `tug-hud-1x.webp`。
 
-验收：`node tools/check-game.mjs 8820` 42 条路线都走得通（2026-11-17、18 加了 17 条：`empty-snatch`、`empty-snatch-peer` 空箱被拿走，`scare-big`、`scare-big-zap`、`scare-air-big`、`burst-race`、`box-mid`、`scare-lottery` 光圈和抽奖打断，`late-gift`、`empty-air-kill`、`empty-air-steal` 第一轮审查，`win-big`、`lose-big`、`pk-zap-gift`、`guard-gov`、`peek-steal`、`peek-kill` 第二轮），她换姿势没有一处无路，它换姿势没有一处没有过渡帧（新加的 `buzzer-win`、`sprint-flip`、`steal-kill`、`zap-kill`、`air-kill`、`air-steal`、`sprint-kill`、`up-kill`、`zap-steal` 走秒杀、绝杀、领先来回换、空中结束、拖着时被秒杀、刚抓住就被秒杀、闪电中被帮它的秒杀；路线里的礼物是人气票、小花花，秒杀、闪电用的票数按两头的票数（`span`）折算（`of`，2026-11-24 起，不再写死 100、55），开头先等画板启动完；一起跑太多会有 Chrome 卡住，每条最多跑 6 分钟，卡住的单独再跑；分两批跑最稳）；`node scripts/desktop-pet/compare.mjs` 小游戏以外的 49 个用例、319 个时刻页面和画板一样，小游戏路线要等桌宠页按这一节改完才对得上。
+验收：`node tools/check-game.mjs 8820` 44 条路线都走得通（2026-11-17、18 加了 17 条：`empty-snatch`、`empty-snatch-peer` 空箱被拿走，`scare-big`、`scare-big-zap`、`scare-air-big`、`burst-race`、`box-mid`、`scare-lottery` 光圈和抽奖打断，`late-gift`、`empty-air-kill`、`empty-air-steal` 第一轮审查，`win-big`、`lose-big`、`pk-zap-gift`、`guard-gov`、`peek-steal`、`peek-kill` 第二轮），她换姿势没有一处无路，它换姿势没有一处没有过渡帧（新加的 `buzzer-win`、`sprint-flip`、`steal-kill`、`zap-kill`、`air-kill`、`air-steal`、`sprint-kill`、`up-kill`、`zap-steal` 走秒杀、绝杀、领先来回换、空中结束、拖着时被秒杀、刚抓住就被秒杀、闪电中被帮它的秒杀；路线里的礼物是人气票、小花花，秒杀、闪电用的票数按两头的票数（`span`）折算（`of`，2026-11-24 起，不再写死 100、55），开头先等画板启动完；一起跑太多会有 Chrome 卡住，每条最多跑 6 分钟，卡住的单独再跑；分两批跑最稳）；`node scripts/desktop-pet/compare.mjs` 小游戏以外的 49 个用例、319 个时刻页面和画板一样，小游戏路线要等桌宠页按这一节改完才对得上。
 
 实现时别漏：
 - 页面的头像：桌宠页要知道每份入伙礼物的送礼人头像。礼物消息里带的就用（`Gift.FaceUrl`），没有就画那一边颜色的圆、写昵称第一个字，不另去 B站 按 UID 补（上线看缺得多再照礼物榜补）。
@@ -605,8 +605,8 @@ open 'http://localhost:8820/render.html?board=DP-DesktopPet.dc.html&props={"game
 - 台词：她那组加「别丢啦」「绝杀守住」，它那组加「点名」「回嘴」「露破绽」「趁现在」「收下小花花」「绝杀得手」，「招人」改成“想看她出糗？ 发2跟我混！”（GUI 画板 DP1 已改）。它的气泡一行最多 6 个字。
 - 设置加 `desktop_pet.lucky_percent`（幸运纸团的几率，默认 30，0 是关），页面状态带上它，桌宠页按它算 `LUCK.chance`；GUI 照第 13 节的开关做。
 - 台词说明：「打跑了」改成“空箱时有人送人气票把它打飞”，「被打跑」改成“被人气票打跑时”；2026-11-18 又改了六条（DP1 画板）：「露破绽」「趁现在」是“这 10 秒”（原来写 5 秒，2026-11-22 随双倍窗口改成“这 20 秒”），「收下小花花」“空箱时有人送小花花、它拿走箱子时”（原来只写坐在空箱上），「放闪电」“她领先到一半、它放闪电时”（原来写血掉一半，已经没有血条），「被偷了」“宝箱被拿走、她跪着哭时”（空箱是被吊走的），「记仇」“上次来时有人砸过它，探头说这句”（原来写上次砸它的人在直播间时，其实不看人在不在）。
-- 2026-11-17、18 画板改的规则（空箱被小花花拿走、×2 挂在比分旁（2026-11-24 改成亮在礼物图标上）、光圈打断、闪电加票、收尾、另记、探头、宽限 5 秒（2026-11-22 改成 10 秒）、被偷了 B 档）桌宠页照搬，`routes.mjs` 跟 `check-game.mjs` 的 42 条路线。
-- 2026-11-24 条下面改版（上面「条下面两行」「加倍亮在得益那边的礼物上」）：桌宠页 `pet.mjs` 的 `ROW`、`HUD`、条下面第一行和双倍的画法照搬画板（`ICON`、`iconAt` 代替 `doubleAt`，比分旁不再画 ×2，文字是“发「1」”“发「2」”）；纸团的图页面已经有（扔纸团用的那张）。两头最少 300 票：`engine.mjs` 的 `span` 照画板 `startVisit` 改。
+- 2026-11-17、18 画板改的规则（空箱被小花花拿走、×2 挂在比分旁（2026-11-24 改成亮在礼物图标上）、光圈打断、闪电加票、收尾、另记、探头、宽限 5 秒（2026-11-22 改成 10 秒）、被偷了 B 档）桌宠页照搬，`routes.mjs` 跟 `check-game.mjs` 的 44 条路线。
+- 2026-11-24 条下面改版（上面「条下面两行」「加倍亮在得益那边的礼物上」）：桌宠页 `pet.mjs` 的 `ROW`、`HUD`、条下面第一行和双倍的画法照搬画板（`ICON`、`iconAt` 代替 `doubleAt`，比分旁不再画 ×2，文字是“发「1」”“发「2」”）；纸团的图页面已经有（扔纸团用的那张）。两头最少 300 票：`engine.mjs` 的 `span` 照画板 `startVisit` 改。画板「红方丢幸运纸团」「蓝方丢幸运纸团」按钮的做法提成方法 `lucky(side)`，`check-game.mjs` 加 `lucky-red`、`lucky-blue` 两条路线（`routes.mjs` 的 `drive` 也有 `lucky`），比对星在飞、图标刚亮、最后 3 秒。
 
 ## 13. 能关的数字前面加开关（2026-11-16）
 

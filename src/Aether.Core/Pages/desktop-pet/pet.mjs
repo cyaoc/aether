@@ -23,18 +23,21 @@ const SEGMENTS = { hum: ['daily1'], gym: ['gym10'], hike: ['hike11'], bike: ['cy
 // The 捣蛋鬼's drawings and the chest's, the same for every character (prankster/prankster.json).
 const PRANKSTER = '/desktop-pet/prankster/';
 // The tug's two sides, hers 1 and the 捣蛋鬼's -1: B站's own icons of their gifts, 人气票 and 小花花 (giftConfig?platform=pc,
-// 2026-11-16), from B站's CDN; her side red, its blue, each with a light one for its numbers.
+// 2026-11-16), from B站's CDN; her side red, its blue, each with a light one for its numbers and its 发「1」 / 发「2」.
 export const SIDE_ICON = { 1: 'https://s1.hdslb.com/bfs/live/7d78646ee4ecc900cebbe46cb963f421079548f0.png', '-1': 'https://s1.hdslb.com/bfs/live/5126973892625f3a43a8290be6b625b5e54261a5.png' };
 const SIDE_COL = { 1: '#FF4D6D', '-1': '#4D8BFF' }, SIDE_LIGHT = { 1: '#FFB3C1', '-1': '#B3CDFF' };
-// Under the tug bar, two rows: each side's gift icon and how to join it by danmaku (1, 2), then the faces of who joined it by
-// gift. The game's words are read off a stream shrunk on a phone, so they keep to her bubbles' size (28 px): the countdown
-// above it, the score, the numbers and ×2 at it, and the short labels under the bar a step below (24 px). HUD is how far down
-// the page it all reaches.
-const ROW = [BAR.y + BAR.h + 22, BAR.y + BAR.h + 62], HUD = BAR.y + BAR.h + 82;
-// How a double shows: a pink star flies from the one a 幸运纸团 hit to the gaining side's score in DOUBLE.fly, ×2 pops up beside
-// the score (DOUBLE.pop) as that half of the bar flashes white (DOUBLE.flash); for the window light stripes run along that
-// half toward the line and its gift's icon under the bar beats in its countdown ring; the last DOUBLE.hurry both blink
-// faster, and at the end the ×2 shrinks away in DOUBLE.out.
+// Under the tug bar, two rows: each side's gift icon (ICON, on a dark disc ringed in its side's colour) and, smaller, a paper
+// ball and 发「1」 / 发「2」, then the faces of who joined it by gift. Pictures over words: the gift is what pulls, so it is the
+// big one; the danmaku throws paper balls, so its mark is one, not a second way to pull. The game's words are read off a
+// stream shrunk on a phone, so they keep to her bubbles' size (28 px): the countdown above it, the score and the numbers at
+// it, and the short labels under the bar a step below (24 px). HUD is how far down the page it all reaches.
+const ICON = 48, ROW = [BAR.y + BAR.h + 36, BAR.y + BAR.h + 88], HUD = BAR.y + BAR.h + 108;
+// How a double shows (a PK bar's multiplier stands at the side that gains, not at whoever is hit): a pink star flies from the
+// one a 幸运纸团 hit to the gaining side's gift icon under the bar in DOUBLE.fly, the icon lights up pink (its glow swells in
+// DOUBLE.pop) as that half of the bar flashes white (DOUBLE.flash); for the window light stripes run along that half toward
+// the line and the icon beats in a pink countdown ring; the last DOUBLE.hurry both blink faster, and at the end the glow goes
+// in DOUBLE.out. No ×2 in words (a ×2 by the score or a gift's name reads as two of it, or as the danmaku counting twice): the
+// star landing on the gift says which gift gains.
 const DOUBLE = { fly: 450, pop: 220, flash: 260, hurry: 3000, out: 200 };
 // A 盲盒查询's 账单卡 (design package README 14: the board's BILL, which DP-BlindBoxCard.dc.html draws too), in page px, 1 : 1 at
 // 1080p: a receipt W wide and as tall as its words (layout), the 投入 and 盈亏 as the reply wrote them (Core's text), and her
@@ -967,7 +970,7 @@ export class Pet extends Engine {
     });
     if (v?.phase === 'tug' || v?.result && now - v.resultAt < GAME.flash) this.drawBoard(g, v, now, text);
     if (v?.luck && now - v.luck.at < DOUBLE.fly && target(v.luck.side)) {
-      const from = target(v.luck.side), to = this.doubleAt(g, v, v.luck.side), t = ease((now - v.luck.at) / DOUBLE.fly);
+      const from = target(v.luck.side), to = this.iconAt(v.luck.side), t = ease((now - v.luck.at) / DOUBLE.fly);
       for (let i = 4; i >= 0; i--) {
         const q = Math.max(0, t - i * 0.06), p = { x: from.x + (to.x - from.x) * q, y: from.y + (to.y - from.y) * q - 60 * Math.sin(Math.PI * q) };
         if (!i) { const gr = g.createRadialGradient(p.x, p.y, 0, p.x, p.y, 26); gr.addColorStop(0, 'rgba(255,150,195,0.75)'); gr.addColorStop(1, 'rgba(255,150,195,0)'); g.fillStyle = gr; g.beginPath(); g.arc(p.x, p.y, 26, 0, Math.PI * 2); g.fill(); }
@@ -990,11 +993,8 @@ export class Pet extends Engine {
     }
   }
 
-  // Where a side's ×2 stands: beside its score, toward the middle (red after its number, blue before it).
-  doubleAt(g, v, side) {
-    g.save(); g.font = `800 28px ${SANS}`; const sw = g.measureText(`${side > 0 ? v.red : v.blue}`).width; g.restore();
-    return { x: side > 0 ? BAR.x + sw + 34 : BAR.x + BAR.w - sw - 34, y: BAR.y - 22 };
-  }
+  // Where a side's gift icon stands under the bar: at its end, in the first row (a double's star lands on it).
+  iconAt(side) { return { x: side > 0 ? BAR.x + ICON / 2 + 4 : BAR.x + BAR.w - ICON / 2 - 4, y: ROW[0] }; }
 
   // How much of the double's marks shows: all of it, blinking four times a second in its last DOUBLE.hurry.
   hurry(v, now) { return v.luck && v.luck.until - now < DOUBLE.hurry ? 0.35 + 0.65 * Math.abs(Math.cos(Math.PI * (v.luck.until - now) / 250)) : 1; }
@@ -1039,16 +1039,6 @@ export class Pet extends Engine {
     g.textAlign = 'left'; text(`${v.red}`, x, y - 22, `800 28px ${SANS}`, SIDE_LIGHT[1]);
     g.textAlign = 'right'; text(`${v.blue}`, x + w, y - 22, `800 28px ${SANS}`, SIDE_LIGHT[-1]);
     g.restore();
-    const out = !v.luck && v.luckOut && now - v.luckOut.at < DOUBLE.out ? v.luckOut : null, on = v.luck && now - v.luck.at >= DOUBLE.fly ? v.luck : out;
-    if (on) {
-      const p = this.doubleAt(g, v, on.side), u = now - on.at - DOUBLE.fly;
-      const k = out ? 1 - (now - out.at) / DOUBLE.out : 1 + 0.6 * (1 - ease(k01(u, 0, DOUBLE.pop)));
-      g.save(); g.translate(p.x, p.y); g.scale(k, k); g.globalAlpha = out ? 1 : this.hurry(v, now);
-      g.textAlign = 'center'; g.textBaseline = 'middle'; g.font = `900 36px ${SANS}`; g.lineJoin = 'round';
-      g.lineWidth = 9; g.strokeStyle = 'rgba(40,26,54,0.88)'; g.strokeText('×2', 0, 1);
-      g.lineWidth = 4.5; g.strokeStyle = SIDE_COL[on.side]; g.strokeText('×2', 0, 1);
-      g.fillStyle = '#fff'; g.fillText('×2', 0, 1); g.restore();
-    }
     g.save(); g.translate(jolt, 0);
     g.fillStyle = 'rgba(40,26,54,0.75)'; g.beginPath(); g.roundRect(x, y, w, h, h / 2); g.fill();
     seg(x + 2, lx, SIDE_COL[1]); seg(lx, x + w - 2, SIDE_COL[-1]);
@@ -1070,21 +1060,30 @@ export class Pet extends Engine {
     g.drawImage(cb, lx - chw / 2, y + h / 2 - chh * 0.6 - hop, chw, chh);
     g.restore();
     if (v.phase !== 'tug') return g.restore();   // still in the air: no rows yet, it flies right through where they go
-    // Under the bar, each side from its end inward. The first row: its gift's icon and how to join it by danmaku (发1, 发2);
-    // while that side's gift counts twice the icon beats in a ring running down the window (DOUBLE). The second: the faces
-    // of whoever joined it by gift, the newest first, five at most and +N for the rest; a new one pops in.
+    // Under the bar, each side from its end inward. The first row: its gift's icon on a disc, then a paper ball and 发「1」 /
+    // 发「2」 (the danmaku throws balls; the 1 in quotes, what to send); while that side's gift counts twice the icon glows pink
+    // and beats in a pink ring running down the window (DOUBLE). The second: the faces of whoever joined it by gift, the newest
+    // first, five at most and +N for the rest; a new one pops in.
     for (const side of [1, -1]) {
-      const end = side > 0 ? x : x + w, at2 = d => end + side * d, icon = this.remote(SIDE_ICON[side]), [r1, r2] = ROW;
-      const beat = v.luck?.side === side && now - v.luck.at >= DOUBLE.fly ? 1 + 0.14 * Math.max(0, Math.sin((now - v.luck.at) / 1000 * Math.PI * 2 * (v.luck.until - now < DOUBLE.hurry ? 3 : 1.4))) : 1;
-      g.save(); g.translate(at2(16), r1); g.scale(beat, beat);
-      if (icon) g.drawImage(icon, -16, -16, 32, 32); else giftBox(g, 0, 0, 12);
-      g.restore();
-      g.save(); g.globalAlpha = 0.95; g.fillStyle = SIDE_COL[side]; g.beginPath(); g.roundRect(at2(38) - (side > 0 ? 0 : 58), r1 - 16, 58, 32, 16); g.fill(); g.restore();
-      g.save(); g.textAlign = 'center'; g.textBaseline = 'middle'; g.font = `800 24px ${SANS}`; g.fillStyle = '#3A2440'; g.fillText(`发${side > 0 ? 1 : 2}`, at2(67), r1 + 1); g.restore();
-      if (v.luck?.side === side && now - v.luck.at >= DOUBLE.fly) {
-        const k = clamp((v.luck.until - now) / LUCK.ms, 0, 1);
-        g.save(); g.globalAlpha = this.hurry(v, now); g.strokeStyle = SIDE_COL[side]; g.lineWidth = 3; g.beginPath(); g.arc(at2(16), r1, 21, -Math.PI / 2, -Math.PI / 2 + Math.PI * 2 * k); g.stroke(); g.restore();
+      const end = side > 0 ? x : x + w, at2 = d => end + side * d, icon = this.remote(SIDE_ICON[side]), [r1, r2] = ROW, c = this.iconAt(side), disc = ICON / 2 + 4;
+      const on = v.luck?.side === side && now - v.luck.at >= DOUBLE.fly, out = !v.luck && v.luckOut?.side === side && now - v.luckOut.at < DOUBLE.out;
+      if (on || out) {
+        const pop = on ? 1 + 0.5 * (1 - ease(k01(now - v.luck.at - DOUBLE.fly, 0, DOUBLE.pop))) : 1, R = (disc + 18) * pop;
+        const gr = g.createRadialGradient(c.x, c.y, disc * 0.6, c.x, c.y, R); gr.addColorStop(0, 'rgba(255,150,195,0.9)'); gr.addColorStop(1, 'rgba(255,150,195,0)');
+        g.save(); g.globalAlpha = out ? 1 - (now - v.luckOut.at) / DOUBLE.out : this.hurry(v, now); g.fillStyle = gr; g.beginPath(); g.arc(c.x, c.y, R, 0, Math.PI * 2); g.fill(); g.restore();
       }
+      const beat = on ? 1 + 0.14 * Math.max(0, Math.sin((now - v.luck.at) / 1000 * Math.PI * 2 * (v.luck.until - now < DOUBLE.hurry ? 3 : 1.4))) : 1;
+      g.save(); g.translate(c.x, c.y); g.scale(beat, beat);
+      g.beginPath(); g.arc(0, 0, disc, 0, Math.PI * 2); g.fillStyle = 'rgba(40,26,54,0.85)'; g.fill(); g.lineWidth = 3; g.strokeStyle = SIDE_COL[side]; g.stroke();
+      if (icon) g.drawImage(icon, -ICON / 2, -ICON / 2, ICON, ICON); else giftBox(g, 0, 0, 18);
+      g.restore();
+      if (on) {
+        const k = clamp((v.luck.until - now) / LUCK.ms, 0, 1);
+        g.save(); g.globalAlpha = this.hurry(v, now); g.strokeStyle = '#FF96C3'; g.lineWidth = 4; g.lineCap = 'round'; g.beginPath(); g.arc(c.x, c.y, disc + 6, -Math.PI / 2, -Math.PI / 2 + Math.PI * 2 * k); g.stroke(); g.restore();
+      }
+      const ball = this.ball.plain, bh = 30, bw = ball.width / ball.height * bh, bx = at2(disc * 2 + 14 + bw / 2);
+      g.drawImage(ball, bx - bw / 2, r1 - bh / 2, bw, bh);
+      g.save(); g.textAlign = side > 0 ? 'left' : 'right'; g.textBaseline = 'middle'; text(`发「${side > 0 ? 1 : 2}」`, at2(disc * 2 + 14 + bw + 6), r1 + 1, `800 24px ${SANS}`, SIDE_LIGHT[side]); g.restore();
       const joined = [...v.sides.values()].filter(m => m.side === side && m.by === 'gift').reverse();
       joined.slice(0, 5).forEach((m, i) => this.drawFace(g, m, side, at2(16 + i * 26), r2, 16 * (0.6 + 0.4 * ease(k01(now - m.at, 0, 220)))));
       if (joined.length > 5) { g.save(); g.textAlign = 'center'; g.textBaseline = 'middle'; text(`+${joined.length - 5}`, at2(16 + 4 * 26 + 46), r2 + 1, `800 24px ${SANS}`, '#fff'); g.restore(); }

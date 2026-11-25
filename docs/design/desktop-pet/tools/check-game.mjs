@@ -27,6 +27,9 @@ const LOSE = [['jump', 49000], ['until', 'x.gm.visit.sprint != null'], ['wait', 
 const WIN = [tok(of(1)), ['until', 'x.cur?.name === "守住了"'], ['until', '!x.cur'], ['wait', 1500]];
 // the last stretch: ahead she holds, behind or level she is dragged; at 0:00 and the grace the side the line is on wins
 const BUZZER = [...SPRINT, tok(5), ['wait', 2500], ['jump', 7000], ['until', 'x.cur?.name === "守住了"'], ['until', '!x.cur'], ['wait', 1500]];
+// a 幸运纸团 for sure from that side (the board's 红方丢幸运纸团 / 蓝方丢幸运纸团): the star in flight, the gift's icon just lit,
+// then on to its last 3 s, blinking faster, and the glow going
+const LUCKY = side => [['do', `x.lucky(${side})`], ['until', 'x.gm.visit.luck'], ['wait', 1500], ['jump', 15000], ['wait', 4000]];
 const FLIP = [...SPRINT, tok(5), ['wait', 2500], tok(10, -1), ['wait', 2500], ['jump', 6000], ['until', 'x.cur?.name === "被偷了"'], ['until', '!x.cur'], ['wait', 800]];
 export const ROUTES = {
   'hits': [...LOOT, ...HITS],
@@ -46,6 +49,8 @@ export const ROUTES = {
   'up-kill': [['do', 'x.gm.chest = 500; x.gm.pile = 6; x.visit()'], ['wait', 300], ['jump', 2500], ['wait', 800], ['jump', 9100], ['until', 'x.gm.visit?.phase === "tug"'], ['wait', 1200], tok(of(1)), ['until', 'x.cur?.name === "守住了"'], ['until', '!x.cur'], ['wait', 1500]],
   'zap-steal': [...LOOT, tok(of(0.55)), ['until', 'x.gm.visit.cut != null'], ['wait', 900], tok(of(1.55), -1), ['until', 'x.cur?.name === "被偷了"'], ['until', '!x.cur'], ['wait', 800]],
   'zap-win': [...LOOT, ...ZAP, ...WIN],
+  'lucky-red': [...LOOT, ...LUCKY(1)],
+  'lucky-blue': [...LOOT, ...LUCKY(-1)],
   'empty-knocked': [...EMPTY, ['until', 'x.gm.visit?.phase === "sit"'], ['wait', 500], tok(1), ['until', 'x.cur?.name === "打跑了"'], ['until', '!x.cur'], ['wait', 800]],
   // one 小花花 over the empty chest: it laughs its thanks and is off with the chest, she cries (from sitting, and from
   // peering into it: the 小花花 waits till it is up, then it laughs from where it is)
