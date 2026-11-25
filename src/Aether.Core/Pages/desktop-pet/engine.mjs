@@ -362,6 +362,8 @@ export class Engine extends EventTarget {
   constructor(master, shows, art) {
     super();
     Object.assign(this, { master, art });
+    // the prop each of her poses at one needs, atProp turned round (the board's PROP_OF)
+    this.propOf = Object.fromEntries(Object.entries(art.atProp).flatMap(([prop, poses]) => poses.map(p => [p, prop])));
     this.events = Object.fromEntries(shows.map(row => [row.id, { ...EVENTS[row.id], tier: row.tier, group: row.group, gift: GIFTS.includes(row.group) }]));
   }
 
@@ -2080,7 +2082,7 @@ export class Engine extends EventTarget {
   // At the table she kneels back from her place (HOTPOT.back), standing she is at it; between them her in-betweens carry
   // her over (st.slide), behind the table.
   atTable(st, y0) {
-    st.y = this.art.atProp.table.includes(st.pose) ? y0 : FOOT.y;
+    st.y = this.propOf[st.pose] === 'table' ? y0 : FOOT.y;
     st.slide = true;
     return st;
   }
