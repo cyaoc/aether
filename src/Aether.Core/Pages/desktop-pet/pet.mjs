@@ -247,13 +247,9 @@ export class Pet extends Engine {
 
   // A sheet's cells (sheetCells). Her strips drawn from its poses come with it, and only then is it drawn from.
   async measureSheet(k) {
-    const { sheets, poses: POSE, sameSpot: SAME_SPOT, body: BODY, strips: STRIP, transitions: TRANS, signs: SIGNS, fixed: FIXED, atProp: AT_PROP } = this.art, on = p => POSE[p][0] === k;
+    const { sheets, poses: POSE, sameSpot: SAME_SPOT, body: BODY, strips: STRIP, transitions: TRANS, signs: SIGNS } = this.art, PROP_OF = this.propOf, on = p => POSE[p][0] === k;
     const cells = sheetCells(await this.picture(sheets[k]), SIGNS[k]);
-    // a sheet drawn with a prop at her place: each drawing stands where the standing one in cell 1 does, not on its own
-    // centre and ground (cut off at the tabletop she has no feet; reaching out moves her centre)
-    if (FIXED.includes(k)) for (const c of cells) if (c) { c.cx = cells[0].cx + c.ox; c.ground = cells[0].y + cells[0].h + c.oy; }
-    const PROP_OF = Object.fromEntries(Object.entries(AT_PROP).flatMap(([prop, poses]) => poses.map(p => [p, prop])));
-    for (const [p, prop] of Object.entries(PROP_OF)) if (on(p)) cells[POSE[p][1]].prop = prop;
+    this.propCells(k, cells);
     for (const [p, q] of Object.entries(SAME_SPOT)) if (on(p)) {  // the earlier pose's centre, at the same place in this pose's cell
       const c = cells[POSE[p][1]], d = cells[POSE[q][1]];
       c.cx = d.cx - d.ox + c.ox;
@@ -280,6 +276,15 @@ export class Pet extends Engine {
     Object.assign(this.tweens, Object.fromEntries(tweens));
     this.cells[k] = cells;
     this.routes = null;
+  }
+
+  // The cells of the sheet k drawn at a prop. On a sheet drawn with it at her place (fixed) each drawing stands where the
+  // standing one in cell 1 does, not on its own centre and ground (cut off at the tabletop she has no feet; reaching out moves
+  // her centre); and each of her poses at it knows which prop it needs (propOf).
+  propCells(k, cells) {
+    const { poses: POSE, fixed: FIXED } = this.art;
+    if (FIXED.includes(k)) for (const c of cells) if (c) { c.cx = cells[0].cx + c.ox; c.ground = cells[0].y + cells[0].h + c.oy; }
+    for (const [p, prop] of Object.entries(this.propOf)) if (POSE[p][0] === k) cells[POSE[p][1]].prop = prop;
   }
 
   // The sprite's drawings that move, each from the drawing it was drawn from: its turnaround views, its sheets' cells or its
@@ -534,14 +539,10 @@ export class Pet extends Engine {
   // Her sign's sheet loads as her first sign show starts (SEGMENTS): until it is there she stands as she was and no sign flies.
   signShow(name, t, st, opts, say) { if (this.loaded(name)) super.signShow(name, t, st, opts, say); }
 
-  // Her 扭蛋's sheets, her sprite's carrying the battery and the plush too, load as it first plays (SEGMENTS): until they are
-  // there she stands as she was and no cabinet comes.
+  // Her 扭蛋's sheets (her sprite's carrying the battery and the plush too), her 火锅's and her 手游's load as each first plays
+  // (SEGMENTS): until they are there she stands as she was and no cabinet, table or sofa comes.
   gacha(t, st, o, line) { return this.loaded('gacha') ? super.gacha(t, st, o, line) : st; }
-
-  // Her 火锅's sheets load as it first plays (SEGMENTS): until they are there she stands as she was and no table comes.
   hotpot(t, st, o, line) { return this.loaded('hotpot') ? super.hotpot(t, st, o, line) : st; }
-
-  // Her 手游's sheets load as it first plays (SEGMENTS): until they are there she stands as she was and no sofa comes.
   mobile(t, st, o, line) { return this.loaded('mobileGame') ? super.mobile(t, st, o, line) : st; }
 
   // The sprite flies to where it is wanted instead of jumping there; its speed decides which way it faces.
