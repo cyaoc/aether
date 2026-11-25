@@ -343,7 +343,7 @@ const PKLINES = {
 // as any gift may). One on no side is called out by name (TAUNT); a run of RETORT.hits balls in RETORT.ms has the one hit
 // answer back.
 // How a fight ends (用户：“挪中间ok”“有些人就喜欢偷袭”): the line starts in the middle, span 票 from either end (the 电池
-// in her chest / 20, 100 to 500: 用户：“20票太低、建议是100-500”). The 票 count the moment they reach the page, what has
+// in her chest / 20, 300 to 500: 用户：“20票太低、建议是100-500”, then 2026-11-24 “每次拔河的血量提升到300”). The 票 count the moment they reach the page, what has
 // landed or not: enough of one side's on their way to take the line to its end ends the fight there and then (秒杀),
 // even with the prankster still in the air, and nothing waits for the drop, for it to get up or for the lightning; a big
 // gift is meant to end it (用户：“别人送了一大组就想秒杀哦结束”). At 0:00 the board waits GAME.grace for 票 sent before 0
@@ -369,7 +369,7 @@ const SIDE_ICON = { 1: 'https://s1.hdslb.com/bfs/live/7d78646ee4ecc900cebbe46cb9
 const SIDE_COL = { 1: '#FF4D6D', '-1': '#4D8BFF' }, SIDE_LIGHT = { 1: '#FFB3C1', '-1': '#B3CDFF' };
 // the tug bar along the top of the page, wider than the old life bar (用户：“扣血加血看不出来”): her pink from the left
 // as far as the line (a little chest), its purple beyond. Under it, two rows: each side's gift icon (ICON, on a dark disc
-// ringed in its side's colour) and, smaller, a paper ball and 发1 / 发2, then the avatars of who joined it by gift. Pictures
+// ringed in its side's colour) and, smaller, a paper ball and 发「1」 / 发「2」, then the avatars of who joined it by gift. Pictures
 // over words (用户 2026-11-24：“人气票和小花花的图标太小、用户看不清”“太啰嗦了”): the gift is what pulls, so it is the big one;
 // the danmaku throws paper balls, so its mark is one, not a second way to pull. The game's words are read off a stream
 // shrunk on a phone (用户：“拔河的文字太小了、看不清”), so they keep to her bubbles' size (28 px, BUBBLE_FONT): the countdown
@@ -1378,7 +1378,7 @@ class Component extends DCLogic {
     // loot: there is something in the chest to fight over
     gm.visit = { phase: 'peek', at: now, queue: [], hits: [], spent: 0, count: 0, freezes: 0, helped: 0,
       sides: new Map(), balls: [], struck: {}, retorted: {}, taunted: new Set(), taunt: -Infinity, lucked: -Infinity, luck: null,
-      span: clamp(Math.round(gm.chest / 20), 100, 500), net: 0, red: 0, blue: 0, favours: -1, flip: {}, drag: 0, pos: { x: -70, y: 120 }, chest: null, loot: gm.chest > 0 };
+      span: clamp(Math.round(gm.chest / 20), 300, 500), net: 0, red: 0, blue: 0, favours: -1, flip: {}, drag: 0, pos: { x: -70, y: 120 }, chest: null, loot: gm.chest > 0 };
     this.pkSay(gm.brag ? 'brag' : gm.grudge ? 'grudge' : 'peek', now, gm.grudge);
     gm.brag = false; gm.grudge = null;   // (said once: 上次 is the last visit, 用户 review: it named one from visits before)
   }
@@ -2271,8 +2271,8 @@ class Component extends DCLogic {
     g.drawImage(cb, lx - chw / 2, y + h / 2 - chh * 0.6 - hop, chw, chh);
     g.restore();
     if (v.phase !== 'tug') return g.restore();   // still in the air: no rows yet, it flies right through where they go
-    // Under the bar, each side from its end inward. The first row: its gift's icon on a disc, then a paper ball and 发1 /
-    // 发2 (the danmaku throws balls); while that side's gift counts twice the icon glows pink and beats in a pink ring
+    // Under the bar, each side from its end inward. The first row: its gift's icon on a disc, then a paper ball and 发「1」 /
+    // 发「2」 (the danmaku throws balls; the 1 in quotes, what to send); while that side's gift counts twice the icon glows pink and beats in a pink ring
     // running down the window (DOUBLE). The second: the avatars of whoever joined it by gift, the newest first, five at
     // most and +N for the rest; a new one pops in.
     for (const side of [1, -1]) {
@@ -2294,7 +2294,7 @@ class Component extends DCLogic {
       }
       const ball = this.ball.plain, bh = 30, bw = ball.width / ball.height * bh, bx = at2(disc * 2 + 14 + bw / 2);
       g.drawImage(ball, bx - bw / 2, r1 - bh / 2, bw, bh);
-      g.save(); g.textAlign = side > 0 ? 'left' : 'right'; g.textBaseline = 'middle'; text(`发${side > 0 ? 1 : 2}`, at2(disc * 2 + 14 + bw + 6), r1 + 1, `800 24px ${SANS}`, SIDE_LIGHT[side]); g.restore();
+      g.save(); g.textAlign = side > 0 ? 'left' : 'right'; g.textBaseline = 'middle'; text(`发「${side > 0 ? 1 : 2}」`, at2(disc * 2 + 14 + bw + 6), r1 + 1, `800 24px ${SANS}`, SIDE_LIGHT[side]); g.restore();
       const joined = [...v.sides.values()].filter(m => m.side === side && m.by === 'gift').reverse();
       joined.slice(0, 5).forEach((m, i) => {
         const cx = at2(16 + i * 26), pop = 0.6 + 0.4 * ease(k01(now - m.at, 0, 220)), r = 16 * pop, im = this.avatars[m.av];
@@ -4067,13 +4067,13 @@ class Component extends DCLogic {
     // a 人气票 or 小花花 comes from one of the board's viewers, rather one on no side yet, so the avatars fill up; a danmaku
     // from one on no side (called out), one that says 1 or 2, or one already on a side (a paper ball)
     const side = (gift, n) => () => this.give([{ gift, price: 1, n, viewer: this.someone() }]), dm = (on, said) => () => this.heard(this.someone(on), said);
-    // ×100 is a 秒杀 while the chest holds 2000 电池 or less (each end is 100 票 away then); the last stretch is a jump of
+    // ×520 is a 秒杀 whatever the chest (each end is 300 to 500 票 away); the last stretch is a jump of
     // the fight's own clock to 10 s left, to see the dragging, the 0:00 wait and a 绝杀 without waiting the minute out
     // a lucky ball for sure (three in ten by chance), from someone put on that side, while the tug is on and none is open
     const lucky = sd => () => { const v = this.gm.visit, w = this.someone(); if (v?.phase !== 'tug' || v.cut != null || v.luck) return; this.enlist(w, sd, 'dm'); v.balls.push({ at: this.now(), side: sd, lucky: true, w, seed: this.rng() }); };
     const last10 = () => { const v = this.gm.visit; if (v?.phase === 'tug' && v.judge == null) v.left = Math.min(v.left, GAME.sprint + 400); };
-    group('小游戏', [['捣蛋鬼来了', () => this.visit()], ['人气票', side('人气票', 1)], ['人气票 ×10', side('人气票', 10)], ['人气票 ×100', side('人气票', 100)],
-      ['小花花', side('小花花', 1)], ['小花花 ×5', side('小花花', 5)], ['小花花 ×100', side('小花花', 100)], ['跳到最后 10 秒', last10],
+    group('小游戏', [['捣蛋鬼来了', () => this.visit()], ['人气票', side('人气票', 1)], ['人气票 ×10', side('人气票', 10)], ['人气票 ×520', side('人气票', 520)],
+      ['小花花', side('小花花', 1)], ['小花花 ×5', side('小花花', 5)], ['小花花 ×520', side('小花花', 520)], ['跳到最后 10 秒', last10],
       ['路人发弹幕', dm(false)], ['发「1」', dm(null, '1')], ['发「2」', dm(null, '2')], ['站了队的发弹幕', dm(true)], ['红方丢幸运纸团', lucky(1)], ['蓝方丢幸运纸团', lucky(-1)],
       ['别的礼物 100 电池', g([one('爱心抱枕', 100)])], ['别的礼物到中礼物', g([one('告白气球', 2000)])], ['PK 开始', () => this.pkOn(true)], ['PK 结束', () => this.pkOn(false)]]);
     const fit = () => { const r = document.getElementById('root'); if (r) r.style.zoom = Math.min(innerWidth / 1920, (innerHeight - bar.offsetHeight) / 1080); };

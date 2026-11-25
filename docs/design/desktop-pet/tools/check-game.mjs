@@ -12,17 +12,19 @@ const [port, ...only] = process.argv.slice(2);
 const LOOT = [['do', 'x.gm.chest = 500; x.gm.pile = 6; x.visit()'], ['wait', 300], ['jump', 2500], ['wait', 1500],
   ['do', 'x.heard()'], ['wait', 2500], ['jump', 9100], ['until', 'x.gm.visit?.phase === "tug"'], ['wait', 2600]];
 const EMPTY = [['do', 'x.visit()'], ['wait', 300], ['jump', 2500], ['jump', 9100], ['until', 'x.gm.visit?.phase === "peer"'], ['wait', 3000]];
-// n 人气票 (her side) or 小花花 (its side) from one of the board's viewers; the chest of 500 电池 puts each end 100 票 from
-// the middle, so 55 of hers set off the lightning and 100 of either side's end the fight there and then (秒杀)
+// n 人气票 (her side) or 小花花 (its side) from one of the board's viewers; of(k) is k of the way from the middle to an end
+// (span 票: 300 for the chest of 500 电池, 100 before 2026-11-24), so of(0.55) of hers set off the lightning and of(1) of
+// either side's end the fight there and then (秒杀), whatever the span
 const tok = (n, side = 1) => ['do', `x.give([{ gift: '${side > 0 ? '人气票' : '小花花'}', price: 1, n: ${n}, viewer: x.someone() }])`];
-const ZAP = [tok(55), ['until', 'x.gm.visit.cut == null && x.gm.visit.zapped != null'], ['wait', 600]];
+const of = k => `Math.round(x.gm.visit.span * ${k})`;
+const ZAP = [tok(of(0.55)), ['until', 'x.gm.visit.cut == null && x.gm.visit.zapped != null'], ['wait', 600]];
 const SPRINT = [['jump', 49000], ['until', 'x.gm.visit.sprint != null'], ['wait', 1500]];
-const AIR = [['do', 'x.gm.chest = 500; x.gm.pile = 6; x.visit()'], ['wait', 300], ['jump', 2500], ['wait', 1500]];
+const AIR = [['do', 'x.gm.chest = 500; x.gm.pile = 6; x.visit()'], ['wait', 300], ['jump', 2500], ['wait', 1500], ['until', 'x.gm.visit?.phase === "carry"']];
 const HITS = [tok(1), ['wait', 900], tok(1, -1), ['wait', 1500], tok(1, -1), tok(1, -1), tok(1, -1), tok(1, -1), ['wait', 3000]];
-// it gets ahead in the last stretch (60 of its: also past her 55 after the lightning) and has it at 0:00
-const LOSE = [['jump', 49000], ['until', 'x.gm.visit.sprint != null'], ['wait', 1500], tok(60, -1), ['wait', 800], ['jump', 9000],
+// it gets ahead in the last stretch (of(0.6) of its: also past her of(0.55) after the lightning) and has it at 0:00
+const LOSE = [['jump', 49000], ['until', 'x.gm.visit.sprint != null'], ['wait', 1500], tok(of(0.6), -1), ['wait', 800], ['jump', 9000],
   ['until', 'x.cur?.name === "被偷了"'], ['until', '!x.cur'], ['wait', 1500], ['do', "x.give([{ gift: '爱心抱枕', price: 10, n: 1 }])"], ['until', 'x.cur'], ['until', '!x.cur'], ['wait', 800]];
-const WIN = [tok(100), ['until', 'x.cur?.name === "守住了"'], ['until', '!x.cur'], ['wait', 1500]];
+const WIN = [tok(of(1)), ['until', 'x.cur?.name === "守住了"'], ['until', '!x.cur'], ['wait', 1500]];
 // the last stretch: ahead she holds, behind or level she is dragged; at 0:00 and the grace the side the line is on wins
 const BUZZER = [...SPRINT, tok(5), ['wait', 2500], ['jump', 7000], ['until', 'x.cur?.name === "守住了"'], ['until', '!x.cur'], ['wait', 1500]];
 const FLIP = [...SPRINT, tok(5), ['wait', 2500], tok(10, -1), ['wait', 2500], ['jump', 6000], ['until', 'x.cur?.name === "被偷了"'], ['until', '!x.cur'], ['wait', 800]];
@@ -34,15 +36,15 @@ export const ROUTES = {
   'win': [...LOOT, ...WIN],
   'buzzer-win': [...LOOT, ...BUZZER],
   'sprint-flip': [...LOOT, ...FLIP],
-  'steal-kill': [...LOOT, tok(100, -1), ['until', 'x.cur?.name === "被偷了"'], ['until', '!x.cur'], ['wait', 800]],
-  // (her 45 more before its bolt strikes, 900 ms into the lightning: struck, it has 25 票 more, and 45 are no 秒杀)
-  'zap-kill': [...LOOT, tok(55), ['until', 'x.gm.visit.cut != null'], ['wait', 600], tok(45), ['until', 'x.cur?.name === "守住了"'], ['until', '!x.cur'], ['wait', 1500]],
-  'air-kill': [...AIR, tok(100), ['until', 'x.cur?.name === "守住了"'], ['until', '!x.cur'], ['wait', 1500]],
-  'air-steal': [...AIR, tok(100, -1), ['until', 'x.cur?.name === "被偷了"'], ['until', '!x.cur'], ['wait', 800]],
+  'steal-kill': [...LOOT, tok(of(1), -1), ['until', 'x.cur?.name === "被偷了"'], ['until', '!x.cur'], ['wait', 800]],
+  // (her of(0.45) more before its bolt strikes, 900 ms into the lightning: struck, it has a quarter more, and they are no 秒杀)
+  'zap-kill': [...LOOT, tok(of(0.55)), ['until', 'x.gm.visit.cut != null'], ['wait', 600], tok(of(0.45)), ['until', 'x.cur?.name === "守住了"'], ['until', '!x.cur'], ['wait', 1500]],
+  'air-kill': [...AIR, tok(of(1)), ['until', 'x.cur?.name === "守住了"'], ['until', '!x.cur'], ['wait', 1500]],
+  'air-steal': [...AIR, tok(of(1), -1), ['until', 'x.cur?.name === "被偷了"'], ['until', '!x.cur'], ['wait', 800]],
   // the end coming while it hauls the chest off, while it is still getting up, while it casts its lightning
-  'sprint-kill': [...LOOT, ...SPRINT, tok(100), ['until', 'x.cur?.name === "守住了"'], ['until', '!x.cur'], ['wait', 1500]],
-  'up-kill': [['do', 'x.gm.chest = 500; x.gm.pile = 6; x.visit()'], ['wait', 300], ['jump', 2500], ['wait', 800], ['jump', 9100], ['until', 'x.gm.visit?.phase === "tug"'], ['wait', 1200], tok(100), ['until', 'x.cur?.name === "守住了"'], ['until', '!x.cur'], ['wait', 1500]],
-  'zap-steal': [...LOOT, tok(55), ['until', 'x.gm.visit.cut != null'], ['wait', 900], tok(155, -1), ['until', 'x.cur?.name === "被偷了"'], ['until', '!x.cur'], ['wait', 800]],
+  'sprint-kill': [...LOOT, ...SPRINT, tok(of(1)), ['until', 'x.cur?.name === "守住了"'], ['until', '!x.cur'], ['wait', 1500]],
+  'up-kill': [['do', 'x.gm.chest = 500; x.gm.pile = 6; x.visit()'], ['wait', 300], ['jump', 2500], ['wait', 800], ['jump', 9100], ['until', 'x.gm.visit?.phase === "tug"'], ['wait', 1200], tok(of(1)), ['until', 'x.cur?.name === "守住了"'], ['until', '!x.cur'], ['wait', 1500]],
+  'zap-steal': [...LOOT, tok(of(0.55)), ['until', 'x.gm.visit.cut != null'], ['wait', 900], tok(of(1.55), -1), ['until', 'x.cur?.name === "被偷了"'], ['until', '!x.cur'], ['wait', 800]],
   'zap-win': [...LOOT, ...ZAP, ...WIN],
   'empty-knocked': [...EMPTY, ['until', 'x.gm.visit?.phase === "sit"'], ['wait', 500], tok(1), ['until', 'x.cur?.name === "打跑了"'], ['until', '!x.cur'], ['wait', 800]],
   // one 小花花 over the empty chest: it laughs its thanks and is off with the chest, she cries (from sitting, and from
@@ -58,8 +60,8 @@ export const ROUTES = {
   'scare-big-zap': [...LOOT, ...ZAP, ['do', 'x.give([{ gift: "小电视飞船", price: 12450, n: 1 }])'], ['until', 'x.cur?.name === "大礼物"'], ['until', '!x.cur'], ['wait', 800]],
   // (2026-11-18 review) a 小花花 late from its spam as she is robbed; one just after a big gift; an empty chest decided in
   // the air; a big gift while it flies in with a full one; a lottery in the tug; a round of blind boxes to a 中礼物
-  'late-gift': [...LOOT, tok(100, -1), ['wait', 500], tok(1, -1), ['until', 'x.cur?.name === "被偷了" && x.now() >= x.cur.start + x.cur.pre'], ['until', '!x.cur'], ['wait', 800]],
-  'burst-race': [...LOOT, ['do', 'x.give([{ gift: "小电视飞船", price: 12450, n: 1 }])'], ['wait', 500], tok(100, -1), ['until', 'x.cur?.name === "大礼物"'], ['until', '!x.cur'], ['wait', 800]],
+  'late-gift': [...LOOT, tok(of(1), -1), ['wait', 500], tok(1, -1), ['until', 'x.cur?.name === "被偷了" && x.now() >= x.cur.start + x.cur.pre'], ['until', '!x.cur'], ['wait', 800]],
+  'burst-race': [...LOOT, ['do', 'x.give([{ gift: "小电视飞船", price: 12450, n: 1 }])'], ['wait', 500], tok(of(1), -1), ['until', 'x.cur?.name === "大礼物"'], ['until', '!x.cur'], ['wait', 800]],
   'empty-air-kill': [['do', 'x.visit()'], ['wait', 300], ['jump', 2500], ['wait', 1500], tok(1), ['until', 'x.cur?.name === "打跑了"'], ['until', '!x.cur'], ['wait', 800]],
   'empty-air-steal': [['do', 'x.visit()'], ['wait', 300], ['jump', 2500], ['wait', 1500], tok(1, -1), ['until', 'x.cur?.name === "被偷了"'], ['until', '!x.cur'], ['wait', 800]],
   'scare-air-big': [...AIR, ['do', 'x.give([{ gift: "小电视飞船", price: 12450, n: 1 }])'], ['until', 'x.cur?.name === "大礼物"'], ['until', '!x.cur'], ['wait', 800]],
@@ -68,12 +70,12 @@ export const ROUTES = {
   'scare-castle': [...LOOT, ['do', 'x.give([{ gift: "浪漫城堡", price: 22330, n: 1, box: "心动盲盒", boxPrice: 10, castle: true }])'], ['until', 'x.cur?.name === "城堡"'], ['until', '!x.cur'], ['wait', 800]],
   // (2026-11-18 second review) a big gift just after it wins, just after it steals; a gift after a PK scared it off a
   // frizzed tug; a 总督 just after a 舰长 that scared it off; a 小花花 and a 秒杀 while it only peeks in
-  'win-big': [...LOOT, tok(100), ['until', 'x.cur?.name === "守住了"'], ['wait', 1000], ['do', 'x.give([{ gift: "小电视飞船", price: 12450, n: 1 }])'], ['until', 'x.cur?.name === "大礼物"'], ['until', '!x.cur'], ['wait', 800]],
-  'lose-big': [...LOOT, tok(100, -1), ['wait', 800], ['do', 'x.give([{ gift: "小电视飞船", price: 12450, n: 1 }])'], ['until', 'x.cur?.name === "大礼物"'], ['until', '!x.cur'], ['wait', 800]],
+  'win-big': [...LOOT, tok(of(1)), ['until', 'x.cur?.name === "守住了"'], ['wait', 1000], ['do', 'x.give([{ gift: "小电视飞船", price: 12450, n: 1 }])'], ['until', 'x.cur?.name === "大礼物"'], ['until', '!x.cur'], ['wait', 800]],
+  'lose-big': [...LOOT, tok(of(1), -1), ['wait', 800], ['do', 'x.give([{ gift: "小电视飞船", price: 12450, n: 1 }])'], ['until', 'x.cur?.name === "大礼物"'], ['until', '!x.cur'], ['wait', 800]],
   'pk-zap-gift': [...LOOT, ...ZAP, ['do', 'x.pkOn(true)'], ['wait', 300], ['do', 'x.give([{ gift: "爱心抱枕", price: 1000, n: 1 }])'], ['until', 'x.cur?.name === "中礼物"'], ['until', '!x.cur'], ['wait', 800]],
   'guard-gov': [...LOOT, ...ZAP, ['do', 'x.fire("舰长", { price: 1980 })'], ['until', 'x.cur?.name === "舰长"'], ['wait', 500], ['do', 'x.fire("总督", { price: 199980 })'], ['until', 'x.cur?.name === "总督"'], ['until', '!x.cur'], ['wait', 800]],
   'peek-steal': [['do', 'x.visit()'], ['wait', 400], tok(1, -1), ['until', 'x.cur?.name === "被偷了"'], ['until', '!x.cur'], ['wait', 800]],
-  'peek-kill': [['do', 'x.gm.chest = 500; x.gm.pile = 6; x.visit()'], ['wait', 400], tok(100), ['until', 'x.cur?.name === "守住了"'], ['until', '!x.cur'], ['wait', 1500]],
+  'peek-kill': [['do', 'x.gm.chest = 500; x.gm.pile = 6; x.visit()'], ['wait', 400], ['until', 'x.gm.visit?.phase === "peek"'], tok(of(1)), ['until', 'x.cur?.name === "守住了"'], ['until', '!x.cur'], ['wait', 1500]],
   'pk-tug': [...LOOT, ['do', 'x.pkOn(true)'], ['until', '!x.gm.visit'], ['wait', 1500]],
   'pk-zap': [...LOOT, ...ZAP, ['do', 'x.pkOn(true)'], ['until', '!x.gm.visit'], ['wait', 1500]],
   'scare-air': [['do', 'x.gm.chest = 500; x.gm.pile = 6; x.visit()'], ['wait', 300], ['jump', 2500], ['wait', 3000], ['do', 'x.fire("舰长", { price: 1980 })'],
