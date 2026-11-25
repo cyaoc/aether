@@ -1,6 +1,6 @@
 """Make the in-between frames of a change from one pose of the board to another.
 
-python inbetween.py <name> <from pose> <to pose> <out dir> [--tries 2] [--end-props] [--still]
+python inbetween.py <name> <from pose> <to pose> <out dir> [--tries 2] [--end-props] [--still] [--prop] [--again]
 
 Codex gets one 2 x 2 grid on flat green with frame 1 (the first pose) and frame 4 (the second pose) already in it, both
 drawn just as the board shows them (each scaled from its sheet to the board, standing on the same ground line, lined up
@@ -29,6 +29,15 @@ dropping off her boots as she wriggles out of the snow).
 --still: she does not move while the sprite changes her clothes, so frame 2 must stand where the first pose stands and
 frame 3 where the second does (petlib.body_shift, each against the pose in its own clothes); codex once drew frame 3
 in the middle of its quarter, 70 px aside.
+
+--prop: one of the poses is drawn with a prop at her spot (the board's AT_PROP: kneeling behind the hot-pot table, on the
+sofa), so the frames are too: the prop is laid into all four quarters where the board has it from her spot (PROP_SPOT),
+in front of her where she stands behind the table, under her otherwise; codex draws her with it; and each frame is cut
+out of it as her sheets were (cut-scene.py: what is not the prop; lying on the sofa, nothing below its seat's front where
+neither pose shows anything there). The strip holds her alone; the board draws the prop with it.
+
+--again: codex is not asked again; its best frames from the last run (<name>-frames-best.png) are lined up, cut and
+written out once more, after the poses or the cutting changed.
 """
 import subprocess
 import sys
@@ -36,7 +45,8 @@ from pathlib import Path
 import numpy as np
 from PIL import Image
 sys.path.insert(0, str(Path(__file__).resolve().parent))  # petlib sits beside the tools, also under python -I
-from petlib import PKG, bbox, body_shift, carry_props, codex_frames, eye_ref, face_size, green, loose, pieces, pose, register, spot, standing, warp
+import importlib.util
+from petlib import AT_PROP, PKG, bbox, body_shift, carry_props, codex_frames, eye_ref, face_size, green, loose, pieces, pose, prop_at, register, spot, standing, warp
 
 GATE = {"height": 0.04, "feet": 6, "overlap": 0.80, "face": 0.04, "still": 6}  # frame 4 against the second pose; faces of frames 2, 3; --still: px
 PROMPT = ("Use your built-in image generation tool (not code) to edit the attached image into ONE new image, then copy "
@@ -59,6 +69,12 @@ if end_props:
 still = "--still" in argv
 if still:
     argv.remove("--still")
+with_prop = "--prop" in argv
+if with_prop:
+    argv.remove("--prop")
+again = "--again" in argv
+if again:
+    argv.remove("--again")
 if "--tries" in argv:
     k = argv.index("--tries")
     tries = int(argv[k + 1])
@@ -75,21 +91,59 @@ bx0, by0, bx1, by1 = bbox(b)
 top = min(0, int(np.floor(ga + (by0 - gb) * r)) - 8)
 left = min(0, int(np.floor(xa + (bx0 - xb) * r)) - 8)
 right = max(a.shape[1], int(np.ceil(xa + (bx1 - xb) * r)) + 8)
+bottom = a.shape[0]
+if with_prop:  # room for the prop where it stands from her spot (xa, ga)
+    prop = next(q for q, poses in AT_PROP.items() if first in poses or second in poses)
+    pic, pdx, pdy = prop_at(prop)
+    px0, py0 = int(round(xa + pdx)), int(ga + pdy) - pic.shape[0] + 1
+    top, left = min(top, py0 - 8), min(left, px0 - 8)
+    right, bottom = max(right, px0 + pic.shape[1] + 8), max(bottom, py0 + pic.shape[0] + 8)
 ox, oy = -left, -top
-size = (a.shape[0] + oy, right - left)  # rows, columns
+size = (bottom + oy, right - left)  # rows, columns
 A = np.zeros(size + (4,), np.float32)
 A[oy:oy + a.shape[0], ox:ox + a.shape[1]] = a
 yy, xx = np.mgrid[0:size[0], 0:size[1]].astype(np.float32)
 B = warp(b, xb + (xx - ox - xa) / r, gb + (yy - oy - ga) / r)
 
-# the grid codex fills in: frame 1 and frame 4 drawn, frames 2 and 3 empty green
+
+def over(top_, under):
+    """top_ laid over under (float RGBA arrays of one size)."""
+    ta, ua = top_[..., 3:] / 255, under[..., 3:] / 255
+    al = ta + ua * (1 - ta)
+    return np.dstack([(top_[..., :3] * ta + under[..., :3] * ua * (1 - ta)) / np.maximum(al, 1e-6), al * 255])
+
+
+if with_prop:  # the prop on the canvas; each pose with it as the board draws them: behind the table standing, else over it
+    P = np.zeros(size + (4,), np.float32)
+    P[oy + py0:oy + py0 + pic.shape[0], ox + px0:ox + px0 + pic.shape[1]] = pic
+    shown = lambda c, name: over(P, c) if prop == "table" and name not in AT_PROP[prop] else over(c, P)
+    Aw, Bw = shown(A, first), shown(B, second)
+    # lying on the sofa the seat's front hides her (cut-scene.py); kept only where neither pose shows anything below it
+    cs_spec = importlib.util.spec_from_file_location("cut_scene", PKG / "tools/cut-scene.py")
+    cs = importlib.util.module_from_spec(cs_spec)
+    cs_spec.loader.exec_module(cs)
+    lip = oy + py0 + cs.gs.SOFA_LIP if prop == "sofa" else None
+    if lip is not None and any((c[lip:, ox + px0:ox + px0 + pic.shape[1], 3] > 40).any() for c in (A, B)):
+        lip = None
+else:
+    Aw, Bw = A, B
+
+# the grid codex fills in: frame 1 and frame 4 drawn, frames 2 and 3 empty green (the prop in them, with --prop)
 side = max(size)
-q = [green(Image.fromarray(np.clip(c, 0, 255).round().astype(np.uint8))) for c in (A, B)]
+q = [green(Image.fromarray(np.clip(c, 0, 255).round().astype(np.uint8))) for c in (Aw, Bw)]
 grid = Image.new("RGB", (2 * side, 2 * side), (0, 255, 0))
 grid.paste(q[0], (0, 0))
 grid.paste(q[1], (side, side))
+if with_prop:
+    for x0, y0 in ((side, 0), (0, side)):
+        grid.paste(green(Image.fromarray(np.clip(P, 0, 255).round().astype(np.uint8))), (x0, y0))
 grid.save(out / f"{name}-grid.png")
-prompt = PROMPT.format(out=out / f"{name}-frames.png", what=(PKG / f"tools/frames/{name}.txt").read_text().strip(),
+PROP_TEXT = {"table": "The low hot-pot table is in every frame, the same in all four, at exactly the same place and size: keep it exactly "
+                      "as it is in frames 2 and 3 too (the same pot, soups, plates and food), never move or redraw it; she is BEHIND it, "
+                      "and it hides everything of her below its top. ",
+             "sofa": "The sofa is in every frame, the same in all four, at exactly the same place and size: keep it exactly as it is in "
+                     "frames 2 and 3 too, never move or redraw it; she is on it or in front of it, never behind it. "}
+prompt = PROMPT.format(out=out / f"{name}-frames.png", what=(PROP_TEXT[prop] if with_prop else "") + (PKG / f"tools/frames/{name}.txt").read_text().strip(),
                        negative=(PKG / "tools/frames-negative.txt").read_text().strip())
 
 
@@ -115,15 +169,20 @@ def gate(F):
 fails = lambda g: (g["height"] > GATE["height"] or g["feet"] > GATE["feet"] or g["overlap"] < GATE["overlap"] or g["face"] > GATE["face"]
                    or g["still"] > GATE["still"])
 best = None
-for t in range(tries):
+for t in range(1 if again else tries):
     raw = out / f"{name}-frames.png"
-    raw.unlink(missing_ok=True)
-    subprocess.run([str(PKG / "tools/codex.sh"), "-C", str(out), "-i", str(out / f"{name}-grid.png"),
-                    "-o", str(out / f"{name}.log.txt")], input=prompt, capture_output=True, text=True)
+    if again:
+        (out / f"{name}-frames-best.png").replace(raw)
+    else:
+        raw.unlink(missing_ok=True)
+        subprocess.run([str(PKG / "tools/codex.sh"), "-C", str(out), "-i", str(out / f"{name}-grid.png"),
+                        "-o", str(out / f"{name}.log.txt")], input=prompt, capture_output=True, text=True)
     if not raw.exists():
         print(f"try {t + 1}: codex gave no frames")
         continue
-    F, place = register(codex_frames(raw, side), A)
+    F, place = register(codex_frames(raw, side), Aw)
+    if with_prop:  # her alone, out of the prop
+        F = [cs.cut(f.round().astype(np.uint8), P.round().astype(np.uint8), lip, legs=prop == "sofa").astype(np.float32) for f in F]
     g = gate(F)
     print(f"try {t + 1}: frame 1 off the first pose by {place[0]:.1f}; frame 4 height {g['height'] * 100:.1f}% off, feet "
           f"{g['feet']} px off, outline overlap {g['overlap']:.2f}; in-between faces {g['face'] * 100:.1f}% off" + (f"; frames 2, 3 {g['still']} px aside" if still else "") + ("  FAILS" if fails(g) else ""))
@@ -160,7 +219,7 @@ else:
     entry = f"'{second}>{first}': '{name}'"
 Image.fromarray(np.clip(np.hstack(cells_), 0, 255).round().astype(np.uint8)).save(out / f"{name}-strip.png")
 chk = Image.new("RGBA", (size[1] * 4, size[0]), (255, 255, 255, 255))
-for i, c in enumerate([A, F[1], F[2], B]):
+for i, c in enumerate([Aw, *(over(F[j], P) if with_prop else F[j] for j in (1, 2)), Bw]):   # (frames 2, 3: her alone, over the prop)
     chk.alpha_composite(Image.fromarray(np.clip(c, 0, 255).round().astype(np.uint8)), (i * size[1], 0))
 chk.convert("RGB").save(out / f"{name}-check.png")
 print(("GATE FAILED " if fails(g) else "") + entry)

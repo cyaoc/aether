@@ -17,6 +17,11 @@ STRIP = dict(re.findall(r"(\w+): \{ f: '(\w+)'", re.search(r"const STRIP = \{(.*
 TRANS = dict(re.findall(r"'(\w+>\w+)': '(\w+)'", re.search(r"const TRANS = \{(.*?)\n\};", BOARD, re.S).group(1)))
 SAME_SPOT = dict(re.findall(r"(\w+): '(\w+)'", re.search(r"const SAME_SPOT = \{(.*?)\};", BOARD).group(1)))
 BODY = {p: int(v) for p, v in re.findall(r"(\w+): (-?\d+)", re.search(r"const BODY = \{(.*?)\};", BOARD).group(1))}
+# sheets drawn with a prop at her place, whose drawings all line up on the anchor's place (cell 1), as the board has them
+FIXED = set(re.findall(r"'(\w+)'", re.search(r"const FIXED = new Set\(\[(.*?)\]\);", BOARD).group(1)))
+# the poses drawn with a prop at her spot, by prop (the hot-pot table, the sofa), and where each prop stands from her spot
+AT_PROP = {prop: re.findall(r"'(\w+)'", poses) for prop, poses in re.findall(r"(\w+): \[([^\]]*)\]", re.search(r"const AT_PROP = \{(.*?)\};", BOARD, re.S).group(1))}
+PROP_SPOT = {prop: (im, sheet, int(x), int(y)) for prop, im, sheet, x, y in re.findall(r"(\w+): \{ im: '(\w+)', sheet: '(\w+)', at: \[(\d+), (\d+)\] \}", re.search(r"const PROP_SPOT = \{(.*?)\};", BOARD).group(1))}
 _BLOB = dict(re.findall(r"(\w+): '([0-9a-f]{32})'", re.search(r"const BLOB = \{(.*?)\};", BOARD, re.S).group(1)))
 _FILES = json.loads((PKG / "tools/blobs.json").read_text())
 SHEET = {k: Path(_FILES[md5]).stem for k, md5 in _BLOB.items() if _FILES.get(md5, "").startswith("textures/pose-")}
@@ -44,8 +49,10 @@ def scale(key):
 
 def ground(key, i):
     """The ground line of cell i, as the board takes it: the lowest of her in that row of the sheet (empty cells left out,
-    as the board leaves them out: sheet 17 has only two drawings)."""
+    as the board leaves them out: sheet 17 has only two drawings); in a FIXED sheet, the anchor's."""
     cs = cells(SHEET[key])
+    if key in FIXED:
+        return rows(cs[0]).max()
     return max(rows(cs[j]).max() for j in range((i // 3) * 3, (i // 3) * 3 + 3) if rows(cs[j]).size)
 
 
@@ -62,9 +69,18 @@ def pose(name, body=True):
     out, for measuring it (body-align.py)."""
     k, i = POSE[name]
     a = cells(SHEET[k])[i]
-    x = anchor(cells(SHEET[k])[POSE[SAME_SPOT[name]][1]] if name in SAME_SPOT else a)
+    x = anchor(cells(SHEET[k])[0] if k in FIXED else cells(SHEET[k])[POSE[SAME_SPOT[name]][1]] if name in SAME_SPOT else a)
     dx = sum(v for p, v in BODY.items() if spot(p) == spot(name)) if body else 0
     return a, scale(k), ground(k, i), x - dx / scale(k)
+
+
+def prop_at(prop):
+    """(picture, dx, dy) for a prop of the board's PROP_SPOT: its picture (RGBA), and where its left edge and its bottom row
+    stand from her spot (her standing drawing's centre of mass across and lowest row) in her sheets' px, as the board has it."""
+    im, sheet, x, y = PROP_SPOT[prop]
+    a = cells(SHEET[sheet])[0]
+    pic = np.asarray(Image.open(PKG / _FILES[_BLOB[im]]).convert("RGBA"))
+    return pic, x - anchor(a), y - 1 - rows(a).max()
 
 
 def load_ref(spec):
@@ -186,6 +202,8 @@ def drop_strays(f):
         ImageDraw.floodfill(img, (int(xs[0]), int(ys[0])), label)
         m = np.asarray(img) == label
         found.append((m.sum(), m[0].any() or m[-1].any() or m[:, 0].any() or m[:, -1].any(), m))
+    if not found:  # an empty frame (a sheet's unused cell)
+        return f
     biggest = max(n for n, _, _ in found)
     gone = np.zeros_like(found[0][2])
     for n, edge, m in found:

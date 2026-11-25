@@ -42,7 +42,18 @@ PROPS = {"flagship": ((1536, 1024), (170, 990), [], (2.0, 2.45)),
          "gacha": ((1024, 1024), (220, 900), [PKG / "wip-gacha/battery-fit/battery.png"], (1.18, 1.32)),
          "battery": ((1024, 1024), (300, 900), [], (0.10, 0.125)),
          # what the 扭蛋 gives when it wins: a plush of her sprite, held at her chest; drawn after the sprite's picture
-         "plush": ((1024, 1024), (300, 900), [PKG.parent / "mascot/textures/sprite-idle.webp"], (0.16, 0.24))}  # it fits the bay on the cabinet: 27 x 44 px at her 360
+         "plush": ((1024, 1024), (300, 900), [PKG.parent / "mascot/textures/sprite-idle.webp"], (0.16, 0.24)),  # it fits the bay on the cabinet: 27 x 44 px at her 360
+         # the 火锅 daily (#411): a low table she kneels behind (kneeling she is 0.89 of her height, her chest at a third),
+         # its tablecloth to the ground; a low wide 鸳鸯锅 on it, so her mouth stays above its rim; her bowl and chopsticks
+         # apart (she picks them up off the table); the 豆奶 the sprite fetches when the red side was too hot. Heights as
+         # approved (2026-11-25): the table with its pot 0.52, the bowl with the chopsticks across it 0.17, the bottle
+         # with its straw 0.21; codex drew the pot left of the middle, so she kneels behind the pot and the sprite floats
+         # off the table's left end
+         "hotpot": ((1024, 1024), (220, 900), [], (0.40, 0.56)),
+         "bowl": ((1024, 1024), (300, 900), [], (0.10, 0.19)),
+         "soymilk": ((1024, 1024), (300, 900), [], (0.14, 0.24)),
+         # the 手游 daily (#411): a sofa she lies on full length, her head on the right armrest
+         "sofa": ((1024, 1024), (220, 900), [], (0.38, 0.56))}
 DRAW = ("Use your built-in image generation tool (not code) to edit the LAST attached image into ONE new image, then copy "
         "the generated PNG file to {out}. Do not write any code. The last attached image is a canvas of perfectly flat "
         "solid #00FF00 green with a chibi girl already standing in it: keep her exactly as she is, the same size, in the "

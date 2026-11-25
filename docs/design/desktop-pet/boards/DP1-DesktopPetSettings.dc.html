@@ -223,10 +223,10 @@ a{color:#3358D4}a:hover{color:#2A47B0}
               <div style="display: flex; height: 34px; border: 1px solid {{t.control}}; border-radius: 6px; overflow: hidden"><input aria-label="日常最长间隔（秒）" inputmode="numeric" value="{{to}}" onChange="{{setTo}}" style="width: 44px; border: 0; padding: 0 10px; font: inherit; font-size: 14px; font-variant-numeric: tabular-nums; color: {{t.primary}}; background: {{t.card}}; outline: none"></div>
               <span style="white-space: nowrap">秒，随机做一个</span>
             </div>
-            <div style="display: flex; align-items: center; gap: 8px">
-              <span style="width: 70px; white-space: nowrap">做哪几样</span>
-              <div role="group" aria-label="做哪几样" style="display: flex; gap: 24px">
-                <sc-for list="{{acts}}" as="a" hint-placeholder-count="6">
+            <div style="display: flex; align-items: flex-start; gap: 8px">
+              <span style="width: 70px; line-height: 22px; white-space: nowrap">做哪几样</span>
+              <div role="group" aria-label="做哪几样" style="display: flex; flex-wrap: wrap; column-gap: 24px; row-gap: 12px; flex: 1; min-width: 0">
+                <sc-for list="{{acts}}" as="a" hint-placeholder-count="8">
                   <span style="display: inline-flex; align-items: center; gap: 8px">
                     <span style="white-space: nowrap; color: {{a.labelColor}}">{{a.label}}</span>
                     <button type="button" role="switch" aria-checked="{{a.checked}}" aria-label="{{a.label}}" onClick="{{a.toggle}}" style="position: relative; width: 40px; height: 22px; flex-shrink: 0; border: 0; border-radius: 11px; background: {{a.bg}}; padding: 0; cursor: pointer"><span style="position: absolute; top: 3px; left: {{a.knob}}; width: 16px; height: 16px; border-radius: 50%; background: #fff"></span></button>
@@ -374,10 +374,12 @@ class Component extends DCLogic {
         ['没人报名', '报名截止时没有人报名', []], ['抽奖结束', '主播关掉这一场抽奖时', []]]],
       ['心情', [['无聊', '无聊的时候，隔一阵说一句', []], ['沮丧', '沮丧的时候，隔一阵说一句', []], ['犯困', '打瞌睡时说的梦话', []]]],
       ['日常', [['哼歌', '哼歌时', []], ['举哑铃', '举哑铃时', []], ['爬山', '爬山时', []], ['骑车', '骑车时', []], ['滑雪', '滑雪时', []],
-        ['扭蛋', '指向家里、要去扭蛋时', []], ['扭中了', '扭中、抱着玩偶时', []]]],
+        ['扭蛋', '指向家里、要去扭蛋时', []], ['扭中了', '扭中、抱着玩偶时', []],
+        ['火锅', '肚子饿了、要吃火锅时', []], ['好吃', '吃到肉、一脸幸福时', []], ['手游', '掏出手机、要打一把时', []], ['赢了', '打游戏赢了时', []]]],
       ['出事', [['破音', '哼歌破音时', []], ['砸到脚', '哑铃砸到脚时', []], ['摔屁股墩', '爬山摔了屁股墩时', []], ['拍拍土', '爬起来拍土时', []],
         ['骑车摔倒', '骑车摔倒时', []], ['贴创可贴', '摔了膝盖、贴创可贴时', []], ['滑雪摔跤', '滑雪扎进雪堆时', []],
-        ['扭空', '拧开扭蛋是空的、愣住时', []], ['没扭中', '跪坐着大哭时', []], ['打起精神', '擦泪站起来时', []]]],
+        ['扭空', '拧开扭蛋是空的、愣住时', []], ['没扭中', '跪坐着大哭时', []], ['打起精神', '擦泪站起来时', []],
+        ['辣到了', '夹错红汤、辣得冒火时', []], ['得救了', '喝了豆奶缓过来时', []], ['输了', '打游戏输了、愣住时', []], ['砸到脸', '手机砸到脸时', []]]],
       // the chest game: hers, and the prankster's (its bubble is narrow: six to a line, two lines, a space starts the second)
       ['小游戏·她', [['宝箱摔下来', '有货的宝箱摔下来、她扑上去时', []], ['打得好', '有人送人气票砸中它时', n], ['怎么砸我', '有人送小花花砸中她时', n],
         ['别丢啦', '站它那边的人发弹幕，纸团连着砸中她时', n], ['绝杀守住', '最后 10 秒或时间到时，有人送礼让她赢（替换守住了那句）', n],
@@ -415,6 +417,8 @@ class Component extends DCLogic {
       哼歌: ['♪啦啦啦～'], 举哑铃: ['今天也要锻炼！'], 爬山: ['下次一起去爬山吧！', '山顶的风好舒服～'], 骑车: ['叮铃叮铃～', '骑车去兜风！'], 滑雪: ['滑雪好开心～', '看我的！'],
       扭蛋: ['去拿节电池扭一个！', '这次一定出好东西～'], 扭中了: ['中啦！是精灵玩偶！', '好可爱～抱抱！'], 扭空: ['空、空的…？', '诶…什么都没有？'],
       没扭中: ['呜哇——白扭了…', '我的电池…呜呜…'], 打起精神: ['下次…下次一定中！', '没关系…再攒电池！'],
+      火锅: ['肚子饿了～吃火锅！', '今天吃鸳鸯锅！'], 好吃: ['好吃到冒泡～', '肥牛最棒了！'], 辣到了: ['辣辣辣辣！', '夹、夹错锅了…'], 得救了: ['得救了…', '豆奶是天使…'],
+      手游: ['来一把！', '这把稳了～'], 赢了: ['赢啦！', '我是MVP！'], 输了: ['怎么会…', '输、输了…'], 砸到脸: ['呜…手机砸脸了…', '好痛…鼻子…'],
       宝箱摔下来: ['啊！我的宝箱！'], 打得好: ['{昵称}打得好！'], 怎么砸我: ['{昵称}！怎么砸我呀！'], 别丢啦: ['{昵称}！别丢啦～'], 绝杀守住: ['{昵称}绝杀！守住啦！'], 守住了: ['守住啦！最后一下是{昵称}！连守 {连守} 次！'],
       打跑了: ['谢谢{昵称}！把它打跑啦！', '{昵称}好厉害…它飞走了！'], 被偷了: ['呜…宝箱被拿走了…', '我的宝箱…'], 被偷后沮丧: ['我的宝箱…', '下次一定守住…', '（偷偷看）下次有人帮我守吗…'],
       探头: ['嘘—— 别告诉她'], 记仇: ['上次砸我的 {昵称}在吗？'], 炫耀: ['上次那箱 真不错～'], 空箱: ['……空的？ 白偷了！'],
@@ -518,7 +522,7 @@ class Component extends DCLogic {
         set: e => edited({ moods: { ...moodVals, [label]: e.target.value } }) };
     });
     const actOn = s.acts ?? {};
-    const acts = ['哼歌', '举哑铃', '爬山', '骑车', '滑雪', '扭蛋'].map(label => {
+    const acts = ['哼歌', '举哑铃', '爬山', '骑车', '滑雪', '扭蛋', '火锅', '手游'].map(label => {
       const on = actOn[label] !== false;
       return { label, ...this.switchOf(t, on), toggle: () => edited({ acts: { ...actOn, [label]: !on } }) };
     });
@@ -588,7 +592,7 @@ class Component extends DCLogic {
       mid, big, setMid: e => edited({ mid: e.target.value }), setBig: e => edited({ big: e.target.value }),
       tierHint: '按一轮的投入，盲盒也一样', groups,
       moods, from: s.from ?? '20', to: s.to ?? '40', setFrom: e => edited({ from: e.target.value }), setTo: e => edited({ to: e.target.value }), acts,
-      mishap, setMishap: e => edited({ mishap: e.target.value }), mishapNote: mishapOff ? '填了 0：不会出事' : '砸到脚、破音、摔一跤、扭蛋落空；填 0 就不出事',
+      mishap, setMishap: e => edited({ mishap: e.target.value }), mishapNote: mishapOff ? '填了 0：不会出事' : '砸到脚、破音、摔一跤、扭蛋落空、辣到、砸脸；填 0 就不出事',
       mishapNoteColor: mishapOff ? t.accentText : t.muted,
       // the list scrolls in its box; opened on the game's lines it shows them as if scrolled down to the picked one's group
       catsShown: gameLines && !s.cat ? cats.slice(cats.findLastIndex((c, i) => c.head && i < cats.findIndex(x => x.label === pick))) : cats, cat, lines, chips, hasChips: chips.length > 0, noChips: chips.length === 0, insertTarget: lineList.length > 1 ? '到第 ' + (focus + 1) + ' 句' : '', listW,
