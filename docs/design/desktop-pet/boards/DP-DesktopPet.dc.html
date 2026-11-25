@@ -343,7 +343,7 @@ const PKLINES = {
 // as any gift may). One on no side is called out by name (TAUNT); a run of RETORT.hits balls in RETORT.ms has the one hit
 // answer back.
 // How a fight ends (用户：“挪中间ok”“有些人就喜欢偷袭”): the line starts in the middle, span 票 from either end (the 电池
-// in her chest / 20, 100 to 500: 用户：“20票太低、建议是100-500”). The 票 count the moment they reach the page, what has
+// in her chest / 20, 300 to 500: 用户：“20票太低、建议是100-500”, then 2026-11-24 “每次拔河的血量提升到300”). The 票 count the moment they reach the page, what has
 // landed or not: enough of one side's on their way to take the line to its end ends the fight there and then (秒杀),
 // even with the prankster still in the air, and nothing waits for the drop, for it to get up or for the lightning; a big
 // gift is meant to end it (用户：“别人送了一大组就想秒杀哦结束”). At 0:00 the board waits GAME.grace for 票 sent before 0
@@ -356,9 +356,11 @@ const SIDE_GIFT = { 人气票: 1, 小花花: -1 };
 // How a double shows (用户：“丢到幸运纸团以后、为啥在捣蛋鬼周围会出现*2这个莫名其妙的图标、另外、2倍时间、是不是要特效来提醒
 // 用户”; ui-ux-pro-max: an effect shows cause and effect, one or two things move at once, leaving is quicker than coming;
 // a PK bar's multiplier stands at the side that gains, not at whoever is hit): a pink star flies from the one hit to the
-// gaining side's score in DOUBLE.fly, ×2 pops up beside the score (DOUBLE.pop) as that half of the bar flashes white
-// (DOUBLE.flash); for the window light stripes run along that half toward the line and its gift's icon under the bar beats
-// in its countdown ring; the last DOUBLE.hurry both blink faster, and at the end the ×2 shrinks away in DOUBLE.out.
+// gaining side's gift icon under the bar in DOUBLE.fly, the icon lights up pink (its glow swells in DOUBLE.pop) as that
+// half of the bar flashes white (DOUBLE.flash); for the window light stripes run along that half toward the line and the
+// icon beats in a pink countdown ring; the last DOUBLE.hurry both blink faster, and at the end the glow goes in
+// DOUBLE.out. No ×2 in words (用户 2026-11-24：“弹幕1/2可以让buff*2的设计也容易让人误解”: a ×2 by the score or a gift's
+// name reads as two of it, or as the danmaku counting twice): the star landing on the gift says which gift gains.
 const DOUBLE = { fly: 450, pop: 220, flash: 260, hurry: 3000, out: 200 };
 const LUCK = { chance: 0.3, ms: 20000, gap: 5000 }, TAUNT = 8000, RETORT = { hits: 5, ms: 5000, gap: 10000 }, BALL = 650;
 // B站's own icons of the two (giftConfig?platform=pc, 2026-11-16), from B站's CDN as the page draws a gift's icon
@@ -366,12 +368,14 @@ const SIDE_ICON = { 1: 'https://s1.hdslb.com/bfs/live/7d78646ee4ecc900cebbe46cb9
 // her side red, its blue (用户：“血条换成红色和蓝色”), each with a light one for what is on its way and its numbers
 const SIDE_COL = { 1: '#FF4D6D', '-1': '#4D8BFF' }, SIDE_LIGHT = { 1: '#FFB3C1', '-1': '#B3CDFF' };
 // the tug bar along the top of the page, wider than the old life bar (用户：“扣血加血看不出来”): her pink from the left
-// as far as the line (a little chest), its purple beyond. Under it, two rows: each side's gift icon and how to join it by
-// danmaku (1, 2), then the avatars of who joined it by gift. The game's words are read off a stream shrunk on a phone
-// (用户：“拔河的文字太小了、看不清”), so they keep to her bubbles' size (28 px, BUBBLE_FONT): the countdown above it, the
-// score, the numbers and ×2 at it, and the short labels under the bar a step below (24 px). HUD is how
-// far down the page it all reaches, which a mark that follows her or it never enters.
-const BAR = { x: 20, y: 96, w: 440, h: 20 }, ROW = [BAR.y + BAR.h + 22, BAR.y + BAR.h + 62], HUD = BAR.y + BAR.h + 82;
+// as far as the line (a little chest), its purple beyond. Under it, two rows: each side's gift icon (ICON, on a dark disc
+// ringed in its side's colour) and, smaller, a paper ball and 发「1」 / 发「2」, then the avatars of who joined it by gift. Pictures
+// over words (用户 2026-11-24：“人气票和小花花的图标太小、用户看不清”“太啰嗦了”): the gift is what pulls, so it is the big one;
+// the danmaku throws paper balls, so its mark is one, not a second way to pull. The game's words are read off a stream
+// shrunk on a phone (用户：“拔河的文字太小了、看不清”), so they keep to her bubbles' size (28 px, BUBBLE_FONT): the countdown
+// above it, the score and the numbers at it, and the short labels under the bar a step below (24 px). HUD is how far down
+// the page it all reaches, which a mark that follows her or it never enters.
+const ICON = 48, BAR = { x: 20, y: 96, w: 440, h: 20 }, ROW = [BAR.y + BAR.h + 36, BAR.y + BAR.h + 88], HUD = BAR.y + BAR.h + 108;
 // the board's viewers in the game, each with one of the 礼物榜's sample avatars (BLOB av0…)
 const VIEWERS = ['星河', '小鱼干', '奶茶不加糖', '今天也要早睡', '柚子', '路过的猫', '阿狸', '晚风'].map((name, i) => ({ uid: 101 + i, name, av: 'av' + i }));
 // Effects on top of each event's own, stronger the higher the tier (README 7.1): C a manga symbol and a small burst; B a
@@ -1374,7 +1378,7 @@ class Component extends DCLogic {
     // loot: there is something in the chest to fight over
     gm.visit = { phase: 'peek', at: now, queue: [], hits: [], spent: 0, count: 0, freezes: 0, helped: 0,
       sides: new Map(), balls: [], struck: {}, retorted: {}, taunted: new Set(), taunt: -Infinity, lucked: -Infinity, luck: null,
-      span: clamp(Math.round(gm.chest / 20), 100, 500), net: 0, red: 0, blue: 0, favours: -1, flip: {}, drag: 0, pos: { x: -70, y: 120 }, chest: null, loot: gm.chest > 0 };
+      span: clamp(Math.round(gm.chest / 20), 300, 500), net: 0, red: 0, blue: 0, favours: -1, flip: {}, drag: 0, pos: { x: -70, y: 120 }, chest: null, loot: gm.chest > 0 };
     this.pkSay(gm.brag ? 'brag' : gm.grudge ? 'grudge' : 'peek', now, gm.grudge);
     gm.brag = false; gm.grudge = null;   // (said once: 上次 is the last visit, 用户 review: it named one from visits before)
   }
@@ -2174,7 +2178,7 @@ class Component extends DCLogic {
     });
     if (v?.phase === 'tug' || v?.result && now - v.resultAt < GAME.flash) this.drawBoard(g, v, now, text);
     if (v?.luck && now - v.luck.at < DOUBLE.fly && target(v.luck.side)) {
-      const from = target(v.luck.side), to = this.doubleAt(g, v, v.luck.side), t = ease((now - v.luck.at) / DOUBLE.fly);
+      const from = target(v.luck.side), to = this.iconAt(v.luck.side), t = ease((now - v.luck.at) / DOUBLE.fly);
       for (let i = 4; i >= 0; i--) {
         const q = Math.max(0, t - i * 0.06), p = { x: from.x + (to.x - from.x) * q, y: from.y + (to.y - from.y) * q - 60 * Math.sin(Math.PI * q) };
         if (!i) { const gr = g.createRadialGradient(p.x, p.y, 0, p.x, p.y, 26); gr.addColorStop(0, 'rgba(255,150,195,0.75)'); gr.addColorStop(1, 'rgba(255,150,195,0)'); g.fillStyle = gr; g.beginPath(); g.arc(p.x, p.y, 26, 0, Math.PI * 2); g.fill(); }
@@ -2203,11 +2207,8 @@ class Component extends DCLogic {
   // (the clock waits at 1:00 until the chest is down), so what is sent while it is still in the air shows at once, and
   // may knock it down; until the chest is down the rows under the bar wait (it flies right through where they go), and
   // it is drawn under the prankster, which flies in front of it.
-  // Where a side's ×2 stands: beside its score, toward the middle (red after its number, blue before it).
-  doubleAt(g, v, side) {
-    g.save(); g.font = `800 28px ${SANS}`; const sw = g.measureText(`${side > 0 ? v.red : v.blue}`).width; g.restore();
-    return { x: side > 0 ? BAR.x + sw + 34 : BAR.x + BAR.w - sw - 34, y: BAR.y - 22 };
-  }
+  // Where a side's gift icon stands under the bar: at its end, in the first row (a double's star lands on it).
+  iconAt(side) { return { x: side > 0 ? BAR.x + ICON / 2 + 4 : BAR.x + BAR.w - ICON / 2 - 4, y: ROW[0] }; }
 
   // How much of the double's marks shows: all of it, blinking four times a second in its last DOUBLE.hurry.
   hurry(v, now) { return v.luck && v.luck.until - now < DOUBLE.hurry ? 0.35 + 0.65 * Math.abs(Math.cos(Math.PI * (v.luck.until - now) / 250)) : 1; }
@@ -2249,16 +2250,6 @@ class Component extends DCLogic {
     g.textAlign = 'left'; text(`${v.red}`, x, y - 22, `800 28px ${SANS}`, SIDE_LIGHT[1]);
     g.textAlign = 'right'; text(`${v.blue}`, x + w, y - 22, `800 28px ${SANS}`, SIDE_LIGHT[-1]);
     g.restore();
-    const out = !v.luck && v.luckOut && now - v.luckOut.at < DOUBLE.out ? v.luckOut : null, on = v.luck && now - v.luck.at >= DOUBLE.fly ? v.luck : out;
-    if (on) {
-      const p = this.doubleAt(g, v, on.side), u = now - on.at - DOUBLE.fly;
-      const k = out ? 1 - (now - out.at) / DOUBLE.out : 1 + 0.6 * (1 - ease(k01(u, 0, DOUBLE.pop)));
-      g.save(); g.translate(p.x, p.y); g.scale(k, k); g.globalAlpha = out ? 1 : this.hurry(v, now);
-      g.textAlign = 'center'; g.textBaseline = 'middle'; g.font = `900 36px ${SANS}`; g.lineJoin = 'round';
-      g.lineWidth = 9; g.strokeStyle = 'rgba(40,26,54,0.88)'; g.strokeText('×2', 0, 1);
-      g.lineWidth = 4.5; g.strokeStyle = SIDE_COL[on.side]; g.strokeText('×2', 0, 1);
-      g.fillStyle = '#fff'; g.fillText('×2', 0, 1); g.restore();
-    }
     g.save(); g.translate(jolt, 0);
     g.fillStyle = 'rgba(40,26,54,0.75)'; g.beginPath(); g.roundRect(x, y, w, h, h / 2); g.fill();
     seg(x + 2, lx, SIDE_COL[1]); seg(lx, x + w - 2, SIDE_COL[-1]);
@@ -2280,21 +2271,30 @@ class Component extends DCLogic {
     g.drawImage(cb, lx - chw / 2, y + h / 2 - chh * 0.6 - hop, chw, chh);
     g.restore();
     if (v.phase !== 'tug') return g.restore();   // still in the air: no rows yet, it flies right through where they go
-    // Under the bar, each side from its end inward. The first row: its gift's icon and how to join it by danmaku (发1,
-    // 发2); while that side's gift counts twice the icon beats in a ring running down the window (DOUBLE). The second: the
-    // avatars of whoever joined it by gift, the newest first, five at most and +N for the rest; a new one pops in.
+    // Under the bar, each side from its end inward. The first row: its gift's icon on a disc, then a paper ball and 发「1」 /
+    // 发「2」 (the danmaku throws balls; the 1 in quotes, what to send); while that side's gift counts twice the icon glows pink and beats in a pink ring
+    // running down the window (DOUBLE). The second: the avatars of whoever joined it by gift, the newest first, five at
+    // most and +N for the rest; a new one pops in.
     for (const side of [1, -1]) {
-      const end = side > 0 ? x : x + w, at2 = d => end + side * d, icon = this.sideIcon[side], [r1, r2] = ROW;
-      const beat = v.luck?.side === side && now - v.luck.at >= DOUBLE.fly ? 1 + 0.14 * Math.max(0, Math.sin((now - v.luck.at) / 1000 * Math.PI * 2 * (v.luck.until - now < DOUBLE.hurry ? 3 : 1.4))) : 1;
-      g.save(); g.translate(at2(16), r1); g.scale(beat, beat);
-      if (icon) g.drawImage(icon, -16, -16, 32, 32); else this.giftIcon(g, 0, 0, 12);
-      g.restore();
-      g.save(); g.globalAlpha = 0.95; g.fillStyle = SIDE_COL[side]; g.beginPath(); g.roundRect(at2(38) - (side > 0 ? 0 : 58), r1 - 16, 58, 32, 16); g.fill(); g.restore();
-      g.save(); g.textAlign = 'center'; g.textBaseline = 'middle'; g.font = `800 24px ${SANS}`; g.fillStyle = '#3A2440'; g.fillText(`发${side > 0 ? 1 : 2}`, at2(67), r1 + 1); g.restore();
-      if (v.luck?.side === side && now - v.luck.at >= DOUBLE.fly) {
-        const k = clamp((v.luck.until - now) / LUCK.ms, 0, 1);
-        g.save(); g.globalAlpha = this.hurry(v, now); g.strokeStyle = SIDE_COL[side]; g.lineWidth = 3; g.beginPath(); g.arc(at2(16), r1, 21, -Math.PI / 2, -Math.PI / 2 + Math.PI * 2 * k); g.stroke(); g.restore();
+      const end = side > 0 ? x : x + w, at2 = d => end + side * d, icon = this.sideIcon[side], [r1, r2] = ROW, c = this.iconAt(side), disc = ICON / 2 + 4;
+      const on = v.luck?.side === side && now - v.luck.at >= DOUBLE.fly, out = !v.luck && v.luckOut?.side === side && now - v.luckOut.at < DOUBLE.out;
+      if (on || out) {
+        const pop = on ? 1 + 0.5 * (1 - ease(k01(now - v.luck.at - DOUBLE.fly, 0, DOUBLE.pop))) : 1, R = (disc + 18) * pop;
+        const gr = g.createRadialGradient(c.x, c.y, disc * 0.6, c.x, c.y, R); gr.addColorStop(0, 'rgba(255,150,195,0.9)'); gr.addColorStop(1, 'rgba(255,150,195,0)');
+        g.save(); g.globalAlpha = out ? 1 - (now - v.luckOut.at) / DOUBLE.out : this.hurry(v, now); g.fillStyle = gr; g.beginPath(); g.arc(c.x, c.y, R, 0, Math.PI * 2); g.fill(); g.restore();
       }
+      const beat = on ? 1 + 0.14 * Math.max(0, Math.sin((now - v.luck.at) / 1000 * Math.PI * 2 * (v.luck.until - now < DOUBLE.hurry ? 3 : 1.4))) : 1;
+      g.save(); g.translate(c.x, c.y); g.scale(beat, beat);
+      g.beginPath(); g.arc(0, 0, disc, 0, Math.PI * 2); g.fillStyle = 'rgba(40,26,54,0.85)'; g.fill(); g.lineWidth = 3; g.strokeStyle = SIDE_COL[side]; g.stroke();
+      if (icon) g.drawImage(icon, -ICON / 2, -ICON / 2, ICON, ICON); else this.giftIcon(g, 0, 0, 18);
+      g.restore();
+      if (on) {
+        const k = clamp((v.luck.until - now) / LUCK.ms, 0, 1);
+        g.save(); g.globalAlpha = this.hurry(v, now); g.strokeStyle = '#FF96C3'; g.lineWidth = 4; g.lineCap = 'round'; g.beginPath(); g.arc(c.x, c.y, disc + 6, -Math.PI / 2, -Math.PI / 2 + Math.PI * 2 * k); g.stroke(); g.restore();
+      }
+      const ball = this.ball.plain, bh = 30, bw = ball.width / ball.height * bh, bx = at2(disc * 2 + 14 + bw / 2);
+      g.drawImage(ball, bx - bw / 2, r1 - bh / 2, bw, bh);
+      g.save(); g.textAlign = side > 0 ? 'left' : 'right'; g.textBaseline = 'middle'; text(`发「${side > 0 ? 1 : 2}」`, at2(disc * 2 + 14 + bw + 6), r1 + 1, `800 24px ${SANS}`, SIDE_LIGHT[side]); g.restore();
       const joined = [...v.sides.values()].filter(m => m.side === side && m.by === 'gift').reverse();
       joined.slice(0, 5).forEach((m, i) => {
         const cx = at2(16 + i * 26), pop = 0.6 + 0.4 * ease(k01(now - m.at, 0, 220)), r = 16 * pop, im = this.avatars[m.av];
@@ -4067,13 +4067,13 @@ class Component extends DCLogic {
     // a 人气票 or 小花花 comes from one of the board's viewers, rather one on no side yet, so the avatars fill up; a danmaku
     // from one on no side (called out), one that says 1 or 2, or one already on a side (a paper ball)
     const side = (gift, n) => () => this.give([{ gift, price: 1, n, viewer: this.someone() }]), dm = (on, said) => () => this.heard(this.someone(on), said);
-    // ×100 is a 秒杀 while the chest holds 2000 电池 or less (each end is 100 票 away then); the last stretch is a jump of
+    // ×520 is a 秒杀 whatever the chest (each end is 300 to 500 票 away); the last stretch is a jump of
     // the fight's own clock to 10 s left, to see the dragging, the 0:00 wait and a 绝杀 without waiting the minute out
     // a lucky ball for sure (three in ten by chance), from someone put on that side, while the tug is on and none is open
     const lucky = sd => () => { const v = this.gm.visit, w = this.someone(); if (v?.phase !== 'tug' || v.cut != null || v.luck) return; this.enlist(w, sd, 'dm'); v.balls.push({ at: this.now(), side: sd, lucky: true, w, seed: this.rng() }); };
     const last10 = () => { const v = this.gm.visit; if (v?.phase === 'tug' && v.judge == null) v.left = Math.min(v.left, GAME.sprint + 400); };
-    group('小游戏', [['捣蛋鬼来了', () => this.visit()], ['人气票', side('人气票', 1)], ['人气票 ×10', side('人气票', 10)], ['人气票 ×100', side('人气票', 100)],
-      ['小花花', side('小花花', 1)], ['小花花 ×5', side('小花花', 5)], ['小花花 ×100', side('小花花', 100)], ['跳到最后 10 秒', last10],
+    group('小游戏', [['捣蛋鬼来了', () => this.visit()], ['人气票', side('人气票', 1)], ['人气票 ×10', side('人气票', 10)], ['人气票 ×520', side('人气票', 520)],
+      ['小花花', side('小花花', 1)], ['小花花 ×5', side('小花花', 5)], ['小花花 ×520', side('小花花', 520)], ['跳到最后 10 秒', last10],
       ['路人发弹幕', dm(false)], ['发「1」', dm(null, '1')], ['发「2」', dm(null, '2')], ['站了队的发弹幕', dm(true)], ['红方丢幸运纸团', lucky(1)], ['蓝方丢幸运纸团', lucky(-1)],
       ['别的礼物 100 电池', g([one('爱心抱枕', 100)])], ['别的礼物到中礼物', g([one('告白气球', 2000)])], ['PK 开始', () => this.pkOn(true)], ['PK 结束', () => this.pkOn(false)]]);
     const fit = () => { const r = document.getElementById('root'); if (r) r.style.zoom = Math.min(innerWidth / 1920, (innerHeight - bar.offsetHeight) / 1080); };
