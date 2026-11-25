@@ -22,7 +22,7 @@ public sealed class DesktopPetBrowserTests
           return box;
         })()
         """;
-    private static readonly string[] DailySheets = ["pose-3-daily-1", "pose-9-ski", "pose-10-gym", "pose-11-hike", "pose-12-cycle", "pose-19-gacha", "pose-20-gacha2", "pose-22-gacha3", "sprite-pose-4"];
+    private static readonly string[] DailySheets = ["pose-3-daily-1", "pose-9-ski", "pose-10-gym", "pose-11-hike", "pose-12-cycle", "pose-19-gacha", "pose-20-gacha2", "pose-22-gacha3", "sprite-pose-4", "pose-23-daily", "pose-24-hotpot", "pose-25-hotpot2", "pose-26-sofa"];
 
     [Fact]
     public async Task The_page_is_transparent_while_the_desktop_pet_is_off_and_scales_with_the_browser_source_at_three_to_four()
@@ -320,6 +320,43 @@ public sealed class DesktopPetBrowserTests
               return JSON.stringify([loaded, st.pose, st.sprite, !!st.gacha]);
             })()
             """, """[false,"idle","sIdle",false]""");
+
+    [Fact]
+    public Task Her_drawings_at_the_table_and_on_the_sofa_stand_where_the_standing_drawing_of_their_first_cell_does() =>
+        // (drawn with the prop at her place, not on their own middle and foot: cut off at the tabletop she has none)
+        AssertOnAFreshPageAsync("""
+            (async () => {
+              await Promise.all(pet.art.fixed.map(sheet => pet.loadSheet(sheet)));
+              const off = pose => { const [sheet, n] = pet.art.poses[pose], c = pet.cells[sheet][n], first = pet.cells[sheet][0];
+                return [c.cx - c.ox - first.cx, c.ground - c.oy - first.y - first.h].map(Math.round); };
+              return JSON.stringify(['hSit', 'hYum', 'mPlay'].map(off));
+            })()
+            """, "[[0,0],[0,0],[0,0]]");
+
+    [Fact]
+    public Task Cut_short_kneeling_behind_the_table_she_gets_up_where_she_knelt_and_the_table_stays_until_she_is_up() =>
+        // Her show has her kneel 27 px back behind the table (slide), then one without it has her calm at her place. Each frame:
+        // whether the table is drawn, how far above her place she is, whether her drawing is one at the table. Kneeling, the
+        // four in-between frames (idle to grace to her bowl) take her back a fifth of the way each; cut short, she gets up
+        // through them where she knelt, the table there till she is up, and then goes over to her place.
+        AssertOnAFreshPageAsync("""
+            (async () => {
+              await Promise.all(pet.art.fixed.map(sheet => pet.loadSheet(sheet)));
+              const { FOOT } = await import('/desktop-pet/engine.mjs'), g = document.querySelector('canvas').getContext('2d'), drawImage = g.drawImage.bind(g);
+              let clock = performance.now(), table;
+              performance.now = () => clock;
+              g.drawImage = (im, ...rest) => { table ||= im === pet.props.table; drawImage(im, ...rest); };
+              const frames = so => Array.from({ length: 60 }, () => {
+                clock += 1000 / 60; table = false;
+                pet.draw(g, { ...pet.stateAt(pet.now()), ...so }, pet.now());
+                return [table, Math.round(FOOT.y - pet.drawn.y), !!pet.drawn.c.prop];
+              });
+              const kneel = frames({ pose: 'hSit', y: FOOT.y - 27, slide: true, table: { x: 200, y: FOOT.y, w: 240, h: 90, a: 1, s: 1 } }), cut = frames({});
+              const up = cut.findIndex(f => !f[2]), after = cut.slice(up), seen = list => [...new Set(list.map(([shown, y]) => `${shown}:${y}`))];
+              return JSON.stringify({ kneel: seen(kneel), up: seen(cut.slice(0, up)), tableAfter: after.slice(1).some(([shown, , at]) => shown || at),
+                over: [after[0][1], after.at(-1)[1], after.every((f, i) => !i || f[1] <= after[i - 1][1])] });
+            })()
+            """, """{"kneel":["true:5","true:11","true:16","true:22","true:27"],"up":["true:27"],"tableAfter":false,"over":[27,0,true]}""");
 
     [Theory]
     [InlineData("pkOpponent", "intelHeld", "intelBack")]
