@@ -13,7 +13,7 @@ const MINUTE = 60000;
 
 // A 桌宠页 connected to a room, its clock at 0.
 function pet(settings = {}, rng = seeded(7)) {
-  const engine = new Engine({ currentTime: 0 }, shows);
+  const engine = new Engine({ currentTime: 0 }, shows, character.desktopPet);
   engine.reset(rng);
   engine.receive({ enabled: true, roomConnected: true, settings: { ...SETTINGS, ...settings }, lines });
   return engine;
