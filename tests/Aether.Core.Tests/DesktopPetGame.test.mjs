@@ -18,11 +18,11 @@ const visited = settings => { const pet = gamePet(character, settings); pet.summ
 const tugging = (chest = 500, settings) => { const pet = gamePet(character, settings); pet.gm.chest = chest; pet.summon(); play(pet, 12500); return pet; };
 // Halfway there: it flies the chest over her head.
 const flying = (chest = 500) => { const pet = gamePet(character); pet.gm.chest = chest; pet.summon(); play(pet, 5000); return pet; };
-// k of the way from the middle of the tug bar to an end, in 票 (its span: 300 for a chest of 500 电池), as the design package's
-// check-game.mjs counts them: of(pet, 0.55) of hers set off the lightning, of(pet, 1) of either side's is a 秒杀.
-const of = (pet, k) => Math.round(pet.gm.visit.span * k);
+// k of the way from the middle of the tug bar to an end, in 票 (the span of the chest of 500 电池 every tug counted so is over:
+// 300), as the design package's check-game.mjs counts them: of(0.55) of hers set off the lightning, of(1) of either side's is a 秒杀.
+const SPAN = tugging().gm.visit.span, of = k => Math.round(SPAN * k);
 // In the tug with of(0.55) 人气票 landed, past halfway to its end: its lightning has struck her and still plays.
-const zapped = settings => { const pet = tugging(500, settings); pet.gift(tickets(1, of(pet, 0.55))); play(pet, 3000); assert.notEqual(pet.gm.visit.cut, null); return pet; };
+const zapped = settings => { const pet = tugging(500, settings); pet.gift(tickets(1, of(0.55))); play(pet, 3000); assert.notEqual(pet.gm.visit.cut, null); return pet; };
 // Plays the tug on until its countdown is down to left ms.
 const countdown = (pet, left) => { while (pet.gm.visit.left > left) play(pet, 100); };
 // Plays on until she plays show, past what it waits for first.
@@ -91,23 +91,23 @@ test('a gift that scares the 捣蛋鬼 off sends a ring of light out from her fi
   const pet = tugging(), v = pet.gm.visit;
   play(pet, 3000);
   // of(0.55) 人气票 already falling, which land past halfway to its end, and 2 more still to fall
-  pet.gift(tickets(3, of(pet, 0.55)));
+  pet.gift(tickets(3, of(0.55)));
   play(pet, 100);
   pet.gift(tickets(4, 2));
   pet.guard(captain);
   const left = v.left;
   assert.deepEqual([v.phase, playing(pet), pet.gm.burst.due > pet.now()], ['tug', null, true]);
   // (of(1) 小花花 would have been its 秒杀)
-  pet.gift(flowers(2, of(pet, 1)));
+  pet.gift(flowers(2, of(1)));
   play(pet, 400);
-  assert.deepEqual([v.phase, playing(pet), v.left, v.blue, v.net, v.cut ?? null, v.queue.length, pet.gm.aside], ['tug', null, left, 0, of(pet, 0.55), null, 1, of(pet, 1)]);
+  assert.deepEqual([v.phase, playing(pet), v.left, v.blue, v.net, v.cut ?? null, v.queue.length, pet.gm.aside], ['tug', null, left, 0, of(0.55), null, 1, of(1)]);
   play(pet, 1500);
   assert.deepEqual([v.phase, playing(pet), pet.gm.burst.due], ['fled', 'captain', null]);
 });
 
 test('its lightning cast as the light sets out strikes her all the same, but gives it nothing', () => {
   const pet = tugging(), v = pet.gm.visit;
-  pet.gift(tickets(1, of(pet, 0.55)));
+  pet.gift(tickets(1, of(0.55)));
   play(pet, 2500);
   pet.guard(captain);
   play(pet, 400);
@@ -200,13 +200,13 @@ test('the tug\'s line starts in the middle, a 人气票 pushes it toward the 捣
   const pet = tugging(), v = pet.gm.visit, bar = () => [v.red, v.blue, Math.round(pet.lineX(v) * 10) / 10, v.net];
   // a chest of 500 电池 puts each end 300 票 from the middle of the bar, 436 px wide from x 22
   assert.deepEqual([v.span, ...bar()], [300, 0, 0, 240, 0]);
-  pet.gift(tickets(1, of(pet, 0.1)));
-  assert.deepEqual(bar(), [of(pet, 0.1), 0, 261.8, 0]);
-  pet.gift(flowers(2, of(pet, 0.3)));
-  assert.deepEqual(bar(), [of(pet, 0.1), of(pet, 0.3), 196.4, 0]);
+  pet.gift(tickets(1, of(0.1)));
+  assert.deepEqual(bar(), [of(0.1), 0, 261.8, 0]);
+  pet.gift(flowers(2, of(0.3)));
+  assert.deepEqual(bar(), [of(0.1), of(0.3), 196.4, 0]);
   // (the chest on the ground goes by what has landed: once it is up and they drop)
   play(pet, 3000);
-  assert.deepEqual(bar(), [of(pet, 0.1), of(pet, 0.3), 196.4, -of(pet, 0.2)]);
+  assert.deepEqual(bar(), [of(0.1), of(0.3), 196.4, -of(0.2)]);
 });
 
 test('each end is a twentieth of the chest\'s 电池 from the middle, 300 票 at the least and 500 at the most', () => {
@@ -215,56 +215,56 @@ test('each end is a twentieth of the chest\'s 电池 from the middle, 300 票 at
 
 test('a side whose gifts reaching the page take the line to its end wins there and then: nothing waits to land, and the lightning is cut short', () => {
   const pet = tugging();
-  pet.gift(tickets(1, of(pet, 0.55)));
+  pet.gift(tickets(1, of(0.55)));
   play(pet, 2200);
   assert.notEqual(pet.gm.visit.cut, null);
-  pet.gift(tickets(2, of(pet, 0.45)));
-  assert.deepEqual([pet.gm.visit.phase, pet.gm.visit.cut, playing(pet), pet.gm.streak, pet.gm.chest], ['won', null, 'chestKept', 1, 500 + of(pet, 1)]);
+  pet.gift(tickets(2, of(0.45)));
+  assert.deepEqual([pet.gm.visit.phase, pet.gm.visit.cut, playing(pet), pet.gm.streak, pet.gm.chest], ['won', null, 'chestKept', 1, 500 + of(1)]);
   const stolen = tugging();
-  stolen.gift(flowers(1, of(stolen, 1)));
+  stolen.gift(flowers(1, of(1)));
   assert.deepEqual([stolen.gm.visit.phase, stolen.gm.streak, stolen.gm.chest, stolen.gm.brag], ['lost', 0, 0, true]);
 });
 
 test('time up, the side the score favours wins, though what landed took the line past an end on the way', () => {
   const pet = tugging(500), v = pet.gm.visit;
-  pet.gift(tickets(1, of(pet, 0.9)));
+  pet.gift(tickets(1, of(0.9)));
   while (v.cut == null) play(pet, 100);
-  pet.gift(flowers(2, of(pet, 1.8)));
-  pet.gift(tickets(3, of(pet, 1.1)));
+  pet.gift(flowers(2, of(1.8)));
+  pet.gift(tickets(3, of(1.1)));
   while (!v.bolted) play(pet, 100);
   countdown(pet, 0);
   while (v.result == null) play(pet, 100);
   // (its bolt gave it a quarter more)
-  assert.deepEqual([v.red, v.blue, v.net, v.result], [of(pet, 2), of(pet, 2.05), -of(pet, 0.05), -1]);
+  assert.deepEqual([v.red, v.blue, v.net, v.result], [of(2), of(2.05), -of(0.05), -1]);
 });
 
 test('its lightning\'s bolt gives the 捣蛋鬼 a quarter of the way to an end, shown as a gift is; cut short before it strikes, her hair is not frizzed', () => {
   const pet = tugging(), v = pet.gm.visit;
-  pet.gift(tickets(1, of(pet, 0.55)));
+  pet.gift(tickets(1, of(0.55)));
   play(pet, 2200);
-  assert.deepEqual([v.cut != null, v.blue, v.net], [true, 0, of(pet, 0.55)]);
+  assert.deepEqual([v.cut != null, v.blue, v.net], [true, 0, of(0.55)]);
   play(pet, 1000);
-  assert.deepEqual([v.blue, v.net, pet.gm.nums.at(-1).text, pet.gm.nums.at(-1).side, v.bolted], [of(pet, 0.25), of(pet, 0.3), `+${of(pet, 0.25)} 捣蛋鬼`, -1, true]);
+  assert.deepEqual([v.blue, v.net, pet.gm.nums.at(-1).text, pet.gm.nums.at(-1).side, v.bolted], [of(0.25), of(0.3), `+${of(0.25)} 捣蛋鬼`, -1, true]);
   const spared = tugging(), poses = new Set();
-  spared.gift(tickets(1, of(spared, 0.55)));
+  spared.gift(tickets(1, of(0.55)));
   play(spared, 2200);
-  spared.gift(tickets(2, of(spared, 0.45)));
+  spared.gift(tickets(2, of(0.45)));
   play(spared, 3000, st => poses.add(st.pose));
   assert.deepEqual([spared.gm.visit.blue, spared.cur.opts.zap, [...poses].filter(pose => pose.endsWith('Zap'))], [0, false, []]);
 });
 
 test('beaten while it is still getting up from its fall, the 捣蛋鬼 is knocked flying off the lid', () => {
   const pet = tugging();
-  pet.gift(tickets(1, of(pet, 1)));
+  pet.gift(tickets(1, of(1)));
   assert.deepEqual([pet.gm.visit.phase, playing(pet)], ['knocked', 'chestKept']);
 });
 
 test('while it still flies the chest in, enough 人气票 knock it out of the air and she cheers at once, and enough 小花花 have it off with the chest', () => {
   const kept = flying(), poses = new Set();
-  kept.gift(tickets(1, of(kept, 1)));
-  assert.deepEqual([kept.gm.visit.phase, playing(kept), kept.cur.pre, kept.gm.streak, kept.gm.chest], ['fled', 'chestKept', 0, 1, 500 + of(kept, 1)]);
+  kept.gift(tickets(1, of(1)));
+  assert.deepEqual([kept.gm.visit.phase, playing(kept), kept.cur.pre, kept.gm.streak, kept.gm.chest], ['fled', 'chestKept', 0, 1, 500 + of(1)]);
   const stolen = flying();
-  stolen.gift(flowers(1, of(stolen, 1)));
+  stolen.gift(flowers(1, of(1)));
   assert.deepEqual([stolen.gm.visit.phase, stolen.gm.streak, stolen.gm.chest], ['away', 0, 0]);
   // she starts, reaches up after it until it is off the page, and only then kneels crying
   play(stolen, 2300, st => poses.add(st.pose));
@@ -301,14 +301,14 @@ test('over an empty chest still in the air one gift decides it there and then: a
 test('a 人气票 or 小花花 sent while it only peeks in counts once it flies in with the chest on its rope', () => {
   const pet = gamePet(character), empty = gamePet(character);
   pet.gm.chest = 500;
-  for (const [p, gift] of [[pet, () => tickets(1, of(pet, 1))], [empty, () => flowers(1)]]) {
+  for (const [p, gift] of [[pet, tickets(1, of(1))], [empty, flowers(1)]]) {
     p.summon();
     play(p, 1000);
-    p.gift(gift());
+    p.gift(gift);
     assert.deepEqual([p.gm.visit.phase, p.gm.visit.red, p.gm.visit.chest, playing(p)], ['peek', 0, null, null]);
     play(p, 2000);
   }
-  assert.deepEqual([pet.gm.visit.phase, pet.gm.visit.red, playing(pet)], ['fled', of(pet, 1), 'chestKept']);
+  assert.deepEqual([pet.gm.visit.phase, pet.gm.visit.red, playing(pet)], ['fled', of(1), 'chestKept']);
   assert.deepEqual([empty.gm.visit.phase, playing(empty)], ['away', 'chestRobbed']);
 });
 
@@ -334,7 +334,7 @@ test('a 绝杀 is a tug decided by a gift that came in its last ten seconds or t
   // each gift at so much of the countdown left (the grace 1 s in: -1000), then on to the result
   const ended = (...sent) => {
     const pet = tugging();
-    for (const [left, gift] of sent) { countdown(pet, Math.max(0, left)); play(pet, Math.max(0, -left)); pet.gift(typeof gift === 'function' ? gift(pet) : gift); }
+    for (const [left, gift] of sent) { countdown(pet, Math.max(0, left)); play(pet, Math.max(0, -left)); pet.gift(gift); }
     for (let i = 0; i < 1000 && !pet.gm.visit.result; i++) play(pet, 100);
     // who scored it, on which side, the kind of line she says of it and what the 捣蛋鬼 says
     const kind = ['chestKept', 'chestKeptBuzzer', 'chestRobbed'].find(k => character.lines[k].includes(pet.cur.line));
@@ -346,7 +346,7 @@ test('a 绝杀 is a tug decided by a gift that came in its last ten seconds or t
   assert.deepEqual(ended([30000, flowers(3, 5)], [-1000, tickets(2, 6)]), ['won', 1, '观众2', 'chestKeptBuzzer', flees], 'turned in the grace');
   assert.deepEqual(ended([30000, flowers(3, 5)], [-9000, tickets(2, 6)]), ['won', 1, '观众2', 'chestKeptBuzzer', flees], 'turned 9 s into the grace');
   assert.deepEqual(ended([30000, tickets(1, 5)], [5000, flowers(2, 6)]), ['lost', -1, '观众2', 'chestRobbed', '多谢观众2！\n箱子归我啦～'], 'turned its way 5 s before the end');
-  assert.deepEqual(ended([5000, pet => tickets(3, of(pet, 1))]), ['won', 1, '观众3', 'chestKeptBuzzer', flees], 'a 秒杀 5 s before the end');
+  assert.deepEqual(ended([5000, tickets(3, of(1))]), ['won', 1, '观众3', 'chestKeptBuzzer', flees], 'a 秒杀 5 s before the end');
   assert.deepEqual(ended([30000, flowers(2, 5)]), ['lost', null, null, 'chestRobbed', '多谢款待，\n下次再来！'], 'behind since half a minute before');
 });
 
@@ -462,7 +462,7 @@ test('every 人气票 and 小花花 thrown goes into her chest, those still to l
   const empty = visited();
   for (const [uid, n] of [[1, 1], [2, 2], [3, 3]]) empty.gift(tickets(uid, n));
   play(empty, 20000);
-  const tug = tugging(), kill = of(tug, 1) + 5;
+  const tug = tugging(), kill = of(1) + 5;
   tug.gift(flowers(2, 5));
   tug.gift(tickets(1, kill));
   play(tug, 8000);
@@ -474,11 +474,11 @@ test('what is thrown and still to fall when the 捣蛋鬼 is scared off goes int
   pet.gift(tickets(1, 10));
   pet.receive(state(pet, { pk: true }));
   play(pet, 6000);
-  const struck = zapped(), red = struck.gm.visit.red;
+  const struck = zapped();
   struck.gift(flowers(2, 10));
   struck.receive(state(struck, { pk: true }));
   play(struck, 8000);
-  assert.deepEqual([pet.gm.chest, struck.gm.visit, struck.gm.chest], [10, null, 500 + red + 10]);
+  assert.deepEqual([pet.gm.chest, struck.gm.visit, struck.gm.chest], [10, null, 500 + of(0.55) + 10]);
 });
 
 test('a new first place taken by a gift thrown at the 捣蛋鬼 is crowned once it has gone and the chest is home, the 礼物榜 telling of it before the gift or after', () => {
@@ -512,8 +512,8 @@ test('a new first place taken by blind boxes that play nothing while the 捣蛋�
 
 test('while a 来访 is wound up the shows that come wait their turn and cut in on nothing, then play the highest first: just after she wins, just after she is robbed, after a PK scared the 捣蛋鬼 off, and after a 舰长 did', () => {
   const ends = {
-    'chestKept': pet => pet.gift(tickets(1, of(pet, 1))),
-    'chestRobbed': pet => pet.gift(flowers(1, of(pet, 2))),
+    'chestKept': pet => pet.gift(tickets(1, of(1))),
+    'chestRobbed': pet => pet.gift(flowers(1, of(2))),
     'a PK': pet => pet.receive(state(pet, { pk: true })),
     'captain': pet => { pet.guard(captain); play(pet, 1500); }
   };
@@ -536,7 +536,7 @@ test('while a 来访 is wound up the shows that come wait their turn and cut in 
 
 test('a gift let go while she is busy being robbed does not cheer her up; one whose show plays does', () => {
   const pet = tugging(500, { off: NO_DAILY });
-  pet.gift(flowers(1, of(pet, 1)));
+  pet.gift(flowers(1, of(1)));
   play(pet, 500);
   pet.gift(flowers(2));
   until(pet, 'chestRobbed');
@@ -664,7 +664,7 @@ test('a 试演 taking over 守住了 or 被偷了 after the lightning waits for 
   const after = show => {
     const pet = zapped();
     // beaten off there and then, or else the countdown runs out with the 捣蛋鬼 ahead
-    pet.gift(show === 'chestKept' ? tickets(2, of(pet, 1)) : flowers(3, of(pet, 0.6)));
+    pet.gift(show === 'chestKept' ? tickets(2, of(1)) : flowers(3, of(0.6)));
     until(pet, show);
     play(pet, 1000);
     assert.deepEqual([playing(pet), pet.cur.opts.zap], [show, true]);
@@ -684,7 +684,7 @@ test('a 试演 taking over 守住了 or 被偷了 after the lightning waits for 
 
 test('a 试演 taking over 被偷了 has her say on its line while it waits, until 被偷了 would have stopped it', () => {
   const pet = zapped();
-  pet.gift(flowers(3, of(pet, 0.6)));
+  pet.gift(flowers(3, of(0.6)));
   until(pet, 'chestRobbed');
   const robbed = pet.cur.start + pet.cur.pre;
   let line;
@@ -698,7 +698,7 @@ test('a 试演 taking over 被偷了 has her say on its line while it waits, unt
 
 test('a 试演 taking over 守住了 or 打飞 waits for the chest cheering on as she was, one over a show that scared the 捣蛋鬼 off standing', () => {
   const ways = {
-    chestKept: pet => { pet.gm.chest = 500; pet.summon(); play(pet, 12500); pet.gift(tickets(2, of(pet, 1))); },
+    chestKept: pet => { pet.gm.chest = 500; pet.summon(); play(pet, 12500); pet.gift(tickets(2, of(1))); },
     pranksterKnocked: pet => { pet.summon(); play(pet, 16000); pet.gift(tickets(1)); },
     // the 试演 that scares it off out of the tug
     captain: pet => { pet.gm.chest = 500; pet.summon(); play(pet, 12500); pet.testShow({ show: 'captain', variant: null, nickname: '舰长', id: 1 }); },
@@ -928,7 +928,7 @@ const left = async pet => { await new Promise(resolve => setImmediate(resolve));
 test('a 来访 over, the page lets go of the faces of who joined it and keeps each side\'s gift icon', async () => {
   const pet = pictured();
   faced(pet, flowers(2, 5));
-  faced(pet, tickets(1, of(pet, 1) + 5));
+  faced(pet, tickets(1, of(1) + 5));
   assert.deepEqual(await left(pet), ICONS);
 });
 
