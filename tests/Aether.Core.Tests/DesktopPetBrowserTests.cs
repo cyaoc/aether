@@ -323,15 +323,16 @@ public sealed class DesktopPetBrowserTests
 
     [Fact]
     public Task Her_drawings_at_the_table_and_on_the_sofa_stand_where_the_standing_drawing_of_their_first_cell_does() =>
-        // (drawn with the prop at her place, not on their own middle and foot: cut off at the tabletop she has none)
+        // (drawn with the prop at her place, not on their own middle and foot: cut off at the tabletop she has none; hBlow and
+        // mOuch from the row below, which has a ground line of its own)
         AssertOnAFreshPageAsync("""
             (async () => {
               await Promise.all(pet.art.fixed.map(sheet => pet.loadSheet(sheet)));
               const off = pose => { const [sheet, n] = pet.art.poses[pose], c = pet.cells[sheet][n], first = pet.cells[sheet][0];
                 return [c.cx - c.ox - first.cx, c.ground - c.oy - first.y - first.h].map(Math.round); };
-              return JSON.stringify(['hSit', 'hYum', 'mPlay'].map(off));
+              return JSON.stringify(['hSit', 'hYum', 'mPlay', 'hBlow', 'mOuch'].map(off));
             })()
-            """, "[[0,0],[0,0],[0,0]]");
+            """, "[[0,0],[0,0],[0,0],[0,0],[0,0]]");
 
     [Fact]
     public Task Cut_short_kneeling_behind_the_table_she_gets_up_where_she_knelt_and_the_table_stays_until_she_is_up() =>

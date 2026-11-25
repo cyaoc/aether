@@ -268,12 +268,11 @@ export class Pet extends Engine {
       return [0, 1, 2, 3].map(i => ({ im, ...box(im, i * fw, 0, fw, im.height), cx: c.cx - c.ox + i * fw, ground: c.ground - c.oy, ruler: c.ruler,
         sign: signAt(SIGNS[f]?.[i], i * fw, 0), prop: c.prop }));
     };
-    // (a loop over two strips, f2 its frames 4-7: her sign swaying to her left and back, then to her right; between standing
-    // and kneeling at the table, it is there)
+    // (a loop over two strips, f2 its frames 4-7: her sign swaying to her left and back, then to her right)
     const [strips, tweens] = await Promise.all([
       Promise.all(Object.entries(STRIP).filter(([pose]) => on(pose)).map(async ([pose, s]) => [pose, [...await framesOf(s.f, pose), ...(s.f2 ? await framesOf(s.f2, pose) : [])]])),
       Promise.all(Object.entries(TRANS).filter(([pair]) => on(pair.split('>')[0])).map(async ([pair, f]) => {
-        const prop = pair.split('>').map(p => PROP_OF[p]).find(Boolean);
+        const prop = pair.split('>').map(p => PROP_OF[p]).find(Boolean);   // between standing and kneeling at the table, it is there
         return [pair, (await framesOf(f, pair.split('>')[0])).slice(1, 3).map(c => ({ ...c, prop }))];
       }))
     ]);
