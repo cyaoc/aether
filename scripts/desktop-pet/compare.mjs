@@ -13,7 +13,7 @@
 import { execFileSync } from 'node:child_process';
 import fs from 'node:fs';
 import { NAME, ROUTES, STAR, STEP, VIEWERS, announced, drive, end, frames, itemsOf, send, spendOf, told, walk } from './routes.mjs';
-import { DAILY, GACHA } from '../../src/Aether.Core/Pages/desktop-pet/engine.mjs';
+import { DAILY, GACHA, MOBILE } from '../../src/Aether.Core/Pages/desktop-pet/engine.mjs';
 
 const here = new URL('.', import.meta.url).pathname, eval_ = here + '../../docs/design/desktop-pet/tools/cdp-eval.mjs';
 const args = process.argv.slice(2), opt = (k, d) => { const i = args.indexOf(k); return i < 0 ? d : args.splice(i, 2)[1]; };
@@ -24,7 +24,7 @@ const RESULT = { Gain: '赚', Even: '平', Loss: '亏', Jackpot: '大奖', BigWi
 // A 盲盒查询's 试演 on the board: its result as the board names it, with the page's numbers where they are not the board's own
 // (投入 15, 赚 4.5).
 const QUERY = { Gain: { result: '赚' }, Even: { result: '回本', profit: 0 }, Loss: { result: '亏', spend: 45, profit: -12.5 }, None: { result: '没有记录' } };
-const KIND = { hum: '哼歌', gym: '举哑铃', hike: '爬山', bike: '骑车', ski: '滑雪', gacha: '扭蛋' };
+const KIND = { hum: '哼歌', gym: '举哑铃', hike: '爬山', bike: '骑车', ski: '滑雪', gacha: '扭蛋', mobileGame: '手游' };
 const MOOD = { calm: 0, happy: 0, bored: 15, gloomy: 40, sleepy: 60 };
 const { shows } = JSON.parse(fs.readFileSync(here + '../../src/Aether.Core/Pages/desktop-pet/shows.json', 'utf8'));
 const at = (dur, extra = []) => [...new Set([200, 600, Math.round(dur * 0.25), Math.round(dur * 0.5), Math.round(dur * 0.75), dur - 150, ...extra])].sort((a, b) => a - b);
@@ -32,11 +32,17 @@ const at = (dur, extra = []) => [...new Set([200, 600, Math.round(dur * 0.25), M
 // battery just before and after it lets go, and fading till her in-between from gRub has it, frames 2 and 3 (give); the
 // cabinet popping up (up) and shrinking away (gone). Won: her in-between as the plush rises, gTwist, frame 2 (slow: 820 ms),
 // frame 3 (120 ms) and gHug, the plush up and coming down. Empty: the halves slipping from her hands to the ground (wail).
-const T = GACHA.t, W = T.won, L = T.lost, gone = ([a, b]) => [a, (a + b) / 2, b - 20];
-const give = [T.give - 70, T.give - 60, T.give, T.give + 40, T.give + 90], up = [T.up, T.up + 100, T.up + 200, T.up + 350];
+const T = GACHA.t, W = T.won, L = T.lost, gone = ([a, b]) => [a, (a + b) / 2, b - 20], popUp = a => [a, a + 100, a + 200, a + 350];
+const give = [T.give - 70, T.give - 60, T.give, T.give + 40, T.give + 90], up = popUp(T.up);
+// The 手游's (MOBILE.t): the sofa popping up and shrinking away; her slow in-betweens sitting down, lying back and sitting up,
+// frames 2 and 3 and the pose after (slow); won her cheering, lost her freezing and the phone falling on her face as the
+// corner shakes.
+const M = MOBILE.t, MW = M.won, ML = M.lost, slow = (a, ms) => [a, a + ms, a + 2 * ms], lying = [...popUp(M.up), ...slow(M.sit, 140), ...slow(M.lie, 160)];
 const MOMENTS = {
   gacha: at(DAILY.gacha[0], [...give, ...up, T.open - 20, T.open, T.open + W.rise, T.open + W.down - 20, W.hug - 100, W.hug, ...gone(W.gone)]),
-  'gacha-Mishap': at(DAILY.gacha[0] + DAILY.gacha[1], [...give, ...up, L.wail, L.wail + 130, L.wail + 260, ...gone(L.gone)])
+  'gacha-Mishap': at(DAILY.gacha[0] + DAILY.gacha[1], [...give, ...up, L.wail, L.wail + 130, L.wail + 260, ...gone(L.gone)]),
+  mobileGame: at(DAILY.mobileGame[0], [...lying, MW.win, MW.win + 90, ...slow(MW.sit, 140), MW.stand, MW.stand + 130, ...gone(MW.gone)]),
+  'mobileGame-Mishap': at(DAILY.mobileGame[0] + DAILY.mobileGame[1], [...lying, ML.stun, ML.smack, ML.smack + 90, ML.smack + 140, ML.ouch, ...slow(ML.sit, 140), ...gone(ML.gone)])
 };
 
 // Each case: what to do on the board and on the page at its start, and the moments to compare, in ms from its start.
@@ -76,11 +82,14 @@ cases.push({ id: 'pkLastSeconds-cut', ms: [1900, 2050, 2150, 2250, 2350, 2450, 2
 cases.push({ id: 'pkOpponent-cut', ms: [1000, 1400, 3000, 6150, 6250, 6400, 6550, 6700, 6900],
   board: `dc.start('PK·对手', {}); later(6200, () => dc.start('大礼物', {}))`,
   page: `pet.start('pkOpponent', {}); later(6200, () => pet.start('bigGift', { nickname: '星河' }))` });
-// The 扭蛋 cut short by a gift before the capsule opens, hopping home with it (won) and twisting it open (empty): she goes into
-// her bow without opening it, no plush nor empty halves on the way; a moment every 100 ms of the second after.
-for (const [mishap, cut] of [[false, 8500], [true, 10100]]) cases.push({ id: `gacha${mishap ? '-Mishap' : ''}-cut`, ms: [cut - 100, ...Array.from({ length: 11 }, (_, i) => cut + i * 100)],
-  board: `dc.start('日常', { kind: '扭蛋', mishap: ${mishap} }); later(${cut}, () => dc.start('普通礼物', {}))`,
-  page: `pet.start('gacha', { mishap: ${mishap} }); later(${cut}, () => pet.start('gift', { nickname: '星河' }))` });
+// Dailies cut short by a gift, a moment every 100 ms of the second after. The 扭蛋 before the capsule opens, hopping home with
+// it (won) and twisting it open (empty): she goes into her bow without opening it, no plush nor empty halves on the way. The
+// 手游 lying playing: she sits up, stands and puts her phone away, the sofa there till she is up; the phone on her face (lost):
+// her bow comes in at once and the sofa goes with it.
+for (const [show, mishap, cut] of [['gacha', false, 8500], ['gacha', true, 10100], ['mobileGame', false, 4000], ['mobileGame', true, 7600]]) cases.push({
+  id: `${show}${mishap ? '-Mishap' : ''}-cut`, ms: [cut - 100, ...Array.from({ length: 11 }, (_, i) => cut + i * 100)],
+  board: `dc.start('日常', { kind: ${JSON.stringify(KIND[show])}, mishap: ${mishap} }); later(${cut}, () => dc.start('普通礼物', {}))`,
+  page: `pet.start(${JSON.stringify(show)}, { mishap: ${mishap} }); later(${cut}, () => pet.start('gift', { nickname: '星河' }))` });
 // The 宝箱小游戏's routes: the board's own steps, which the page plays through drive (routes.mjs).
 for (const [route, steps] of Object.entries(ROUTES)) cases.push({ id: 'game-' + route, steps });
 const chosen = args.length ? cases.filter(c => args.includes(c.id)) : cases;

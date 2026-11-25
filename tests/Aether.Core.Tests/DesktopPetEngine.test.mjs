@@ -431,48 +431,56 @@ test('a 日常小动作 going wrong says a line of its kind at random, never the
   assert.deepEqual(said, [['乙'], ['丙']]);
 });
 
-// A 扭蛋 started on her page, won or come up empty, and what she is doing ms into it on the page's clock.
-function gacha(mishap) {
+// A 日常小动作 started on her page, gone wrong (mishap) or not, and what she is doing ms into it on the page's clock.
+function daily(show, mishap) {
   const engine = gamePet(character);
-  engine.start('gacha', { mishap });
+  engine.start(show, { mishap });
   const { start } = engine.cur;
   return [engine, ms => { engine.master.currentTime = start + ms; return engine.stateAt(engine.now()); }];
 }
 
+// Her poses from those ms into a 日常小动作 on her page, and that it plays until end ms.
+function assertPlays(show, mishap, poses, end) {
+  const [engine, at] = daily(show, mishap);
+  assert.deepEqual(Object.keys(poses).map(ms => at(+ms).pose), Object.values(poses));
+  at(end - 1);
+  assert.equal(playing(engine), show);
+  at(end);
+  assert.equal(playing(engine), null);
+}
+
 test('a 扭蛋 takes her to the cabinet and back: won she hugs the plush, 14.8 s; empty she wails and wipes her tears, 15.2 s', () => {
-  for (const [mishap, poses, end] of [
-    [false, { 0: 'gPointHome', 4300: 'gPress', 5000: 'gTurn', 7400: 'gTake', 9000: 'gShake', 10000: 'gTwist', 11400: 'gHug', 14000: 'idle' }, 14800],
-    [true, { 10500: 'gEmpty', 11400: 'gWail', 13500: 'gWipe', 14700: 'idle' }, 15200]]) {
-    const [engine, at] = gacha(mishap);
-    assert.deepEqual(Object.keys(poses).map(ms => at(+ms).pose), Object.values(poses));
-    at(end - 1);
-    assert.equal(playing(engine), 'gacha');
-    at(end);
-    assert.equal(playing(engine), null);
-  }
+  assertPlays('gacha', false, { 0: 'gPointHome', 4300: 'gPress', 5000: 'gTurn', 7400: 'gTake', 9000: 'gShake', 10000: 'gTwist', 11400: 'gHug', 14000: 'idle' }, 14800);
+  assertPlays('gacha', true, { 10500: 'gEmpty', 11400: 'gWail', 13500: 'gWipe', 14700: 'idle' }, 15200);
+});
+
+test('a 手游 on the sofa: won she cheers kicking her legs, 10.6 s; lost the phone falls on her face and she holds her nose, 11.6 s', () => {
+  const lying = { 0: 'mPhone', 1699: 'mPhone', 1700: 'mSit', 2500: 'mPlay', 6599: 'mPlay' };
+  assertPlays('mobileGame', false, { ...lying, 6600: 'mWin', 8800: 'mSit', 9400: 'mPhone' }, 10600);
+  assertPlays('mobileGame', true, { ...lying, 6600: 'mStunned', 7400: 'mSmack', 8100: 'mOuch', 9800: 'mSit', 10400: 'mPhone' }, 11600);
 });
 
 test('her sprite hands her the battery and lets go of its drawing holding one 60 ms before hers has it, never two at once', () => {
-  const [, at] = gacha(false);
+  const [, at] = daily('gacha', false);
   assert.deepEqual([1800, 2239, 2240].map(ms => at(ms).sprite), ['sCarry', 'sGive', 'sHappy']);
 });
 
 test('a gift cutting her 扭蛋 short as she turns the knob takes the cabinet, the battery and the capsule with it', () => {
-  const [engine, at] = gacha(false), turning = at(6000);
+  const [engine, at] = daily('gacha', false), turning = at(6000);
   assert.ok(turning.gacha.knob && turning.gacha.bay);
   engine.gift(gifts(1, 100));
   const st = engine.stateAt(engine.now());
   assert.deepEqual([playing(engine), st.gacha, st.halves, st.pop], ['gift', undefined, undefined, undefined]);
 });
 
-test('a 扭蛋 comes as one of the 日常小动作 left on, empty as often as one goes wrong, and never once turned off', () => {
-  const others = Object.keys(DAILY).filter(kind => kind !== 'gacha');
-  for (const [mishapPercent, empty] of [[100, true], [0, false]]) {
+for (const [kind, label, wrongly] of [['gacha', '扭蛋', 'empty'], ['mobileGame', '手游', 'lost']]) test(`a ${label} comes as one of the 日常小动作 left on, ${wrongly} as often as one goes wrong, and never once turned off`, () => {
+  const others = Object.keys(DAILY).filter(other => other !== kind);
+  for (const [mishapPercent, wrong] of [[100, true], [0, false]]) {
     const engine = pet({ off: others, mishapPercent });
     advance(engine, 6000);
-    assert.deepEqual([playing(engine), engine.cur.opts.mishap], ['gacha', empty]);
+    assert.deepEqual([playing(engine), engine.cur.opts.mishap], [kind, wrong]);
   }
-  const engine = pet({ off: ['gacha'], dailyMinSeconds: 1, dailyMaxSeconds: 1 }), seen = new Set();
+  const engine = pet({ off: [kind], dailyMinSeconds: 1, dailyMaxSeconds: 1 }), seen = new Set();
   for (let s = 0; s < 800; s++) { advance(engine, 1000); seen.add(playing(engine)); }
   assert.deepEqual([...seen].filter(Boolean).sort(), others.sort());
 });

@@ -105,7 +105,8 @@ event above to the engine's handler of the same name. The board's numbers measur
 character's `desktopPet` (`../characters/README.md`); the shows' timings, effects and the sprite's ways stay here, the same for
 every character. The page plays every row of the 演出表: the 心情, the 日常小动作 and their mishaps (the 扭蛋 coming up empty is
 its mishap: `GACHA`, `gacha`, the cabinet `drawGacha`; the board's `GACHA` parts measured on her pictures, `win`, `bay`,
-`knob`, `outlet` and `cell`, and where the plush comes down into her arms, `hug`, are her `points.gacha`, its timeline `t` stays in `GACHA`), entries, gifts, blind boxes,
+`knob`, `outlet` and `cell`, and where the plush comes down into her arms, `hug`, are her `points.gacha`, its timeline `t` stays in `GACHA`; the 手游's is losing, the phone
+falling on her face: `MOBILE`, `mobile`, the sofa standing from her `propSpot.sofa`), entries, gifts, blind boxes,
 castles, 大航海, a new first place on the 礼物榜 (found by the 礼物榜页's `../gift-board/changes.mjs`), each step of a lottery,
 a 盲盒查询's 账单卡 and, in a PK, the 对手情报卡 her sprite prints (`pkMatch`, `intelShow`, the card `pk-intel.mjs`, the design
 package's `lib/pk-intel.js`), her 举牌 (`pkCondition`, `pkDouble`, `pkCountdown`: the double bonus's condition, the double on, a
@@ -137,7 +138,7 @@ carrying the battery and the plush), the castle, 大航海, the lottery and her 
 hers and the 捣蛋鬼's, when it is first to come: all of them decoded take about 584 MB, the 扭蛋's 110 MB more, the 火锅's and
 the 手游's 147 MB and the game's more. Her sprite's sheet of the 火锅 (`sp5`) loads with the page all the same: its chewing is
 one of the sprite's moving drawings, which are measured on their cells as the page loads. A pose whose sheet is still loading keeps her in the drawing she has, her sign waits for its sheet to fly, and through a
-扭蛋 she stands as she was until its sheets are there. A load that fails, as when the web service restarts, is tried again when
+扭蛋 or a 手游 she stands as she was until its sheets are there. A load that fails, as when the web service restarts, is tried again when
 next asked for, at the soonest a second later: the game's while it is still to come, a sheet's when its show next plays.
 
 ## The 宝箱小游戏
