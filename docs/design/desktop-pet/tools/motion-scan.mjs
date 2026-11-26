@@ -17,6 +17,8 @@ const block = name => board.match(new RegExp(`const ${name} = \\{([\\s\\S]*?)\\}
 const events = [...block('EVENTS').matchAll(/'?([^\s',{}]+?)'?: \{ tier: '\w+', dur:/g)].map(m => m[1]);
 // (and the ones given their own lines after it, DAILY.扭蛋 = ...)
 const kinds = [...block('DAILY').matchAll(/(\S+): \[/g), ...block('SPORTS').matchAll(/^\s+(\S+): \{ ready:/gm), ...board.matchAll(/^DAILY\.(\S+) = /gm)].map(m => m[1]);
+// the cos daily plays each costume of COS (#418)
+const costumes = [...board.matchAll(/^  (\S+): \{ steps:/gm)].map(m => m[1]);
 
 // What it plays on, as x, how x starts over, and its runs, each [label, show, options].
 const target = page ? `
@@ -28,7 +30,8 @@ const target = page ? `
   await new Promise(r => setTimeout(r, 500));
   const x = dc, reset = () => x.reset(), runs = [];
   for (const name of ${JSON.stringify(events)}) for (const opts of dc.eventVariants(name)) runs.push([name + (opts.result ? '·' + opts.result : ''), name, opts]);
-  for (const kind of ${JSON.stringify(kinds)}) for (const mishap of [false, true]) runs.push([kind + (mishap ? '·出事' : ''), '日常', { kind, mishap }]);`;
+  for (const kind of ${JSON.stringify(kinds)}) for (const costume of kind === 'cos' ? ${JSON.stringify(costumes)} : [undefined]) for (const mishap of [false, true])
+    runs.push([kind + (costume ? '·' + costume : '') + (mishap ? '·出事' : ''), '日常', { kind, mishap, costume }]);`;
 const js = `(async () => {
   ${target}
   const frame = () => new Promise(r => requestAnimationFrame(r)), out = [];

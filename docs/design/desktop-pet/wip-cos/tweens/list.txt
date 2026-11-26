@@ -1,0 +1,11 @@
+ftIn idle ftReady --still
+ftOut ftWipe idle --still
+ftOut2 ftRub idle --still
+ftBumpIn ftReady ftBump
+ftGuardIn ftBump ftGuard
+ftPunchGo ftGuard ftPunch
+ftUpperGo ftPunch ftUpper
+ftKickGo ftUpper ftKick
+ftWipeIn ftKick ftWipe
+ftCramp ftKick ftSplit
+ftRubUp ftSplit ftRub

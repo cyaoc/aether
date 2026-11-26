@@ -1,0 +1,5 @@
+njLensOutGo njPalm njLensOut
+njSearchIn njLensOut njSearch
+njSearchUp njSearch njLensIn
+njThanksIn njLensIn njThanks
+njOut2 njThanks idle --still

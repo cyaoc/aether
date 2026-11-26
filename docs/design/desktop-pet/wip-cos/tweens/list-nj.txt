@@ -1,0 +1,10 @@
+njIn idle njReady --still
+njOut njSettle idle --still
+njOut2 njRelief idle --still
+njShyIn njReady njShy
+njStanceIn njShy njStance
+njPalmGo njStance njPalm
+njSettleIn njPalm njSettle
+njEyesIn njPalm njEyes
+njLookUpIn njEyes njLookUp
+njReliefIn njLookUp njRelief

@@ -14,9 +14,20 @@ const block = name => board.match(new RegExp(`const ${name} = \\{([\\s\\S]*?)\\}
 const events = [...block('EVENTS').matchAll(/'?([^\s',{}]+?)'?: \{ tier: '\w+', dur:/g)].map(m => m[1]);
 // (and the ones given their own lines after it, DAILY.扭蛋 = ...)
 const kinds = [...block('DAILY').matchAll(/(\S+): \[/g), ...block('SPORTS').matchAll(/^\s+(\S+): \{ ready:/gm), ...board.matchAll(/^DAILY\.(\S+) = /gm)].map(m => m[1]);
+// the cos daily plays each costume of COS (#418): started without one it would only ever play the first
+const costumes = [...board.matchAll(/^  (\S+): \{ steps:/gm)].map(m => m[1]);
+
+// Two effects of one name in drawFx: the switch only ever reaches the first (the cos daily's 'puff' drew the blind box's
+// grey smoke over her face, #418).
+{
+  const body = board.slice(board.indexOf('  drawFx(g, f, st, her, now) {'));
+  const fx = body.slice(0, body.indexOf('\n  }\n')), seen = {};
+  for (const [, n] of fx.matchAll(/case '(\w+)':/g)) seen[n] = (seen[n] || 0) + 1;
+  for (const [n, k] of Object.entries(seen)) if (k > 1) console.log(`effect '${n}' is defined ${k} times in drawFx: only the first draws`);
+}
 
 const js = `(() => {
-  const pairs = {}, EVENTS = ${JSON.stringify(events)}, KINDS = ${JSON.stringify(kinds)};
+  const pairs = {}, EVENTS = ${JSON.stringify(events)}, KINDS = ${JSON.stringify(kinds)}, COSTUMES = ${JSON.stringify(costumes)};
   const walk = (fn, dur, where) => {
     let prev = 'idle';
     for (let t = 0; t <= dur + 20; t += 20) { const p = t > dur ? 'idle' : fn(t).pose; if (p !== prev) { pairs[prev + '>' + p] ??= where; prev = p; } }
@@ -24,8 +35,9 @@ const js = `(() => {
   for (const name of EVENTS) for (const opts of dc.eventVariants(name)) {
     dc.start(name, opts); walk(t => dc.eventState(name, t, { ...opts, seed: 0 }, 'x'), dc.cur.dur, name + (opts.result ? '·' + opts.result : ''));
   }
-  for (const kind of KINDS) for (const mishap of [false, true]) {
-    dc.start('日常', { kind, mishap }); walk(t => dc.daily(t, dc.base(), { kind, mishap, seed: 0 }), dc.cur.dur, kind + (mishap ? '·出事' : ''));
+  for (const kind of KINDS) for (const costume of kind === 'cos' ? COSTUMES : [undefined]) for (const mishap of [false, true]) {
+    const o = { kind, mishap, costume };
+    dc.start('日常', o); walk(t => dc.daily(t, dc.base(), { ...o, seed: 0 }), dc.cur.dur, kind + (costume ? '·' + costume : '') + (mishap ? '·出事' : ''));
   }
   dc.cur = null;
   const res = { events: EVENTS.length, daily: KINDS.length, changes: 0, tween: 0, cut: 0, none: [] };
