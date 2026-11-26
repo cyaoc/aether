@@ -27,6 +27,8 @@ const QUERY = { Gain: { result: '赚' }, Even: { result: '回本', profit: 0 }, 
 const KIND = { hum: '哼歌', gym: '举哑铃', hike: '爬山', bike: '骑车', ski: '滑雪', gacha: '扭蛋', hotpot: '火锅', mobileGame: '手游' };
 const MOOD = { calm: 0, happy: 0, bored: 15, gloomy: 40, sleepy: 60 };
 const { shows } = JSON.parse(fs.readFileSync(here + '../../src/Aether.Core/Pages/desktop-pet/shows.json', 'utf8'));
+// (the board's numbers are character 1's)
+const SLOW = JSON.parse(fs.readFileSync(here + '../../src/Aether.Core/Pages/characters/1/character.json', 'utf8')).desktopPet.slow;
 const at = (dur, extra = []) => [...new Set([200, 600, Math.round(dur * 0.25), Math.round(dur * 0.5), Math.round(dur * 0.75), dur - 150, ...extra])].sort((a, b) => a - b);
 // The 扭蛋's moments besides those (GACHA.t; a moment is the first frame at or after it): her sprite's drawing holding out the
 // battery just before and after it lets go, and fading till her in-between from gRub has it, frames 2 and 3 (give); the
@@ -35,22 +37,24 @@ const at = (dur, extra = []) => [...new Set([200, 600, Math.round(dur * 0.25), M
 const T = GACHA.t, W = T.won, L = T.lost, gone = ([a, b]) => [a, (a + b) / 2, b - 20], popUp = a => [a, a + 100, a + 200, a + 350];
 const give = [T.give - 70, T.give - 60, T.give, T.give + 40, T.give + 90], up = popUp(T.up);
 // The 手游's (MOBILE.t): the sofa popping up and shrinking away; her slow in-betweens sitting down, lying back and sitting up,
-// frames 2 and 3 and the pose after (slow); won her cheering, lost her freezing and the phone falling on her face as the
-// corner shakes.
-const M = MOBILE.t, MW = M.won, ML = M.lost, slow = (a, ms) => [a, a + ms, a + 2 * ms], lying = [...popUp(M.up), ...slow(M.sit, 140), ...slow(M.lie, 160)];
+// frames 2 and 3 and the pose after (slow, her change of pose at a); won her cheering, lost her freezing and the phone falling
+// on her face as the corner shakes.
+const M = MOBILE.t, MW = M.won, ML = M.lost, slow = (a, pair) => [a, a + SLOW[pair], a + 2 * SLOW[pair]];
+const lying = [...popUp(M.up), ...slow(M.sit, 'mPhone>mSit'), ...slow(M.lie, 'mSit>mPlay')];
 // The 火锅's (HOTPOT.t): the table popping up and shrinking away, her kneeling behind it and getting up (slow) and the bowl
 // coming; yum the sprite at her chopsticks, mouth open, and chewing; spicy the chili burning and the sprite starting, flying
-// home and back, its drawing holding out the 豆奶 just before and after it lets go, and her hand on it, frame 2 (slow: 320 ms),
-// frame 3 and hDrink.
-const HP = HOTPOT.t, HY = HP.yum, HS = HP.spicy, table = [...popUp(HP.up), ...slow(HP.kneel, 130), HP.bowl - 100, HP.bowl];
+// home and back, its drawing holding out the 豆奶 just before and after it lets go, and her hand on it, frame 2 (slow, its own
+// ms), frame 3 and hDrink.
+const HP = HOTPOT.t, HY = HP.yum, HS = HP.spicy, table = [...popUp(HP.up), ...slow(HP.kneel, 'idle>hPray'), HP.bowl - 100, HP.bowl];
+const [drink2, drink3] = SLOW['hSpicy>hDrink'];
 const MOMENTS = {
   gacha: at(DAILY.gacha[0], [...give, ...up, T.open - 20, T.open, T.open + W.rise, T.open + W.down - 20, W.hug - 100, W.hug, ...gone(W.gone)]),
   'gacha-Mishap': at(DAILY.gacha[0] + DAILY.gacha[1], [...give, ...up, L.wail, L.wail + 130, L.wail + 260, ...gone(L.gone)]),
-  hotpot: at(DAILY.hotpot[0], [...table, HY.open, HY.chew, ...slow(HY.stand, 130), ...gone(HY.gone)]),
-  'hotpot-Mishap': at(DAILY.hotpot[0] + DAILY.hotpot[1], [...table, HS.burn, HS.fly, HS.back, HS.give, HS.drink - 70, HS.drink - 60, HS.drink, HS.drink + 320,
-    HS.drink + 460, ...slow(HS.stand, 130), ...gone(HS.gone)]),
-  mobileGame: at(DAILY.mobileGame[0], [...lying, MW.win, MW.win + 90, ...slow(MW.sit, 140), MW.stand, MW.stand + 130, ...gone(MW.gone)]),
-  'mobileGame-Mishap': at(DAILY.mobileGame[0] + DAILY.mobileGame[1], [...lying, ML.stun, ML.smack, ML.smack + 90, ML.smack + 140, ML.ouch, ...slow(ML.sit, 140), ...gone(ML.gone)])
+  hotpot: at(DAILY.hotpot[0], [...table, HY.open, HY.chew, ...slow(HY.stand, 'hPray>idle'), ...gone(HY.gone)]),
+  'hotpot-Mishap': at(DAILY.hotpot[0] + DAILY.hotpot[1], [...table, HS.burn, HS.fly, HS.back, HS.give, HS.drink - 70, HS.drink - 60, HS.drink, HS.drink + drink2,
+    HS.drink + drink2 + drink3, ...slow(HS.stand, 'hPray>idle'), ...gone(HS.gone)]),
+  mobileGame: at(DAILY.mobileGame[0], [...lying, MW.win, MW.win + 90, ...slow(MW.sit, 'mWin>mSit'), MW.stand, MW.stand + SLOW['mSit>mPhone'], ...gone(MW.gone)]),
+  'mobileGame-Mishap': at(DAILY.mobileGame[0] + DAILY.mobileGame[1], [...lying, ML.stun, ML.smack, ML.smack + 90, ML.smack + 140, ML.ouch, ...slow(ML.sit, 'mOuch>mSit'), ...gone(ML.gone)])
 };
 
 // Each case: what to do on the board and on the page at its start, and the moments to compare, in ms from its start.
