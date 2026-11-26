@@ -93,6 +93,9 @@ public sealed class ShowTableTests
             ("pranksterFlower", "prankster", "昵称"), ("pranksterBuzzer", "prankster", "昵称"),
             ("pranksterZap", "prankster", ""), ("pranksterSprint", "prankster", ""), ("pranksterRobs", "prankster", ""), ("pranksterFlees", "prankster", ""),
         ], Table.Lines.Select(kind => (kind.Id, kind.Group, string.Join(' ', kind.Placeholders))));
+        // cos says the seven costumes, then each one's two mishaps, in #420's order, which is the order of the kinds above.
+        Assert.Equal(Table.Lines.Select(kind => kind.Id).Where(id => id.StartsWith("cos", StringComparison.Ordinal)),
+            Table.Shows.Single(show => show.Id == "cosplay").Lines);
         // A 来访 is no 演出 (#372): what she and the 捣蛋鬼 say while it is on the page is said in no row.
         string[] visit = ["chestFell", "pranksterHit", "herHit", "herPelted", .. Table.Lines.Where(kind => kind.Group == "prankster").Select(kind => kind.Id)];
         Assert.Equal(Table.Lines.Select(kind => kind.Id).Except(visit).Order(), Table.Shows.SelectMany(show => show.Lines).Distinct().Order());
