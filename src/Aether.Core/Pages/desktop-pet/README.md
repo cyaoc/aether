@@ -108,7 +108,7 @@ its mishap: `GACHA`, `gacha`, the cabinet `drawGacha`; the board's `GACHA` parts
 `knob`, `outlet` and `cell`, and where the plush comes down into her arms, `hug`, are her `points.gacha`, its timeline `t` stays in `GACHA`;
 the 火锅's is the chili burning her, the beef picked from the red pot: `HOTPOT`, `hotpot`, `atTable`, the pot's steam `potSteam` and
 the chili's `flame`; the board's `HOTPOT` points measured on her pictures, the pot's rim `pot` and where the 豆奶 is handed over
-`give`, are her `points.hotpot`, how far back she kneels, `back`, and its timeline `t` stay in `HOTPOT`; the 手游's is losing, the phone
+`give`, and the meatball on her chopsticks its `hotpot` has inline, `tip`, are her `points.hotpot`, how far back she kneels, `back`, and its timeline `t` stay in `HOTPOT`; the 手游's is losing, the phone
 falling on her face: `MOBILE`, `mobile`, the sofa standing from her `propSpot.sofa`), entries, gifts, blind boxes,
 castles, 大航海, a new first place on the 礼物榜 (found by the 礼物榜页's `../gift-board/changes.mjs`), each step of a lottery,
 a 盲盒查询's 账单卡 and, in a PK, the 对手情报卡 her sprite prints (`pkMatch`, `intelShow`, the card `pk-intel.mjs`, the design

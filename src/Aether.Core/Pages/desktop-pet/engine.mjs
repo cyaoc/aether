@@ -2013,7 +2013,7 @@ export class Engine extends EventTarget {
     st.sprite = 'glow'; st.sp = ['at', centre.x + 78 * Math.cos(ang), centre.y + 26 * Math.sin(ang)]; st.fx.push(['trail', a]);
   }
 
-  // Where a point of a fixed sheet's cell (its px, as in HOTPOT and MOBILE) is on the page when her spot is (x, y).
+  // Where a point of a fixed sheet's cell (its px, as in her propSpot and points.hotpot) is on the page when her spot is (x, y).
   fromSpot(sheet, [px, py], x, y) {
     const c = this.cells[sheet][0], k = H / c.ruler;
     return { x: x + (px - c.cx) * k, y: y + (py - c.ground) * k };
@@ -2048,7 +2048,7 @@ export class Engine extends EventTarget {
 
     if (!o.mishap) {
       // it is good: she eats; she feeds the sprite a meatball (it flies to her chopsticks, mouth open, and chews); grace
-      const Y = T.yum, tip = { x: FOOT.x - 0.34 * H, y: y0 - 0.66 * H };   // the meatball on her chopsticks (hFeed)
+      const Y = T.yum, [tipX, tipY] = this.art.points.hotpot.tip, tip = { x: FOOT.x + tipX, y: y0 - tipY };   // the meatball on her chopsticks (hFeed)
       st.pose = at(t, [[T.eat, 'hYum'], [Y.feed, 'hFeed'], [Y.chew + 400, 'hSit'], [Y.grace, 'hPray'], [Y.stand, 'idle']]);
       if (t < Y.feed) { sat('sDrool', end); st.fx.push(['hearts', T.eat + 200, 3]); }
       else if (t < Y.chew) sat(t < Y.open - 150 ? 'sHappy' : 'sOpen', { x: tip.x - 0.3 * SPRITE_H, y: tip.y + 0.1 * SPRITE_H });
