@@ -2,7 +2,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
-import { DAILY, Engine, GLOW, PK_SIGN, seeded } from '../../src/Aether.Core/Pages/desktop-pet/engine.mjs';
+import { COS, DAILY, Engine, FOOT, GLOW, PK_SIGN, seeded } from '../../src/Aether.Core/Pages/desktop-pet/engine.mjs';
 import { PK_INTEL } from '../../src/Aether.Core/Pages/desktop-pet/pk-intel.mjs';
 import { SETTINGS } from './Support/DesktopPetSettings.mjs';
 import { MEASURE, box, gamePet, gifts, item, play, playing, round, state } from './Support/DesktopPetGame.mjs';
@@ -431,17 +431,18 @@ test('a 日常小动作 going wrong says a line of its kind at random, never the
   assert.deepEqual(said, [['乙'], ['丙']]);
 });
 
-// A 日常小动作 started on her page, gone wrong (mishap) or not, and what she is doing ms into it on the page's clock.
-function daily(show, mishap) {
+// A 日常小动作 started on her page with opts, gone wrong (mishap) or not, a cos in its costume, and what she is doing ms into it
+// on the page's clock.
+function daily(show, opts) {
   const engine = gamePet(character);
-  engine.start(show, { mishap });
+  engine.start(show, opts);
   const { start } = engine.cur;
   return [engine, ms => { engine.master.currentTime = start + ms; return engine.stateAt(engine.now()); }];
 }
 
 // Her poses from those ms into a 日常小动作 on her page, and that it plays until end ms.
-function assertPlays(show, mishap, poses, end) {
-  const [engine, at] = daily(show, mishap);
+function assertPlays(show, opts, poses, end) {
+  const [engine, at] = daily(show, opts);
   assert.deepEqual(Object.keys(poses).map(ms => at(+ms).pose), Object.values(poses));
   at(end - 1);
   assert.equal(playing(engine), show);
@@ -450,35 +451,65 @@ function assertPlays(show, mishap, poses, end) {
 }
 
 test('a 扭蛋 takes her to the cabinet and back: won she hugs the plush, 14.8 s; empty she wails and wipes her tears, 15.2 s', () => {
-  assertPlays('gacha', false, { 0: 'gPointHome', 4300: 'gPress', 5000: 'gTurn', 7400: 'gTake', 9000: 'gShake', 10000: 'gTwist', 11400: 'gHug', 14000: 'idle' }, 14800);
-  assertPlays('gacha', true, { 10500: 'gEmpty', 11400: 'gWail', 13500: 'gWipe', 14700: 'idle' }, 15200);
+  assertPlays('gacha', { mishap: false }, { 0: 'gPointHome', 4300: 'gPress', 5000: 'gTurn', 7400: 'gTake', 9000: 'gShake', 10000: 'gTwist', 11400: 'gHug', 14000: 'idle' }, 14800);
+  assertPlays('gacha', { mishap: true }, { 10500: 'gEmpty', 11400: 'gWail', 13500: 'gWipe', 14700: 'idle' }, 15200);
 });
 
 test('a 火锅 has her kneel at the table her sprite brings: yum she eats and feeds it, 11.8 s; spicy it fetches her 豆奶, 12.8 s', () => {
-  assertPlays('hotpot', false, { 0: 'hHungry', 2300: 'hPray', 3100: 'hSit', 3700: 'hPickClear', 4700: 'hBlow', 5500: 'hYum', 7300: 'hFeed', 9300: 'hPray', 10500: 'idle' }, 11800);
-  assertPlays('hotpot', true, { 3700: 'hPickRed', 6000: 'hSpicy', 8300: 'hDrink', 10300: 'hPray', 11500: 'idle' }, 12800);
+  assertPlays('hotpot', { mishap: false }, { 0: 'hHungry', 2300: 'hPray', 3100: 'hSit', 3700: 'hPickClear', 4700: 'hBlow', 5500: 'hYum', 7300: 'hFeed', 9300: 'hPray', 10500: 'idle' }, 11800);
+  assertPlays('hotpot', { mishap: true }, { 3700: 'hPickRed', 6000: 'hSpicy', 8300: 'hDrink', 10300: 'hPray', 11500: 'idle' }, 12800);
 });
 
 test('a 手游 on the sofa: won she cheers kicking her legs, 10.6 s; lost the phone falls on her face and she holds her nose, 11.6 s', () => {
   const lying = { 0: 'mPhone', 1699: 'mPhone', 1700: 'mSit', 2500: 'mPlay', 6599: 'mPlay' };
-  assertPlays('mobileGame', false, { ...lying, 6600: 'mWin', 8800: 'mSit', 9400: 'mPhone' }, 10600);
-  assertPlays('mobileGame', true, { ...lying, 6600: 'mStunned', 7400: 'mSmack', 8100: 'mOuch', 9800: 'mSit', 10400: 'mPhone' }, 11600);
+  assertPlays('mobileGame', { mishap: false }, { ...lying, 6600: 'mWin', 8800: 'mSit', 9400: 'mPhone' }, 10600);
+  assertPlays('mobileGame', { mishap: true }, { ...lying, 6600: 'mStunned', 7400: 'mSmack', 8100: 'mOuch', 9800: 'mSit', 10400: 'mPhone' }, 11600);
+});
+
+// Each costume of a cos, done and gone wrong: dressed by 0.7 s, dressed back over the last 0.9 s, 7.4 s and 9.6 s.
+for (const [costume, label, calm, wrong] of [
+  ['fighter', '格斗少女 bumps her gloves, takes her guard, throws a straight, an uppercut and a side kick and wipes her nose; cramped she does the splits, rubs her thigh and stands up',
+    { 699: 'idle', 700: 'ftReady', 1100: 'ftBump', 2200: 'ftGuard', 3400: 'ftPunch', 3800: 'ftUpper', 4200: 'ftKick', 4900: 'ftWipe', 7199: 'ftWipe', 7200: 'idle' },
+    { 4200: 'ftKick', 4500: 'ftSplit', 6400: 'ftRub', 8300: 'ftReady', 9399: 'ftReady', 9400: 'idle' }],
+  ['ninja', '白眼格斗忍者 pokes her fingertips together, drops into her stance, thrusts her palm and settles; her lens popped out she crouches for it, puts it back and thanks her sprite',
+    { 699: 'idle', 700: 'njReady', 1100: 'njShy', 2400: 'njStance', 3500: 'njPalm', 4300: 'njSettle', 7199: 'njSettle', 7200: 'idle' },
+    { 3500: 'njPalm', 4100: 'njLensOut', 4800: 'njSearch', 6300: 'njLensIn', 7300: 'njThanks', 9399: 'njThanks', 9400: 'idle' }]
+]) test(`a cos as ${label}, 7.4 s and 9.6 s`, () => {
+  assertPlays('cosplay', { mishap: false, costume }, calm, 7400);
+  assertPlays('cosplay', { mishap: true, costume }, wrong, 9600);
+});
+
+test('格斗少女 bounces on her toes in her guard, from 2.4 s until her straight', () => {
+  const [, at] = daily('cosplay', { mishap: false, costume: 'fighter' });
+  assert.deepEqual([2399, 2530, 3400].map(ms => Math.round(at(ms).y)), [FOOT.y, FOOT.y - 5, FOOT.y]);
+});
+
+test('a cos dresses her as one of the costumes of COS at random, or the one it is given, and she strikes its pose saying its line', () => {
+  const KIND = { ninja: 'cosNinja', fighter: 'cosFighter' }, engine = pet(), seen = new Set();
+  for (let n = 0; n < 40; n++) {
+    engine.start('cosplay', {});
+    const { costume } = engine.cur.opts;
+    seen.add(costume);
+    assert.ok(lines[KIND[costume]].includes(engine.cur.line), costume);
+  }
+  assert.deepEqual([...seen].sort(), Object.keys(COS).sort());
+  for (const costume of Object.keys(COS)) { engine.start('cosplay', { costume }); assert.equal(engine.cur.opts.costume, costume); }
 });
 
 test('her sprite hands her the battery and lets go of its drawing holding one 60 ms before hers has it, never two at once', () => {
-  const [, at] = daily('gacha', false);
+  const [, at] = daily('gacha', { mishap: false });
   assert.deepEqual([1800, 2239, 2240].map(ms => at(ms).sprite), ['sCarry', 'sGive', 'sHappy']);
 });
 
 test('a gift cutting her 扭蛋 short as she turns the knob takes the cabinet, the battery and the capsule with it', () => {
-  const [engine, at] = daily('gacha', false), turning = at(6000);
+  const [engine, at] = daily('gacha', { mishap: false }), turning = at(6000);
   assert.ok(turning.gacha.knob && turning.gacha.bay);
   engine.gift(gifts(1, 100));
   const st = engine.stateAt(engine.now());
   assert.deepEqual([playing(engine), st.gacha, st.halves, st.pop], ['gift', undefined, undefined, undefined]);
 });
 
-for (const [kind, label, wrongly] of [['gacha', '扭蛋', 'empty'], ['hotpot', '火锅', 'spicy'], ['mobileGame', '手游', 'lost']]) test(`a ${label} comes as one of the 日常小动作 left on, ${wrongly} as often as one goes wrong, and never once turned off`, () => {
+for (const [kind, label, wrongly] of [['gacha', '扭蛋', 'empty'], ['hotpot', '火锅', 'spicy'], ['mobileGame', '手游', 'lost'], ['cosplay', 'cos', 'its costume\'s mishap']]) test(`a ${label} comes as one of the 日常小动作 left on, ${wrongly} as often as one goes wrong, and never once turned off`, () => {
   const others = Object.keys(DAILY).filter(other => other !== kind);
   for (const [mishapPercent, wrong] of [[100, true], [0, false]]) {
     const engine = pet({ off: others, mishapPercent });

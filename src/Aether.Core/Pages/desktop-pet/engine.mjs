@@ -249,6 +249,54 @@ export const MOBILE = {
     won: { win: 6600, sit: 8800, stand: 9400, spin: 9600, gone: [10000, 10300], end: 10600 },
     lost: { stun: 6600, smack: 7400, ouch: 8100, sit: 9800, stand: 10400, spin: 10600, gone: [11000, 11300], end: 11600 } } };
 DAILY.mobileGame = [MOBILE.t.won.end, MOBILE.t.lost.end - MOBILE.t.won.end];
+// The cos daily (#418, design package README 18): the sprite dresses her as one costume (o.costume, picked when it starts),
+// she strikes its pose, does its move and settles, or it goes wrong (o.mishap); the sprite dresses her back. Every costume
+// fits DAILY.cosplay: dressed by 700 ms, dressed back from the end less 900. steps: [ms, pose] either way, then calm or fall;
+// bounce: [from, to] she bounces on her toes; fx, calmFx, fallFx: effects ([kind, ms, ...], points as fractions of the
+// pose she is in then); lines: [ms, line kind] once it has gone wrong (each matching what she does then; false: no bubble
+// from then); sprite: [ms, sprite pose, where] for each ending (where: null at its spot by her; ['onPose', pose, fx, fy]:
+// above that point of one of her drawings by dy sprite heights (default 0.45: its arms reaching down to it), where her
+// hand or eyes will be). What was measured on her drawings is her points.cos of the costume, P, each costume's numbers made
+// of them as it plays (cosplay).
+export const COS = {
+  // she pokes her fingertips together shyly, drops into a low stance gathering both palms at her hip and thrusts her right
+  // palm out: two pale blue rings burst from it one after the other (P.palm); she settles, fist in palm. Or the contact lens
+  // of her left eye pops out with the blow and lands glinting on the ground at her left, the page's right (that eye her own
+  // dark brown, the other still pale): she crouches patting the ground in front of her; the sprite spots the glint, picks it
+  // up and brings it to her fingertip; she puts it back in and, both eyes pale again, thanks it (用户：“小精灵滴水、会有不雅
+  // 感觉”, “注意美瞳和她原本的瞳孔颜色”).
+  ninja: P => ({ steps: [[700, 'njReady'], [1100, 'njShy'], [2400, 'njStance'], [3500, 'njPalm']],
+    calm: [[4300, 'njSettle']], fall: [[4100, 'njLensOut'], [4800, 'njSearch'], [6300, 'njLensIn'], [7300, 'njThanks']],
+    fx: [['aura', 3680, P.palm]], calmFx: [], shake: [[3680, 1, 120]],
+    fallFx: [['shock', 4100]],
+    // the lens (P.item, itemSpot): it pops from her left eye in the strike and lands on the ground at her left (the page's
+    // right: on the page's left it flew across her face); the sprite, low over it, draws it up into its arm and holds it out
+    // where her fingertip will hold it
+    item: { kind: 'lens', pop: 4150, pick: [5400, 5600], ...P.item },
+    lines: [[4100, 'cosNinjaLens'], [7300, 'cosNinjaFound']],
+    sprite: { calm: [[700, 'sHappy', null], [2400, 'hide', ['rel', 1.3, 0.3]], [4300, 'flag', null]],
+      // to the lens and back low along the ground in front of her feet: straight across it flew over her face
+      fall: [[700, 'sHappy', null], [2400, 'hide', ['rel', 1.3, 0.3]], [4100, 'surprised', ['rel', 1.3, 0.3]], [4500, 'sHappy', ['rel', 1.25, 0.85]],
+        [4800, 'sHappy', ['item', 'pick']], [5600, 'sLens', ['item', 'pick']], [5800, 'sLens', ['rel', 1.25, 0.85]], [6050, 'sLens', ['item', 'give']],
+        [6480, 'sHappy', ['rel', 1.3, 0.3]], [7300, 'sHappy', null]] } }),
+  // she knocks her gloves together (P.bump), takes her guard bouncing on her toes, throws a straight, an uppercut and a side
+  // kick (each blow lands as its in-between's last frame gives way to the pose, 180 ms in: P.punch, P.upper, P.kick) and
+  // wipes her nose; or her thigh cramps mid-kick, she drops into the splits, the sprite pulls her up by her raised hand
+  // (P.pull) and she rubs her thigh. The sprite keeps to her right, clear of her fists and boot, which go out to her left.
+  fighter: P => ({ steps: [[700, 'ftReady'], [1100, 'ftBump'], [2200, 'ftGuard'], [3400, 'ftPunch'], [3800, 'ftUpper'], [4200, 'ftKick']],
+    // (going wrong she stands up from rubbing her thigh before she is dressed back: changing clothes while straightening up
+    // moved her 7-13 px, three tries over)
+    calm: [[4900, 'ftWipe']], fall: [[4500, 'ftSplit'], [6400, 'ftRub'], [8300, 'ftReady']], bounce: [2400, 3400],
+    fx: [['spark', 1280, ...P.bump, 8], ['impact', 3580, P.punch], ['impact', 3980, P.upper]],
+    calmFx: [['impact', 4380, P.kick]], fallFx: [['shock', 4500], ['tears', 4700, 1700]],
+    shake: [[3580, 1, 100], [3980, 1, 100]], calmShake: [[4380, 2, 140]],
+    lines: [[4500, 'cosFighterCramp'], [7100, 'cosFighterWarmup']],
+    sprite: { calm: [[700, 'sHappy', null], [2200, 'hide', ['rel', 1.32, 0.3]], [4900, 'flag', null]],
+      fall: [[700, 'sHappy', null], [2200, 'hide', ['rel', 1.32, 0.3]], [4500, 'surprised', ['rel', 1.32, 0.3]], [5000, 'pat', 'head'],
+        // her raised right hand in the in-between ftRubUp's frame 2, held while it pulls (slow)
+        [5900, 'sPull', ['onPose', ...P.pull]], [7000, 'sHappy', null]] } })
+};
+DAILY.cosplay = [7400, 2200];
 
 // ---- The 宝箱小游戏 (#372, #382; design package README 12). Nothing of it is on the page until the 捣蛋鬼 comes, and nothing of
 // it stays: her shows are all as they were, and her chest is at home, off the left of the page, where the game only counts
@@ -482,6 +530,10 @@ export class Engine extends EventTarget {
   start(name, opts) {
     const now = this.now(), c = this.cur, gm = this.gm, { dailyMinSeconds, dailyMaxSeconds } = this.settings;
     if (opts.until != null && opts.until - now < PK_SIGN.least || opts.by <= now) return;
+    // a cos is in one costume of COS, picked as it starts unless it is given one: on her own, after which 日常小动作 and whether
+    // it goes wrong
+    const costumes = Object.keys(COS);
+    if (name === 'cosplay') opts = { ...opts, costume: opts.costume ?? costumes[Math.floor(this.rng() * costumes.length)] };
     this.trialOver(c);
     // a PK countdown cut off goes back to the head of the queue: once the bigger show is over it is held up again for what is
     // left, if PK_SIGN.least or more (the check above); every other show cut off is gone
@@ -519,11 +571,13 @@ export class Engine extends EventTarget {
   }
 
   // A blind box says the lines of its ending, a 盲盒查询 its result's, the lottery its step's, 守住了 by a 绝杀 that one's, a PK's
-  // result and 中途比分 their ending's and a 双倍挑战 how it came out; every other show its own.
+  // result and 中途比分 their ending's, a 双倍挑战 how it came out and a cos its costume's (cosNinja for ninja); every other show
+  // its own.
   lineKey(name, opts = {}) {
     const ev = this.events[name];
     return ev?.group === BLIND_BOX ? BOX_LINES[opts.result || 'Gain'] : name === 'blindBoxQuery' ? 'query' + (opts.result || 'Gain')
       : name === 'pkResult' || name === 'pkSwing' ? 'pk' + (opts.result || 'Win') : name === 'pkChallenge' ? 'pkChallenge' + (opts.result || 'Done')
+      : name === 'cosplay' ? 'cos' + opts.costume[0].toUpperCase() + opts.costume.slice(1)
       : ev?.steps ? ev.steps[opts.result].line : name === 'chestKept' && opts.buzzer ? 'chestKeptBuzzer' : name;
   }
 
@@ -1909,6 +1963,7 @@ export class Engine extends EventTarget {
     if (o.kind === 'gacha') return this.gacha(t, st, o, line);
     if (o.kind === 'hotpot') return this.hotpot(t, st, o, line);
     if (o.kind === 'mobileGame') return this.mobile(t, st, o, line);
+    if (o.kind === 'cosplay') return this.cosplay(t, st, o, line);
     // humming: the sprite sways along; when her voice cracks it hides its head
     const main = DAILY[o.kind][0];
     st._t = t;
@@ -2128,6 +2183,62 @@ export class Engine extends EventTarget {
     else st.sprite = 'sHappy';
     say(E.stun + 100, E.smack, 'mobileLose'); say(E.smack + 300, E.sit, 'mobileOuch');
     return st;
+  }
+
+  // The cos daily (COS): dressed like a sport (dress), then the costume's steps and its ending.
+  cosplay(t, st, o, line) {
+    st._t = t;
+    const c = COS[o.costume](this.art.points.cos[o.costume]), end = DAILY.cosplay[0] + (o.mishap ? DAILY.cosplay[1] : 0), back = end - 900;
+    const say = (from, until, key) => { if (t >= from && t < until) st.bubble = { text: key ? this.saying(key, o.seed + from) : line, t: t - from }; };
+    st.fx.push(['flash', 700, 0.8], ['flash', back + 700, 0.8]);
+    if (t < 700) { this.dress(st, t, 0); return st; }
+    if (t >= back + 700) { st.sprite = 'sHappy'; return st; }
+    st.pose = at(t, [...c.steps, ...(o.mishap ? c.fall : c.calm)]);
+    if (c.bounce && t >= c.bounce[0] && t < c.bounce[1]) st.y -= 5 * Math.abs(Math.sin(Math.PI * (t - c.bounce[0]) / 260));
+    // a blow's star stays where it landed (as fractions of the pose it hit, it jumped onto her face when she moved on)
+    const poses = [...c.steps, ...(o.mishap ? c.fall : c.calm)];
+    const onPage = (ms, [fx, fy, dy = 0]) => { const b = this.herBox({ ...st, y: FOOT.y }, this.cell(at(ms, poses))); return { x: b.x + b.w * fx, y: b.y + b.h * fy + dy * SPRITE_H }; };
+    // a place given as { pose, at } (fractions of that drawing of hers) or { sprite: 'blow' } (its lips there) on the page
+    const place = v => v?.pose ? this.onPose(st, v.pose, v.at) : v?.sprite === 'blow' ? this.blowSpot(c, st).lips : Array.isArray(v) && typeof v[0] === 'object' ? v.map(place) : v;
+    if (o.mishap && c.item) { const I = c.item, sp = this.itemSpot(c, st); st.fx.push(['item', I.pop, I.kind, sp.from, sp.ground, I.pick, sp.paw]); }
+    st.fx.push(...[...c.fx, ...(o.mishap ? c.fallFx : c.calmFx)].map(f => (f[0] === 'impact' || f[0] === 'aura') && Array.isArray(f[2]) && typeof f[2][0] === 'number' ? [f[0], f[1], onPage(f[1], f[2])] : f.map(place)));
+    st.shake = [...(c.shake || []), ...((o.mishap ? c.fallShake : c.calmShake) || [])];
+    const list = c.sprite[o.mishap ? 'fall' : 'calm'], i = list.findLastIndex(([ms]) => t >= ms), [ms, sprite, where] = list[i], prev = list[i - 1]?.[2];
+    st.sprite = sprite; st.sp = where;
+    // back to its spot in front of her from her right: down low on her right first, then along in front of her feet (straight
+    // across it flew over her body)
+    if (where == null && prev?.[0] === 'rel' && prev[1] > 1 && prev[2] < 0.8 && t < ms + 350) st.sp = ['rel', 1.15, 0.95];
+    if (where?.[0] === 'item') { const q = this.itemSpot(c, st)[where[1]]; st.sp = ['at', q.x, q.y]; }
+    if (where?.[0] === 'blow') { const q = this.blowSpot(c, st).at; st.sp = ['at', q.x, q.y]; }
+    if (where?.[0] === 'onPose') { const b = this.herBox(st, this.cell(where[1])); st.sp = ['at', b.x + b.w * where[2], b.y + b.h * where[3] + (where[4] ?? -0.45) * SPRITE_H]; }
+    if (t >= back) this.dress(st, t, back);
+    if (o.mishap && t >= c.lines[0][0]) { const [ms, key] = c.lines.findLast(([ms]) => t >= ms); if (key !== false) say(ms, back, key); }
+    else say(1300, o.mishap ? c.lines[0][0] : back);
+    return st;
+  }
+
+  // A point of one of her drawings (fractions of it) on the page, where she stands.
+  onPose(st, pose, [fx, fy]) { const b = this.herBox({ ...st, y: FOOT.y }, this.cell(pose)); return { x: b.x + b.w * fx, y: b.y + b.h * fy }; }
+
+  // Something she drops (COS.<costume>.item): where it pops from (from, on one of her drawings), the ground it lands on
+  // (from her feet, in her heights; a cap rests on its brim), the sprite's spot low over it as it picks it up and its
+  // paw there (sprite: the thing in its drawing from its centre, sp6 px), and its spot holding it where she takes it
+  // (give, on one of her drawings).
+  itemSpot(c, st) {
+    const I = c.item, k = SPRITE_H / this.cell('sLens', this.art.sprite).ruler, off = { x: I.sprite[0] * k, y: I.sprite[1] * k };
+    const half = I.kind === 'cap' ? this.props.cap.height * H / this.art.anchor / 2 : 0;
+    const ground = { x: FOOT.x + I.ground[0] * H, y: FOOT.y + I.ground[1] - half };
+    // as low as it goes over it, its lowest wisp clear of the page's bottom
+    const pick = { x: ground.x - off.x, y: Math.min(ground.y - off.y, PAGE.h - 0.55 * SPRITE_H) }, give = I.give && this.onPose(st, I.give[0], I.give.slice(1));
+    return { from: this.onPose(st, I.from[0], I.from.slice(1)), ground, pick, paw: { x: pick.x + off.x, y: pick.y + off.y }, give: give && { x: give.x - off.x, y: give.y - off.y } };
+  }
+
+  // The sprite blowing on something (COS.<costume>.blow: what, and its lips from its centre plus a little gap, sp6 px):
+  // its spot (at) and its lips (lips) on the page.
+  blowSpot(c, st) {
+    const [what, [ox, oy]] = c.blow, k = SPRITE_H / this.cell('sLens', this.art.sprite).ruler, p = this.onPose(st, what.pose, what.at);
+    const at = { x: p.x - ox * k, y: p.y - oy * k };
+    return { at, lips: { x: at.x + (ox - 141) * k, y: at.y + oy * k } };
   }
 
   // The capsule's two halves leaving her hands at a: popping off to either side as the plush comes out (pop), or slipping
