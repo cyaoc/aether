@@ -176,9 +176,58 @@ export function drawFx(g, f, st, her, now, pet) {
     // ---- impacts and motion
     case 'impact': {
       if (t > 450) break;
-      const p = f[2] ? at(...f[2]) : { x: st.x, y: st.y - 8 }, s = ease(k01(t, 0, 110)) * (1 - 0.3 * k01(t, 110, 450));
+      // f[2]: fractions of the pose she is in now, or a point on the page fixed when it landed (it stays where the blow hit)
+      const p = f[2]?.x != null ? f[2] : f[2] ? at(...f[2]) : { x: st.x, y: st.y - 8 }, s = ease(k01(t, 0, 110)) * (1 - 0.3 * k01(t, 110, 450));
       g.save(); g.globalAlpha = 1 - k01(t, 250, 450); g.translate(p.x, p.y); g.scale(s, s); g.fillStyle = '#FFE27A'; g.strokeStyle = '#FF8A3D'; g.lineWidth = 3;
       g.beginPath(); for (let i = 0; i < 16; i++) { const ang = i * Math.PI / 8, rr = i % 2 ? 9 : 24 + (i % 4) * 3; g.lineTo(Math.cos(ang) * rr, Math.sin(ang) * rr); } g.closePath(); g.fill(); g.stroke();
+      g.restore(); break;
+    }
+    // a palm strike's pale blue rings, two bursting one after the other from the point it hit (f[2], on the page)
+    case 'aura': {
+      if (t > 700) break;
+      const p = f[2];
+      g.save();
+      for (let k = 0; k < 2; k++) {
+        const u = (t - k * 150) / 520; if (u < 0 || u > 1) continue;
+        const r0 = (k ? 16 : 24) + (k ? 44 : 64) * ease(u);
+        g.globalAlpha = 0.85 * (1 - u); g.strokeStyle = '#9CCFFF'; g.lineWidth = 6 * (1 - u) + 1.5;
+        g.beginPath(); g.ellipse(p.x, p.y, r0 * 0.8, r0, 0, 0, Math.PI * 2); g.stroke();
+        g.globalAlpha = 0.35 * (1 - u); g.fillStyle = '#E4F2FF'; g.beginPath(); g.ellipse(p.x, p.y, r0 * 0.5, r0 * 0.62, 0, 0, Math.PI * 2); g.fill();
+      }
+      g.restore(); break;
+    }
+    // something she drops (f[2]: 'lens', 'cap' or 'bug'; f[3]: where it pops from, f[4]: the ground, f[5]: [picked up, in
+    // the sprite's arm], f[6]: its paw): it pops out in an arc, lies on the ground (a lens glinting, a caterpillar
+    // crawling), and rises into the sprite's arm, where its drawing takes over
+    case 'item': {
+      const [kind, p0, p1, [up, took], paw] = f.slice(2), U = up - from, T = took - from; if (t > T) break;
+      let x, y, rot = 0;
+      // a lens or a cap pops up out in an arc; a caterpillar just falls off her hand
+      // (the caterpillar is flung sideways off her hand first and then falls: falling straight it slid down her face as she
+      // crouched)
+      if (t < 500) { const u = t / 500, hop = kind === 'bug' ? 8 : kind === 'cap' ? 90 : 70, ux = kind === 'bug' ? 1 - (1 - u) ** 3 : u;
+        x = p0.x + (p1.x - p0.x) * ux; y = p0.y + (p1.y - p0.y) * u * (kind === 'bug' ? u : 1) - hop * Math.sin(Math.PI * u); if (kind === 'cap') rot = 2 * Math.PI * ease(u); }
+      else if (t < U) { x = p1.x + (kind === 'bug' ? 8 * Math.sin((t - 500) / 500) : 0); y = p1.y; }
+      else { const u = ease((t - U) / (T - U)); x = p1.x + (paw.x - p1.x) * u; y = p1.y + (paw.y - p1.y) * u; }
+      if (kind === 'cap') { const im = pet.props.cap, s = H / pet.art.anchor; g.save(); g.translate(x, y); g.rotate(rot); g.drawImage(im, -im.width * s / 2, -im.height * s / 2, im.width * s, im.height * s); g.restore(); }
+      else if (kind === 'bug') {
+        g.save(); g.lineWidth = 1.5; g.strokeStyle = '#4E7A1E';
+        for (let i = 3; i >= 0; i--) { const bx = x + i * 7, by = y - 5 - (t >= 500 && t < U ? 3 * Math.max(0, Math.sin((t - 500) / 180 + i)) : 0); g.fillStyle = i ? '#A6D84E' : '#B9E46A'; g.beginPath(); g.arc(bx, by, i ? 5 : 6.5, 0, Math.PI * 2); g.fill(); g.stroke(); }
+        g.fillStyle = '#2B2B2B'; g.beginPath(); g.arc(x - 2, y - 7, 1.3, 0, Math.PI * 2); g.arc(x + 2, y - 7, 1.3, 0, Math.PI * 2); g.fill(); g.restore();
+      } else {
+        const lying = t >= 500 && t < U;
+        g.save(); g.fillStyle = '#CDB8F4'; g.strokeStyle = '#8D6FC9'; g.lineWidth = 1.5;
+        g.beginPath(); g.ellipse(x, y, 6, lying ? 3.5 : 6, 0, 0, Math.PI * 2); g.fill(); g.stroke(); g.restore();
+        if (lying && (t - 500) % 700 < 350) star(x + 2, y - 3, 7 * Math.sin(Math.PI * ((t - 500) % 700) / 350), '#fff', 0.95);
+      }
+      break;
+    }
+    // blowing: little white puffs of air from f[2] to f[3] for f[4] ms ('puff' is the blind box's grey smoke)
+    case 'blowAir': {
+      const dur = f[4]; if (t > dur) break;
+      g.save(); g.fillStyle = '#fff';
+      for (let i = 0; i < 5; i++) { const v = (t + i * 120) % 600 / 600, x = f[2].x + (f[3].x - f[2].x) * v, y = f[2].y + (f[3].y - f[2].y) * v + 3 * Math.sin(v * 9 + i);
+        g.globalAlpha = 0.85 * Math.sin(Math.PI * v); g.beginPath(); g.arc(x, y, 3 + 4 * v, 0, Math.PI * 2); g.fill(); }
       g.restore(); break;
     }
     case 'dust': {
