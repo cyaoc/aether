@@ -141,5 +141,8 @@ for (const folder of readdirSync(new URL('characters/', pages), { withFileTypes:
     const { flagship, admship, castleClosed, gacha, hotpot } = art.points;
     for (const point of [flagship.deck, flagship.mast, admship.mast, ...admship.rig, castleClosed.gate, gacha.bay, gacha.outlet, gacha.hug, hotpot.pot, hotpot.give.her, hotpot.give.sprite, hotpot.tip]) assert.ok(point.length === 2 && point.every(Number.isFinite), 'points');
     assert.deepEqual([gacha.win.length, gacha.knob.length, typeof gacha.cell], [4, 3, 'number'], 'the 扭蛋 cabinet\'s window, knob and cell');
+    // the cos daily's points are numbers and the poses of hers they were measured on
+    const leaves = v => typeof v === 'object' ? Object.values(v).flatMap(leaves) : [v];
+    for (const v of leaves(art.points.cos)) assert.ok(typeof v === 'string' ? art.poses[v] : Number.isFinite(v), `points.cos ${v}`);
   });
 }
