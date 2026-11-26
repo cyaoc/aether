@@ -35,6 +35,8 @@ public sealed class DesktopPetBrowserTests
         };
         """;
     private static readonly string[] DailySheets = ["pose-3-daily-1", "pose-9-ski", "pose-10-gym", "pose-11-hike", "pose-12-cycle", "pose-19-gacha", "pose-20-gacha2", "pose-22-gacha3", "sprite-pose-4", "pose-23-daily", "pose-24-hotpot", "pose-25-hotpot2", "pose-26-sofa"];
+    // Her in-betweens from standing into each 日常小动作's first pose: they come with that daily's sheets, not with the page.
+    private static readonly string[] DailyInBetweens = ["humIn", "gymIn", "hikeIn", "bikeIn", "skiIn", "gPointIn", "hHungryIn", "hKneel", "mPhoneIn"];
 
     [Fact]
     public async Task The_page_is_transparent_while_the_desktop_pet_is_off_and_scales_with_the_browser_source_at_three_to_four()
@@ -278,6 +280,7 @@ public sealed class DesktopPetBrowserTests
         await page.OpenAsync(480, 640);
         Assert.Contains(page.Browser.Requests, url => url.EndsWith("/characters/current/desktop-pet/pose-1-common.webp", StringComparison.Ordinal));
         Assert.DoesNotContain(page.Browser.Requests, url => DailySheets.Any(sheet => url.EndsWith(sheet + ".webp", StringComparison.Ordinal)));
+        Assert.DoesNotContain(page.Browser.Requests, url => DailyInBetweens.Any(frames => url.EndsWith("/frames/" + frames + ".webp", StringComparison.Ordinal)));
 
         await page.H.Client.WebService.TestShowAsync("gym", null, "星河");
 
@@ -285,9 +288,10 @@ public sealed class DesktopPetBrowserTests
         await Eventually.TrueAsync(async () =>
         {
             await page.Browser.EvaluateAsync("true");
-            return page.Browser.Requests.Any(url => url.EndsWith("/pose-10-gym.webp", StringComparison.Ordinal));
+            return page.Browser.Requests.Any(url => url.EndsWith("/frames/gymIn.webp", StringComparison.Ordinal));
         });
-        Assert.DoesNotContain(page.Browser.Requests, url => url.EndsWith("/pose-9-ski.webp", StringComparison.Ordinal));
+        Assert.Contains(page.Browser.Requests, url => url.EndsWith("/pose-10-gym.webp", StringComparison.Ordinal));
+        Assert.DoesNotContain(page.Browser.Requests, url => url.EndsWith("/pose-9-ski.webp", StringComparison.Ordinal) || url.EndsWith("/frames/skiIn.webp", StringComparison.Ordinal));
         Assert.Empty(page.Browser.Errors);
     }
 

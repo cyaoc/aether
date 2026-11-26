@@ -23,6 +23,7 @@ const SEGMENTS = { hum: ['daily1'], gym: ['gym10'], hike: ['hike11'], bike: ['cy
   gacha: ['gacha19', 'gacha20', 'gacha22', 'sp4'], hotpot: ['daily23', 'hotpot24', 'hotpot25'], mobileGame: ['daily23', 'hotpot25', 'sofa26'], captain: ['voyage'], admiral: ['voyage'], governor: ['voyage'], lottery: ['lottery'], game: ['game13', 'game14', 'game15', 'game16', 'game17', 'sp3'],
   pkCondition: ['pkSign'], pkDouble: ['pkSign'], pkDoubleEnding: ['pkSign'], pkLastSeconds: ['pkSign'],
   pkOpponent: ['lottery'], pkResult: ['lottery'], pkSwing: ['lottery'], pkChallenge: ['lottery'] };
+const LATER = Object.values(SEGMENTS).flat();
 // The 捣蛋鬼's drawings and the chest's, the same for every character (prankster/prankster.json).
 const PRANKSTER = '/desktop-pet/prankster/';
 // The tug's two sides, hers 1 and the 捣蛋鬼's -1: B站's own icons of their gifts, 人气票 and 小花花 (giftConfig?platform=pc,
@@ -214,9 +215,9 @@ export class Pet extends Engine {
   // Everything she always needs, her sprite's sheets, turnaround views and moving drawings included, and her props, whose sizes
   // place the big shows from their first moment; not the sheets of SEGMENTS.
   async boot() {
-    const { sheets, views, props } = this.art, later = Object.values(SEGMENTS).flat(), { idle, blink, happy, lookRight } = this.character.sprite;
+    const { sheets, views, props } = this.art, { idle, blink, happy, lookRight } = this.character.sprite;
     await Promise.all([
-      ...Object.keys(sheets).filter(k => !later.includes(k)).map(k => this.loadSheet(k)),
+      ...Object.keys(sheets).filter(k => !LATER.includes(k)).map(k => this.loadSheet(k)),
       ...Object.entries({ sIdle: idle, sBlink: blink, sHappy: happy, sLook: lookRight }).map(async ([k, file]) => {
         const im = await this.picture(file), b = box(im, 0, 0, im.width, im.height); this.cells[k] = [{ im, ...b, ox: 0, oy: 0, ruler: b.h }];
       }),
@@ -260,14 +261,14 @@ export class Pet extends Engine {
     }
     // a strip's frames keep the anchor, ground and ruler of the cell they were drawn from, so only the moving part moves
     const framesOf = async (f, pose) => {
-      const im = await this.picture(this.art.frames[f]), fw = im.width / 4, c = cells[POSE[pose][1]];
+      const [s, i] = POSE[pose], im = await this.picture(this.art.frames[f]), fw = im.width / 4, c = (s === k ? cells : this.cells[s])[i];
       return [0, 1, 2, 3].map(i => ({ im, ...box(im, i * fw, 0, fw, im.height), cx: c.cx - c.ox + i * fw, ground: c.ground - c.oy, ruler: c.ruler,
         sign: signAt(SIGNS[f]?.[i], i * fw, 0), prop: c.prop }));
     };
     // (a loop over two strips, f2 its frames 4-7: her sign swaying to her left and back, then to her right)
     const [strips, tweens] = await Promise.all([
       Promise.all(Object.entries(STRIP).filter(([pose]) => on(pose)).map(async ([pose, s]) => [pose, [...await framesOf(s.f, pose), ...(s.f2 ? await framesOf(s.f2, pose) : [])]])),
-      Promise.all(Object.entries(TRANS).filter(([pair]) => on(pair.split('>')[0])).map(async ([pair, f]) => {
+      Promise.all(Object.entries(TRANS).filter(([pair]) => this.tweenSheet(pair) === k).map(async ([pair, f]) => {
         const prop = pair.split('>').map(p => PROP_OF[p]).find(Boolean);   // between standing and kneeling at the table, it is there
         return [pair, (await framesOf(f, pair.split('>')[0])).slice(1, 3).map(c => ({ ...c, prop }))];
       }))
@@ -276,6 +277,13 @@ export class Pet extends Engine {
     Object.assign(this.tweens, Object.fromEntries(tweens));
     this.cells[k] = cells;
     this.routes = null;
+  }
+
+  // The sheet an in-between comes with: its first pose's, but one from a pose she always has into a show's sheet (SEGMENTS)
+  // comes with that sheet, as the show first plays, not with the page.
+  tweenSheet(pair) {
+    const [a, b] = pair.split('>').map(p => this.art.poses[p][0]);
+    return !LATER.includes(a) && LATER.includes(b) ? b : a;
   }
 
   // The cells of the sheet k drawn at a prop. On a sheet drawn with it at her place (fixed) each drawing stands where the
