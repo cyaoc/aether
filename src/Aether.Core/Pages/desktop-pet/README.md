@@ -105,7 +105,11 @@ event above to the engine's handler of the same name. The board's numbers measur
 character's `desktopPet` (`../characters/README.md`); the shows' timings, effects and the sprite's ways stay here, the same for
 every character. The page plays every row of the 演出表: the 心情, the 日常小动作 and their mishaps (the 扭蛋 coming up empty is
 its mishap: `GACHA`, `gacha`, the cabinet `drawGacha`; the board's `GACHA` parts measured on her pictures, `win`, `bay`,
-`knob`, `outlet` and `cell`, and where the plush comes down into her arms, `hug`, are her `points.gacha`, its timeline `t` stays in `GACHA`), entries, gifts, blind boxes,
+`knob`, `outlet` and `cell`, and where the plush comes down into her arms, `hug`, are her `points.gacha`, its timeline `t` stays in `GACHA`;
+the 火锅's is the chili burning her, the beef picked from the red pot: `HOTPOT`, `hotpot`, `atTable`, the pot's steam `potSteam` and
+the chili's `flame`; the board's `HOTPOT` points measured on her pictures, the pot's rim `pot` and where the 豆奶 is handed over
+`give`, and the meatball on her chopsticks its `hotpot` has inline, `tip`, are her `points.hotpot`, how far back she kneels, `back`, and its timeline `t` stay in `HOTPOT`; the 手游's is losing, the phone
+falling on her face: `MOBILE`, `mobile`, the sofa standing from her `propSpot.sofa`), entries, gifts, blind boxes,
 castles, 大航海, a new first place on the 礼物榜 (found by the 礼物榜页's `../gift-board/changes.mjs`), each step of a lottery,
 a 盲盒查询's 账单卡 and, in a PK, the 对手情报卡 her sprite prints (`pkMatch`, `intelShow`, the card `pk-intel.mjs`, the design
 package's `lib/pk-intel.js`), her 举牌 (`pkCondition`, `pkDouble`, `pkCountdown`: the double bonus's condition, the double on, a
@@ -116,13 +120,28 @@ countdown to the double's end or the PK's; `signShow`, the sign `sign.mjs`, its 
 Her speech bubbles and the effects' marks are in the 礼物榜页's Noto Sans SC (`../gift-board/fonts/noto-sans-sc.css`, `SANS`
 of `../gift-board/paint.mjs`), loaded before she says anything; the stream's PC need not have the board's PingFang SC.
 
+Her drawings at the 火锅's table and on the 手游's sofa (design package README 17) were drawn with the prop and cut out of it:
+kneeling she is cut off at the tabletop, and lying the seat's front hides her below it, so away from it she would hang in the
+air without legs. Their sheets (her `fixed`) stand every drawing where the standing one in cell 1 does, not on its own centre
+and foot, and the prop stands from that spot as it was drawn (`propSpot`, `fromSpot`), so the two meet in every drawing. The
+sofa is drawn under her, the table over her, and what of her drawing at the table lies over it (her hand in the pot, her
+chopsticks, her bowl) again on it (`redrawHer`). Through the in-betweens of a show that slides her (`st.slide`) she moves up
+and down as well as across: she kneels 27 px back behind the table in the frames of kneeling, out of sight under it. A show
+that cuts in while she is drawn in a pose that needs a prop (`atProp`, its loop and the in-betweens to or from it too) keeps
+the prop as it was, and her where she was at it, for as long as she is: she gets up through the in-betweens from grace, her
+bowl, sitting, lying, cheering and holding her nose, and from eating, the chili, the 豆奶 or the phone on her face there is
+no way (`noWayThrough`), so the new pose comes in at once and the prop goes with it. Then she goes over to her new place in
+`UNPROP` ms. Her sprite spins round where a prop comes up and goes (`spinAt`), and it pops up and shrinks away as the 扭蛋
+cabinet does (`popped`, `drawPopped`).
+
 The page is 480 × 640 design px, scaled with the browser source and standing on its bottom edge, and draws her pictures at
 their own resolution. It loads her pictures and props at once but for the sheets of the 日常小动作 (the 扭蛋's with her sprite's
-carrying the battery and the plush), the castle, 大航海, the lottery and her PK sign, each with its strips when it first plays
-(the lottery's too when she first waits through one, and with a PK's other shows, which have poses of it), and the 宝箱小游戏's,
-hers and the 捣蛋鬼's, when it is first to come: all of them decoded take about 574 MB, the 扭蛋's 110 MB more and the game's
-more. A pose whose sheet is still loading keeps her in the drawing she has, her sign waits for its sheet to fly, and through a
-扭蛋 she stands as she was until its sheets are there. A load that fails, as when the web service restarts, is tried again when
+carrying the battery and the plush), the castle, 大航海, the lottery and her PK sign, each with its strips and the in-betweens
+into it from a pose she always has (`tweenSheet`) when it first plays (the lottery's too when she first waits through one,
+and with a PK's other shows, which have poses of it), and the 宝箱小游戏's, hers and the 捣蛋鬼's, when it is first to come: all of them decoded take about 584 MB, the 扭蛋's 110 MB more, the 火锅's and
+the 手游's 147 MB and the game's more. Her sprite's sheet of the 火锅 (`sp5`) loads with the page all the same: its chewing is
+one of the sprite's moving drawings, which are measured on their cells as the page loads. A pose whose sheet is still loading keeps her in the drawing she has, her sign waits for its sheet to fly, and through a
+扭蛋, a 火锅 or a 手游 she stands as she was until its sheets are there. A load that fails, as when the web service restarts, is tried again when
 next asked for, at the soonest a second later: the game's while it is still to come, a sheet's when its show next plays.
 
 ## The 宝箱小游戏

@@ -12,14 +12,18 @@ const SPRITE_SPEED = 0.8;
 // Her speech bubble, all of it, at 28 px text instead of 18, legible on a phone at 1080p (README 7).
 const BUBBLE_SCALE = 28 / 18, BUBBLE_FONT = `500 ${18 * BUBBLE_SCALE}px ${SANS}`;
 // The sprite keeps these drawings while it flies, since they carry something.
-const CARRY = new Set(['crown', 'glow', 'lift', 'lift2', 'lid', 'sCarry', 'sGive', 'sPlush']);   // (sCarry, sGive, sPlush: the 扭蛋 daily's battery and plush, never dropped in flight)
+const CARRY = new Set(['crown', 'glow', 'lift', 'lift2', 'lid', 'sCarry', 'sGive', 'sPlush', 'sBottle', 'sGiveBottle']);   // (sCarry, sGive, sPlush: the 扭蛋 daily's battery and plush; sBottle, sGiveBottle: the 火锅 daily's 豆奶; never dropped in flight)
+// A prop kept while she got up from it (a show cut in on her at the table or on the sofa): once she is up she goes over to her
+// new place in UNPROP ms.
+const UNPROP = 250;
 // The sheets a show or 日常小动作 needs beyond those she always has: they load when it starts (the lottery's too as she waits
 // through one, the chest game's when the 捣蛋鬼 is to come), not with the page, which would decode all her pictures at once
 // (design package README 11).
 const SEGMENTS = { hum: ['daily1'], gym: ['gym10'], hike: ['hike11'], bike: ['cycle12'], ski: ['ski9'], castle: ['castleSheet'],
-  gacha: ['gacha19', 'gacha20', 'gacha22', 'sp4'], captain: ['voyage'], admiral: ['voyage'], governor: ['voyage'], lottery: ['lottery'], game: ['game13', 'game14', 'game15', 'game16', 'game17', 'sp3'],
+  gacha: ['gacha19', 'gacha20', 'gacha22', 'sp4'], hotpot: ['daily23', 'hotpot24', 'hotpot25'], mobileGame: ['daily23', 'hotpot25', 'sofa26'], captain: ['voyage'], admiral: ['voyage'], governor: ['voyage'], lottery: ['lottery'], game: ['game13', 'game14', 'game15', 'game16', 'game17', 'sp3'],
   pkCondition: ['pkSign'], pkDouble: ['pkSign'], pkDoubleEnding: ['pkSign'], pkLastSeconds: ['pkSign'],
   pkOpponent: ['lottery'], pkResult: ['lottery'], pkSwing: ['lottery'], pkChallenge: ['lottery'] };
+const LATER = Object.values(SEGMENTS).flat();
 // The 捣蛋鬼's drawings and the chest's, the same for every character (prankster/prankster.json).
 const PRANKSTER = '/desktop-pet/prankster/';
 // The tug's two sides, hers 1 and the 捣蛋鬼's -1: B站's own icons of their gifts, 人气票 and 小花花 (giftConfig?platform=pc,
@@ -203,7 +207,7 @@ const ropeTip = c => {
 export class Pet extends Engine {
   constructor(canvas, master, shows, character) {
     super(master, shows, character.desktopPet);
-    Object.assign(this, { canvas, character, cells: {}, strips: {}, tweens: {}, sstrips: {}, pkstrips: {}, pkTweens: {}, icons: new Map(), loads: {}, props: {}, trail: [] });
+    Object.assign(this, { canvas, character, cells: {}, strips: {}, tweens: {}, sstrips: {}, pkstrips: {}, pkTweens: {}, icons: new Map(), loads: {}, props: {}, trail: [], propAt: {} });
   }
 
   picture(name) { return loadImage('/characters/current/' + name); }
@@ -211,9 +215,9 @@ export class Pet extends Engine {
   // Everything she always needs, her sprite's sheets, turnaround views and moving drawings included, and her props, whose sizes
   // place the big shows from their first moment; not the sheets of SEGMENTS.
   async boot() {
-    const { sheets, views, props } = this.art, later = Object.values(SEGMENTS).flat(), { idle, blink, happy, lookRight } = this.character.sprite;
+    const { sheets, views, props } = this.art, { idle, blink, happy, lookRight } = this.character.sprite;
     await Promise.all([
-      ...Object.keys(sheets).filter(k => !later.includes(k)).map(k => this.loadSheet(k)),
+      ...Object.keys(sheets).filter(k => !LATER.includes(k)).map(k => this.loadSheet(k)),
       ...Object.entries({ sIdle: idle, sBlink: blink, sHappy: happy, sLook: lookRight }).map(async ([k, file]) => {
         const im = await this.picture(file), b = box(im, 0, 0, im.width, im.height); this.cells[k] = [{ im, ...b, ox: 0, oy: 0, ruler: b.h }];
       }),
@@ -244,8 +248,9 @@ export class Pet extends Engine {
 
   // A sheet's cells (sheetCells). Her strips drawn from its poses come with it, and only then is it drawn from.
   async measureSheet(k) {
-    const { sheets, poses: POSE, sameSpot: SAME_SPOT, body: BODY, strips: STRIP, transitions: TRANS, signs: SIGNS } = this.art, on = p => POSE[p][0] === k;
+    const { sheets, poses: POSE, sameSpot: SAME_SPOT, body: BODY, strips: STRIP, transitions: TRANS, signs: SIGNS } = this.art, PROP_OF = this.propOf, on = p => POSE[p][0] === k;
     const cells = sheetCells(await this.picture(sheets[k]), SIGNS[k]);
+    this.propCells(k, cells);
     for (const [p, q] of Object.entries(SAME_SPOT)) if (on(p)) {  // the earlier pose's centre, at the same place in this pose's cell
       const c = cells[POSE[p][1]], d = cells[POSE[q][1]];
       c.cx = d.cx - d.ox + c.ox;
@@ -256,19 +261,38 @@ export class Pet extends Engine {
     }
     // a strip's frames keep the anchor, ground and ruler of the cell they were drawn from, so only the moving part moves
     const framesOf = async (f, pose) => {
-      const im = await this.picture(this.art.frames[f]), fw = im.width / 4, c = cells[POSE[pose][1]];
+      const [s, i] = POSE[pose], im = await this.picture(this.art.frames[f]), fw = im.width / 4, c = (s === k ? cells : this.cells[s])[i];
       return [0, 1, 2, 3].map(i => ({ im, ...box(im, i * fw, 0, fw, im.height), cx: c.cx - c.ox + i * fw, ground: c.ground - c.oy, ruler: c.ruler,
-        sign: signAt(SIGNS[f]?.[i], i * fw, 0) }));
+        sign: signAt(SIGNS[f]?.[i], i * fw, 0), prop: c.prop }));
     };
     // (a loop over two strips, f2 its frames 4-7: her sign swaying to her left and back, then to her right)
     const [strips, tweens] = await Promise.all([
       Promise.all(Object.entries(STRIP).filter(([pose]) => on(pose)).map(async ([pose, s]) => [pose, [...await framesOf(s.f, pose), ...(s.f2 ? await framesOf(s.f2, pose) : [])]])),
-      Promise.all(Object.entries(TRANS).filter(([pair]) => on(pair.split('>')[0])).map(async ([pair, f]) => [pair, (await framesOf(f, pair.split('>')[0])).slice(1, 3)]))
+      Promise.all(Object.entries(TRANS).filter(([pair]) => this.tweenSheet(pair) === k).map(async ([pair, f]) => {
+        const prop = pair.split('>').map(p => PROP_OF[p]).find(Boolean);   // between standing and kneeling at the table, it is there
+        return [pair, (await framesOf(f, pair.split('>')[0])).slice(1, 3).map(c => ({ ...c, prop }))];
+      }))
     ]);
     Object.assign(this.strips, Object.fromEntries(strips));
     Object.assign(this.tweens, Object.fromEntries(tweens));
     this.cells[k] = cells;
     this.routes = null;
+  }
+
+  // The sheet an in-between comes with: its first pose's, but one from a pose she always has into a show's sheet (SEGMENTS)
+  // comes with that sheet, as the show first plays, not with the page.
+  tweenSheet(pair) {
+    const [a, b] = pair.split('>').map(p => this.art.poses[p][0]);
+    return !LATER.includes(a) && LATER.includes(b) ? b : a;
+  }
+
+  // The cells of the sheet k drawn at a prop. On a sheet drawn with it at her place (fixed) each drawing stands where the
+  // standing one in cell 1 does, not on its own centre and ground (cut off at the tabletop she has no feet; reaching out moves
+  // her centre); and each of her poses at it knows which prop it needs (propOf).
+  propCells(k, cells) {
+    const { poses: POSE, fixed: FIXED } = this.art;
+    if (FIXED.includes(k)) for (const c of cells) if (c) { c.cx = cells[0].cx + c.ox; c.ground = cells[0].y + cells[0].h + c.oy; }
+    for (const [p, prop] of Object.entries(this.propOf)) if (POSE[p][0] === k) cells[POSE[p][1]].prop = prop;
   }
 
   // The sprite's drawings that move, each from the drawing it was drawn from: its turnaround views, its sheets' cells or its
@@ -321,8 +345,8 @@ export class Pet extends Engine {
   receive(state) {
     super.receive(state);
     // switched off, her pose and what she held are forgotten with the rest: back on, she starts afresh as at boot, and no card
-    // rolls up, no sign flies home and no in-between from the pose she was in draws its sign again
-    if (!state.enabled) this.hv = this.signWords = this.intelHeld = this.intelBack = this.signHeld = this.signBack = null;
+    // rolls up, no sign flies home, no in-between from the pose she was in draws its sign again and no prop stays for her
+    if (!state.enabled) this.hv = this.signWords = this.intelHeld = this.intelBack = this.signHeld = this.signBack = this.drawn = this.unprop = null;
     if (this.lot) for (const k of SEGMENTS.lottery) this.loadSheet(k);
   }
 
@@ -350,12 +374,22 @@ export class Pet extends Engine {
     if (st.ship) this.drawShip(g, st.ship);
     if (st.admShip) this.drawAdmShip(g, st.admShip);
     if (st.gacha) this.drawGacha(g, st.gacha);
+    // a pose whose sheet is still loading: she keeps the drawing she has until it is there, on the first frame idle's (boot)
+    if (!this.cells[this.art.poses[st.pose][0]]) st.pose = this.hv?.pose ?? 'idle';
+    // (cut short: kept while she needs it, with her where she was at it: the show cutting in has her back at her place, and
+    // the table's show had her a step back; once she is up she goes over to the new place in UNPROP ms)
+    const prop = k => st[k] ? (this.propAt[k] = { ...st[k], herX: st.x, herY: st.y }) : this.drawn?.c.prop === k ? this.propAt[k] : null;
+    const sofa = prop('sofa'), table = prop('table'), kept = !st.sofa && sofa || !st.table && table;
+    if (kept) this.unprop = { x: kept.herX - st.x, y: kept.herY - st.y, at: null };
+    else if (this.unprop) this.unprop.at ??= performance.now();
+    const off = kept ? 1 : this.unprop ? 1 - ease(k01(performance.now() - this.unprop.at, 0, UNPROP)) : 0;
+    const herSt = kept ? { ...st, x: kept.herX, y: kept.herY } : off ? { ...st, x: st.x + this.unprop.x * off, y: st.y + this.unprop.y * off } : st;
+    if (!kept && this.unprop && off <= 0) this.unprop = null;
+    if (sofa) this.drawPopped(g, this.props.sofa, sofa);   // behind her: she sits and lies on it
     if (st.halves?.a) { g.save(); g.globalAlpha = st.halves.a; for (const h of st.halves.pts) this.capsule(g, h.x, h.y, 12, h.rot, h.half); g.restore(); }   // the capsule's halves, off her hands and by her feet
     if (st.emblem) this.drawProp(g, this.props.emblem, st.emblem.x, st.emblem.y + this.props.emblem.height * H / this.art.anchor * st.emblem.s / 2, st.emblem.s, st.emblem.a);
     const rt = performance.now(), dt = Math.min(100, rt - (this.rt ?? rt));
     this.rt = rt;
-    // a pose whose sheet is still loading: she keeps the drawing she has until it is there, on the first frame idle's (boot)
-    if (!this.cells[this.art.poses[st.pose][0]]) st.pose = this.hv?.pose ?? 'idle';
     const her = this.herBox(st);
     const bub = st.bubble?.text && this.bubbleBox(g, st, her, this.bubSide);
     this.bubSide = bub?.side;
@@ -373,7 +407,9 @@ export class Pet extends Engine {
       if (u >= 1) this.intelBack = null; else this.drawIntel(g, { ...f, reveal: f.reveal * (1 - ease(u)) });
     }
     if (sp && st.sBehind) this.drawSprite(g, st, sp, now);
-    this.drawHer(g, st, now);
+    this.drawHer(g, herSt, now);
+    // the hot-pot table in front of her, over her legs; what she holds over it (her drawings at it) over it again
+    if (table) { this.drawPopped(g, this.props.table, table); if (table.a) this.redrawHer(g, { x: table.x - table.w / 2, y: table.y - table.h, w: table.w, h: table.h }); }
     if (st.pop) this.drawProp(g, this.props.plush, st.pop.x, st.pop.y, st.pop.s, st.pop.a);   // the plush out of the capsule
     // her PK sign flying, while her drawing holds none; and let go of, from where she held it, small, into her sprite
     const flying = (f, words) => { g.save(); g.translate(f.x, f.y); g.rotate(f.a); g.scale(f.k, f.k); g.translate(-SIGN.W / 2, -SIGN.H / 2); SIGN.draw(g, words); g.restore(); };
@@ -453,8 +489,8 @@ export class Pet extends Engine {
   // others (route); where she simply switches (cuts) or there is no way at all, the new pose just comes in.
   drawHer(g, st, now) {
     const rt = performance.now(), el = t0 => rt - t0;
-    const hv = this.hv ??= { pose: st.pose, at: -1e9, since: this.clock, tween: null };
-    if (st.pose !== hv.pose) Object.assign(hv, { tween: this.route(hv.pose, st.pose), ms: this.art.slow[`${hv.pose}>${st.pose}`] || 90, pose: st.pose, at: rt, since: this.clock, fromX: hv.x ?? st.x });
+    const hv = this.hv ??= { pose: st.pose, at: -1e9, since: this.clock, tween: null, fromX: st.x, fromY: st.y };
+    if (st.pose !== hv.pose) Object.assign(hv, { tween: this.route(hv.pose, st.pose), ms: this.art.slow[`${hv.pose}>${st.pose}`] || 90, pose: st.pose, at: rt, since: this.clock, fromX: hv.x ?? st.x, fromY: hv.y ?? st.y });
     // she breathes in every pose, in-between frames too (breathing that stopped when she left her idle pose made her head
     // jump up to 3 px at the change): her drawing scaled at her feet, a touch taller and narrower, then shorter and wider.
     // Some in-betweens are played slower (slow: her hair settling under the sprite's magic, her curling up to sulk), and slow
@@ -464,16 +500,35 @@ export class Pet extends Engine {
     // In the chest game her place goes with her pose (her fists on the ring, wherever each drawing has them): through the
     // in-betweens she moves from where the earlier pose stood to the later one's, a share at each frame (st.slide), not all
     // at once on the first of them.
-    const x = st.x + (st.slide && hv.tween?.[i] ? (hv.fromX - st.x) * (1 - (i + 1) / (hv.tween.length + 1)) : 0), b = this.herBox({ ...st, x }, c);
-    hv.x = st.x;
-    g.save(); g.translate(x, st.y); g.scale(st.sx / Math.sqrt(s), s); g.translate(-x, -st.y);
+    const slid = st.slide && hv.tween?.[i] ? 1 - (i + 1) / (hv.tween.length + 1) : 0;   // (the 火锅: down behind the table, she moves back too)
+    const x = st.x + (hv.fromX - st.x) * slid, y = st.y + (hv.fromY - st.y) * slid, b = this.herBox({ ...st, x, y }, c);
+    hv.x = st.x; hv.y = st.y;
+    g.save(); g.translate(x, y); g.scale(st.sx / Math.sqrt(s), s); g.translate(-x, -y);
     g.drawImage(c.im, c.x, c.y, c.w, c.h, b.x, b.y, b.w, b.h);
+    this.drawn = { c, b, x, y, sx: st.sx / Math.sqrt(s), sy: s };
     // her PK sign keeps its words while she lets it go, whatever made her (her show's end, a bigger show cutting in on the
     // in-betweens), and once it is out of her hands it flies back into her sprite (draw: signBack)
     this.signShown = !!c.sign;
     if (c.sign) { const words = this.signWords = st.sign || this.signWords || []; this.drawSignOn(g, c, b, words); this.signHeld = { ...this.signSpot({ ...st, x }, c), words }; }
     else if (this.signHeld) { if (!st.signFly) this.signBack = { ...this.signHeld, at: rt }; this.signHeld = null; }   // (signFly: her show carries it on)
     g.restore();
+  }
+
+  // Her drawing as drawHer last drew it, again, only inside rect, if it is one of hers at the hot-pot table (atProp): cut out
+  // above the tabletop, what of it lies on the table is what she holds over it (the chopsticks in the pot, her bowl).
+  redrawHer(g, rect) {
+    const d = this.drawn;
+    if (d?.c.prop !== 'table') return;
+    g.save(); g.beginPath(); g.rect(rect.x, rect.y, rect.w, rect.h); g.clip();
+    g.translate(d.x, d.y); g.scale(d.sx, d.sy); g.translate(-d.x, -d.y);
+    g.drawImage(d.c.im, d.c.x, d.c.y, d.c.w, d.c.h, d.b.x, d.b.y, d.b.w, d.b.h); g.restore();
+  }
+
+  // A prop the sprite brings and takes away (popped): drawn with its alpha a and scale s about its bottom middle (x, y).
+  drawPopped(g, im, c) {
+    if (!c.a) return;
+    const w = c.w * c.s, h = c.h * c.s;
+    g.save(); g.globalAlpha = c.a; g.drawImage(im, c.x - w / 2, c.y - h, w, h); g.restore();
   }
 
   // Her PK sign where the drawing c had codex's, and her hands that hold it over it again: her drawing inside the edge of
@@ -492,9 +547,11 @@ export class Pet extends Engine {
   // Her sign's sheet loads as her first sign show starts (SEGMENTS): until it is there she stands as she was and no sign flies.
   signShow(name, t, st, opts, say) { if (this.loaded(name)) super.signShow(name, t, st, opts, say); }
 
-  // Her 扭蛋's sheets, her sprite's carrying the battery and the plush too, load as it first plays (SEGMENTS): until they are
-  // there she stands as she was and no cabinet comes.
+  // Her 扭蛋's sheets (her sprite's carrying the battery and the plush too), her 火锅's and her 手游's load as each first plays
+  // (SEGMENTS): until they are there she stands as she was and no cabinet, table or sofa comes.
   gacha(t, st, o, line) { return this.loaded('gacha') ? super.gacha(t, st, o, line) : st; }
+  hotpot(t, st, o, line) { return this.loaded('hotpot') ? super.hotpot(t, st, o, line) : st; }
+  mobile(t, st, o, line) { return this.loaded('mobileGame') ? super.mobile(t, st, o, line) : st; }
 
   // The sprite flies to where it is wanted instead of jumping there; its speed decides which way it faces.
   follow(target, dt, st) {

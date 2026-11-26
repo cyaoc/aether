@@ -22,7 +22,21 @@ public sealed class DesktopPetBrowserTests
           return box;
         })()
         """;
-    private static readonly string[] DailySheets = ["pose-3-daily-1", "pose-9-ski", "pose-10-gym", "pose-11-hike", "pose-12-cycle", "pose-19-gacha", "pose-20-gacha2", "pose-22-gacha3", "sprite-pose-4"];
+    // playDaily(kind, mishap, ms, each): plays the 日常小动作 kind from its start, its pictures loaded first, a frame every 1/60 s
+    // for ms on one made-up clock, the page's and performance.now's (her in-betweens go by it), calling each with the moment,
+    // ms into it, after drawing each frame.
+    private const string PlayDaily = """
+        const playDaily = async (kind, mishap, ms, each) => {
+          let clock = performance.now();
+          performance.now = () => clock;
+          pet.start(kind, { mishap }); await Promise.all(Object.values(pet.loads));
+          const { start } = pet.cur;
+          for (let t = 0; t < ms; t += 1000 / 60) { pet.master.currentTime = start + t; clock += 1000 / 60; pet.frame(); each(t); }
+        };
+        """;
+    private static readonly string[] DailySheets = ["pose-3-daily-1", "pose-9-ski", "pose-10-gym", "pose-11-hike", "pose-12-cycle", "pose-19-gacha", "pose-20-gacha2", "pose-22-gacha3", "sprite-pose-4", "pose-23-daily", "pose-24-hotpot", "pose-25-hotpot2", "pose-26-sofa"];
+    // Her in-betweens from standing into each 日常小动作's first pose: they come with that daily's sheets, not with the page.
+    private static readonly string[] DailyInBetweens = ["humIn", "gymIn", "hikeIn", "bikeIn", "skiIn", "gPointIn", "hHungryIn", "hKneel", "mPhoneIn"];
 
     [Fact]
     public async Task The_page_is_transparent_while_the_desktop_pet_is_off_and_scales_with_the_browser_source_at_three_to_four()
@@ -266,6 +280,7 @@ public sealed class DesktopPetBrowserTests
         await page.OpenAsync(480, 640);
         Assert.Contains(page.Browser.Requests, url => url.EndsWith("/characters/current/desktop-pet/pose-1-common.webp", StringComparison.Ordinal));
         Assert.DoesNotContain(page.Browser.Requests, url => DailySheets.Any(sheet => url.EndsWith(sheet + ".webp", StringComparison.Ordinal)));
+        Assert.DoesNotContain(page.Browser.Requests, url => DailyInBetweens.Any(frames => url.EndsWith("/frames/" + frames + ".webp", StringComparison.Ordinal)));
 
         await page.H.Client.WebService.TestShowAsync("gym", null, "星河");
 
@@ -273,9 +288,10 @@ public sealed class DesktopPetBrowserTests
         await Eventually.TrueAsync(async () =>
         {
             await page.Browser.EvaluateAsync("true");
-            return page.Browser.Requests.Any(url => url.EndsWith("/pose-10-gym.webp", StringComparison.Ordinal));
+            return page.Browser.Requests.Any(url => url.EndsWith("/frames/gymIn.webp", StringComparison.Ordinal));
         });
-        Assert.DoesNotContain(page.Browser.Requests, url => url.EndsWith("/pose-9-ski.webp", StringComparison.Ordinal));
+        Assert.Contains(page.Browser.Requests, url => url.EndsWith("/pose-10-gym.webp", StringComparison.Ordinal));
+        Assert.DoesNotContain(page.Browser.Requests, url => url.EndsWith("/pose-9-ski.webp", StringComparison.Ordinal) || url.EndsWith("/frames/skiIn.webp", StringComparison.Ordinal));
         Assert.Empty(page.Browser.Errors);
     }
 
@@ -310,16 +326,56 @@ public sealed class DesktopPetBrowserTests
             })()
             """, """[false,"idle",false]""");
 
-    [Fact]
-    public Task A_first_扭蛋_while_its_pictures_still_load_has_her_stand_as_she_was() =>
-        // (its sheets, her sprite's carrying the battery among them, load as it starts, not with the page)
-        AssertOnAFreshPageAsync("""
+    [Theory]
+    [InlineData("gacha", "sp4", "gacha")]
+    [InlineData("hotpot", "hotpot24", "table")]
+    [InlineData("mobileGame", "sofa26", "sofa")]
+    public Task A_first_扭蛋_火锅_or_手游_while_its_pictures_still_load_has_her_stand_as_she_was(string show, string sheet, string prop) =>
+        // (its sheets, the 扭蛋's with her sprite's carrying the battery, load as it starts, not with the page; no prop comes)
+        AssertOnAFreshPageAsync($$"""
             (() => {
-              const loaded = !!pet.cells.sp4;
-              pet.start('gacha', {}); pet.master.currentTime += 2000; const st = pet.stateAt(pet.now()); pet.frame();
-              return JSON.stringify([loaded, st.pose, st.sprite, !!st.gacha]);
+              const loaded = !!pet.cells.{{sheet}};
+              pet.start('{{show}}', {}); pet.master.currentTime += 2000; const st = pet.stateAt(pet.now()); pet.frame();
+              return JSON.stringify([loaded, st.pose, st.sprite, !!st.{{prop}}]);
             })()
             """, """[false,"idle","sIdle",false]""");
+
+    [Fact]
+    public Task Her_drawings_at_the_table_and_on_the_sofa_stand_where_the_standing_drawing_of_their_first_cell_does() =>
+        // (drawn with the prop at her place, not on their own middle and foot: cut off at the tabletop she has none; hBlow and
+        // mOuch from the row below, which has a ground line of its own)
+        AssertOnAFreshPageAsync("""
+            (async () => {
+              await Promise.all(pet.art.fixed.map(sheet => pet.loadSheet(sheet)));
+              const off = pose => { const [sheet, n] = pet.art.poses[pose], c = pet.cells[sheet][n], first = pet.cells[sheet][0];
+                return [c.cx - c.ox - first.cx, c.ground - c.oy - first.y - first.h].map(Math.round); };
+              return JSON.stringify(['hSit', 'hYum', 'mPlay', 'hBlow', 'mOuch'].map(off));
+            })()
+            """, "[[0,0],[0,0],[0,0],[0,0],[0,0]]");
+
+    [Theory]
+    // eating she has no way up (noWayThrough): the gift's pose comes in at once where she knelt, and the table goes the frame after
+    [InlineData(6000, "true:false:true,false:false:false")]
+    // holding her bowl she gets up through her in-betweens where she knelt, the bowl going by magic, the table there till she is up
+    [InlineData(3400, "true:true:true,true:false:true,false:false:false")]
+    public Task A_gift_cutting_her_火锅_short_has_her_get_up_where_she_knelt_and_takes_the_table_the_frame_after_she_is_up(int cut, string seen) =>
+        // Each frame after the gift: whether the table is drawn, whether her drawing is one at it, and with the table there
+        // whether she is still HOTPOT.back up, where she knelt behind it (getting up she does not sink into it); the same in a
+        // row once.
+        AssertOnAFreshPageAsync($$"""
+            (async () => {
+              {{PlayDaily}}
+              const { FOOT, HOTPOT } = await import('/desktop-pet/engine.mjs'), g = pet.canvas.getContext('2d'), drawImage = g.drawImage.bind(g), seen = [];
+              let table = false, cut = false;
+              g.drawImage = (im, ...rest) => { table ||= im === pet.props.table; drawImage(im, ...rest); };
+              await playDaily('hotpot', false, {{cut}} + 1000, t => {
+                if (cut) seen.push([table, !!pet.drawn.c.prop, table && Math.round(FOOT.y - pet.drawn.y) === HOTPOT.back].join(':'));
+                table = false;
+                if (!cut && t >= {{cut}}) { pet.start('gift', { nickname: '星河' }); cut = true; }
+              });
+              return seen.filter((frame, i) => frame !== seen[i - 1]).join();
+            })()
+            """, seen);
 
     [Theory]
     [InlineData("pkOpponent", "intelHeld", "intelBack")]

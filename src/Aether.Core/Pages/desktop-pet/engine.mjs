@@ -227,6 +227,28 @@ export const GACHA = { x: 392, capR: 13,
     won: { rise: 450, hang: 680, down: 820, hug: 11340, spin: 12800, gone: [13300, 13600], take: 13800, away: 14000, end: 14800 },
     lost: { empty: 10400, wail: 11300, pat: 11600, wipe: 13400, spin: 13500, gone: [14100, 14400], idle: 14600, end: 15200 } } };
 DAILY.gacha = [GACHA.t.won.end, GACHA.t.lost.end - GACHA.t.won.end];
+// The 火锅 daily (#411): hungry, she watches the sprite spin the low table up in front of her, over her legs; she kneels
+// behind its pot and says grace, and the bowl and chopsticks come into her hands by the sprite's magic; she picks beef from
+// the clear side, blows on it and eats it, then feeds the sprite a meatball (yum); or she picks it from the red side
+// (o.mishap, spicy) and the chili burns: the sprite flies home for 豆奶, she drinks it. Grace again (what she holds goes by
+// the sprite's magic), she stands, the table goes. back: how far behind her place she kneels (the table stands in front of
+// her, its foot back px below hers, and the page ends 14 px under her feet): she moves there in the two frames of kneeling
+// down behind the table and back in those of standing up, out of sight under it (st.slide); stepping back before the table
+// came read as rising up for nothing. The table stands at her propSpot.table; the pot's rim and where the 豆奶 is handed
+// over are measured on her pictures (her desktopPet's points.hotpot).
+export const HOTPOT = { back: 27,
+  t: { spin: 1300, up: 1900, kneel: 2300, bowl: 2900, ready: 3100, pick: 3700, blow: 4700, eat: 5500,
+    yum: { feed: 7300, open: 7700, chew: 8100, grace: 9300, stand: 10500, spin: 10900, gone: [11300, 11600], end: 11800 },
+    spicy: { burn: 6000, fly: 6400, back: 7600, give: 8000, drink: 8300, grace: 10300, stand: 11500, spin: 11900, gone: [12300, 12600], end: 12800 } } };
+DAILY.hotpot = [HOTPOT.t.yum.end, HOTPOT.t.spicy.end - HOTPOT.t.yum.end];
+// The 手游 daily (#411): she takes out her phone and the sprite spins the sofa up behind her; she sits, lies back on it
+// and plays; won she cheers kicking her legs (o.mishap false), lost she freezes, the phone slips onto her face and she
+// holds her nose (the sprite pats her head); she sits up, stands, the sofa goes. The sofa stands at her propSpot.sofa.
+export const MOBILE = {
+  t: { spin: 700, up: 1300, sit: 1700, lie: 2500,
+    won: { win: 6600, sit: 8800, stand: 9400, spin: 9600, gone: [10000, 10300], end: 10600 },
+    lost: { stun: 6600, smack: 7400, ouch: 8100, sit: 9800, stand: 10400, spin: 10600, gone: [11000, 11300], end: 11600 } } };
+DAILY.mobileGame = [MOBILE.t.won.end, MOBILE.t.lost.end - MOBILE.t.won.end];
 
 // ---- The 宝箱小游戏 (#372, #382; design package README 12). Nothing of it is on the page until the 捣蛋鬼 comes, and nothing of
 // it stays: her shows are all as they were, and her chest is at home, off the left of the page, where the game only counts
@@ -340,6 +362,8 @@ export class Engine extends EventTarget {
   constructor(master, shows, art) {
     super();
     Object.assign(this, { master, art });
+    // the prop each of her poses at one needs, atProp turned round (the board's PROP_OF)
+    this.propOf = Object.fromEntries(Object.entries(art.atProp).flatMap(([prop, poses]) => poses.map(p => [p, prop])));
     this.events = Object.fromEntries(shows.map(row => [row.id, { ...EVENTS[row.id], tier: row.tier, group: row.group, gift: GIFTS.includes(row.group) }]));
   }
 
@@ -1883,6 +1907,8 @@ export class Engine extends EventTarget {
   daily(t, st, o, line) {
     if (SPORTS[o.kind]) return this.sport(t, st, o, line);
     if (o.kind === 'gacha') return this.gacha(t, st, o, line);
+    if (o.kind === 'hotpot') return this.hotpot(t, st, o, line);
+    if (o.kind === 'mobileGame') return this.mobile(t, st, o, line);
     // humming: the sprite sways along; when her voice cracks it hides its head
     const main = DAILY[o.kind][0];
     st._t = t;
@@ -1905,11 +1931,10 @@ export class Engine extends EventTarget {
     // hopping from x0 to x1 between a and b in n hops
     const hops = (a, b, x0, x1, n) => { const w = k01(t, a, b); st.x = x0 + (x1 - x0) * w; st.y -= HOP * 0.45 * Math.abs(Math.sin(Math.PI * n * w)); };
     const end = o.mishap ? L.gone : W.gone;
-    const shown = k01(t, T.up, T.up + 200) * (1 - k01(t, end[0], end[1]));
-    const g = st.gacha = { k, a: shown, s: 0.85 + 0.15 * ease(k01(t, T.up, T.up + 300)) + 0.06 * bump(t, T.up + 150, T.up + 450) - 0.3 * ease(k01(t, end[0], end[1])) };
+    const g = st.gacha = { k, ...this.popped(t, T.up, end) };
     const centre = at2(im.width / 2, im.height * 0.45);
     // the sprite spins round where the cabinet comes (and goes), glowing, and it flashes there
-    const spin = a => { const u = t - a, ang = u / 130; st.sprite = 'glow'; st.sp = ['at', centre.x + 78 * Math.cos(ang), centre.y + 26 * Math.sin(ang)]; st.fx.push(['trail', a]); };
+    const spin = a => this.spinAt(st, t, a, centre);
     st.fx.push(['flash', T.up, 0.8, { x: centre.x, y: centre.y + 60 }], ['flash', end[0], 0.8, { x: centre.x, y: centre.y + 60 }]);
 
     // ---- she points home, the sprite fetches the battery and hands it over, spins the cabinet up
@@ -1979,6 +2004,129 @@ export class Engine extends EventTarget {
     st.fx.push(['shock', L.empty], ['sweat', L.empty + 300, 900]);
     if (t >= L.wail) st.fx.push(['tears', L.wail + 100, L.wipe - L.wail]);
     say(L.empty + 100, L.wail, 'gachaEmpty'); say(L.wail + 150, L.wipe, 'gachaMiss'); say(L.wipe + 150, L.end, 'gachaCheerUp');
+    return st;
+  }
+
+  // The sprite glowing round the place where a prop comes (or goes) from time a, leaving a trail of stars.
+  spinAt(st, t, a, centre) {
+    const ang = (t - a) / 130;
+    st.sprite = 'glow'; st.sp = ['at', centre.x + 78 * Math.cos(ang), centre.y + 26 * Math.sin(ang)]; st.fx.push(['trail', a]);
+  }
+
+  // Where a point of a fixed sheet's cell (its px, as in her propSpot and points.hotpot) is on the page when her spot is (x, y).
+  fromSpot(sheet, [px, py], x, y) {
+    const c = this.cells[sheet][0], k = H / c.ruler;
+    return { x: x + (px - c.cx) * k, y: y + (py - c.ground) * k };
+  }
+
+  // A prop the sprite brings with a pop (from up) and takes away with a shrink (gone): its alpha and its scale about its
+  // bottom middle, as the 扭蛋 cabinet does.
+  popped(t, up, gone) {
+    return { a: k01(t, up, up + 200) * (1 - k01(t, gone[0], gone[1])), s: 0.85 + 0.15 * ease(k01(t, up, up + 300)) + 0.06 * bump(t, up + 150, up + 450) - 0.3 * ease(k01(t, gone[0], gone[1])) };
+  }
+
+  // The 火锅 daily (HOTPOT): yum (o.mishap false) or spicy. Her spot is FOOT.x, back px up while the table is there.
+  hotpot(t, st, o, line) {
+    st._t = t;
+    const T = HOTPOT.t, E = o.mishap ? T.spicy : T.yum, k = H / this.art.anchor, y0 = FOOT.y - HOTPOT.back;
+    const say = (from, until, key) => { if (t >= from && t < until) st.bubble = { text: key ? this.saying(key, o.seed + from) : line, t: t - from }; };
+    const im = this.props.table, base = this.fromSpot(this.art.propSpot.table.sheet, this.art.propSpot.table.at, FOOT.x, y0), w = im.width * k, h = im.height * k;
+    const tb = st.table = { x: base.x + w / 2, y: base.y, w, h, ...this.popped(t, T.up, E.gone) };
+    const pot = this.fromSpot(this.art.propSpot.table.sheet, this.art.points.hotpot.pot, FOOT.x, y0), end = { x: base.x - 0.16 * SPRITE_H, y: base.y - 0.62 * h };   // the pot; the table's left end
+    if (t >= T.up + 200 && t < E.gone[0]) st.fx.push(['potSteam', T.up + 200, { x: pot.x, y: pot.y }]);
+    st.fx.push(['flash', T.up, 0.8, { x: tb.x, y: tb.y - h / 2 }], ['flash', E.gone[0], 0.8, { x: tb.x, y: tb.y - h / 2 }]);
+    const spin = a => this.spinAt(st, t, a, { x: tb.x, y: tb.y - h * 0.6 });
+    const sat = (sprite, p) => { st.sprite = sprite; st.sp = ['at', p.x, p.y]; };
+
+    // ---- hungry; she watches the table come; she kneels and says grace; the bowl and chopsticks come
+    if (t < T.kneel) { st.pose = t < T.spin ? 'hHungry' : 'idle'; if (t < T.spin) st.sprite = 'nod'; else spin(T.spin); say(200, T.kneel + 600); return this.atTable(st, y0); }
+    say(200, T.kneel + 600);
+    if (t < T.ready) { st.pose = 'hPray'; sat(t < T.bowl - 300 ? 'sHappy' : 'glow', end); if (t >= T.bowl - 100) st.fx.push(['sparkles', T.bowl - 100]); return this.atTable(st, y0); }
+    if (t < T.pick) { st.pose = 'hSit'; sat('sHappy', end); return this.atTable(st, y0); }
+    if (t < T.blow) { st.pose = o.mishap ? 'hPickRed' : 'hPickClear'; sat('sLook', end); return this.atTable(st, y0); }
+    if (t < T.eat) { st.pose = 'hBlow'; sat('sDrool', end); return this.atTable(st, y0); }
+
+    if (!o.mishap) {
+      // it is good: she eats; she feeds the sprite a meatball (it flies to her chopsticks, mouth open, and chews); grace
+      const Y = T.yum, [tipX, tipY] = this.art.points.hotpot.tip, tip = { x: FOOT.x + tipX, y: y0 - tipY };   // the meatball on her chopsticks (hFeed)
+      st.pose = at(t, [[T.eat, 'hYum'], [Y.feed, 'hFeed'], [Y.chew + 400, 'hSit'], [Y.grace, 'hPray'], [Y.stand, 'idle']]);
+      if (t < Y.feed) { sat('sDrool', end); st.fx.push(['hearts', T.eat + 200, 3]); }
+      else if (t < Y.chew) sat(t < Y.open - 150 ? 'sHappy' : 'sOpen', { x: tip.x - 0.3 * SPRITE_H, y: tip.y + 0.1 * SPRITE_H });
+      else if (t < Y.grace) { sat('sChew', { x: tip.x - 0.3 * SPRITE_H, y: tip.y + 0.1 * SPRITE_H - 6 * Math.abs(Math.sin(Math.PI * (t - Y.chew) / 300)) }); st.fx.push(['hearts', Y.chew, 2]); }
+      else if (t < Y.spin) { sat(t < Y.grace + 300 ? 'glow' : 'sHappy', end); if (t >= Y.grace) st.fx.push(['sparkles', Y.grace]); }
+      else if (t < Y.gone[1]) spin(Y.spin);
+      else st.sprite = 'sHappy';
+      say(T.eat + 200, Y.feed, 'hotpotYum');
+      return this.atTable(st, y0);
+    }
+    // the chili: her face burns (flames on her head, tears); the sprite starts, flies home for 豆奶, hands it to her and pats
+    // her head while she drinks; grace
+    const S = T.spicy, G = this.art.points.hotpot.give, sp5 = this.cells.sp5[0], bottle = this.fromSpot('hotpot25', G.her, FOOT.x, y0);
+    const hand = { x: bottle.x - G.sprite[0] * SPRITE_H / sp5.ruler, y: bottle.y - G.sprite[1] * SPRITE_H / sp5.ruler };   // the sprite there
+    st.pose = at(t, [[T.eat, 'hYum'], [S.burn, 'hSpicy'], [S.drink, 'hDrink'], [S.grace, 'hPray'], [S.stand, 'idle']]);
+    if (t >= S.burn && t < S.drink) st.fx.push(['flame', S.burn], ['steam', S.burn + 150, S.drink - S.burn], ['tears', S.burn + 100, S.drink - S.burn], ['sweat', S.burn + 200, 1200]);
+    if (t < S.burn) sat('sDrool', end);
+    else if (t < S.fly) sat('surprised', end);
+    else if (t < S.back) { st.sprite = 'sHappy'; st.sp = ['at', -90, y0 - 0.5 * H]; }
+    // it lets go 60 ms before the bottle shows in her hand (its drawing fades over 150 ms: the two bottles are never seen
+    // apart), stays a moment, and flies up to pat her head
+    else if (t < S.drink + 350) sat(t < S.give ? 'sBottle' : t < S.drink - 60 ? 'sGiveBottle' : 'sHappy', hand);
+    else if (t < S.grace) { st.sprite = 'pat'; st.sp = 'head'; }
+    else if (t < S.spin) { sat(t < S.grace + 300 ? 'glow' : 'sHappy', end); if (t >= S.grace) st.fx.push(['sparkles', S.grace]); }
+    else if (t < S.gone[1]) spin(S.spin);
+    else st.sprite = 'sHappy';
+    say(S.burn + 100, S.drink, 'hotpotSpicy'); say(S.drink + 1100, S.grace + 600, 'hotpotSaved');
+    return this.atTable(st, y0);
+  }
+
+  // At the table she kneels back from her place (HOTPOT.back), standing she is at it; between them her in-betweens carry
+  // her over (st.slide), behind the table.
+  atTable(st, y0) {
+    st.y = this.propOf[st.pose] === 'table' ? y0 : FOOT.y;
+    st.slide = true;
+    return st;
+  }
+
+  // The 手游 daily (MOBILE): won (o.mishap false) or lost. Her spot stays FOOT; the sofa stands behind her.
+  mobile(t, st, o, line) {
+    st._t = t;
+    const T = MOBILE.t, E = o.mishap ? T.lost : T.won, k = H / this.art.anchor;
+    const say = (from, until, key) => { if (t >= from && t < until) st.bubble = { text: key ? this.saying(key, o.seed + from) : line, t: t - from }; };
+    const im = this.props.sofa, base = this.fromSpot(this.art.propSpot.sofa.sheet, this.art.propSpot.sofa.at, FOOT.x, FOOT.y), w = im.width * k, h = im.height * k;
+    const so = st.sofa = { x: base.x + w / 2, y: base.y, w, h, ...this.popped(t, T.up, E.gone) };
+    st.fx.push(['flash', T.up, 0.8, { x: so.x, y: so.y - h / 2 }], ['flash', E.gone[0], 0.8, { x: so.x, y: so.y - h / 2 }]);
+    const spin = a => this.spinAt(st, t, a, { x: so.x, y: so.y - h * 0.55 });
+    // on the backrest's top over her legs, watching the phone from her feet's side (by her head it sat on her face and phone)
+    const perch = { x: base.x + 0.32 * w, y: base.y - 1.0 * h + 3 * Math.sin(t / 400) };
+    const seat = { x: base.x + 0.15 * w, y: base.y - 0.42 * h + 2 * Math.sin(t / 500) };   // on the seat at her left while she sits
+    const sat = (sprite, p) => { st.sprite = sprite; st.sp = ['at', p.x, p.y]; };
+    say(200, T.lie);
+    if (t < T.sit) { st.pose = 'mPhone'; if (t < T.spin) st.sprite = 'nod'; else spin(T.spin); return st; }
+    if (t < T.lie) { st.pose = 'mSit'; sat('sHappy', seat); return st; }
+    const play = o.mishap ? E.stun : E.win;
+    if (t < play) { st.pose = 'mPlay'; sat('nod', perch); st.fx.push(['sweat', T.lie + 1200, 1600]); return st; }
+    if (!o.mishap) {
+      st.pose = at(t, [[E.win, 'mWin'], [E.sit, 'mSit'], [E.stand, 'mPhone']]);
+      // waving its flag over the left armrest: over her legs it sat on the phone she holds up and on her kicking feet
+      if (t < E.sit) { sat('flag', { x: base.x + 0.04 * w, y: base.y - 1.05 * h + 3 * Math.sin(t / 300) }); st.fx.push(['confetti', E.win + 100], ['sparkles', E.win]); }
+      else if (t < E.spin) sat('sHappy', seat);
+      else if (t < E.gone[1]) spin(E.spin);
+      else st.sprite = 'sHappy';
+      say(E.win + 100, E.sit + 400, 'mobileWin');
+      return st;
+    }
+    st.pose = at(t, [[E.stun, 'mStunned'], [E.smack, 'mSmack'], [E.ouch, 'mOuch'], [E.sit, 'mSit'], [E.stand, 'mPhone']]);
+    st.fx.push(['shock', E.stun]);
+    if (t >= E.smack) st.fx.push(['impact', E.smack + 40, [0.5, 0.42]], ['dizzy', E.smack + 300, 1100, [0.7, 0.05]]);
+    if (t >= E.ouch && t < E.sit) st.fx.push(['tears', E.ouch + 100, E.sit - E.ouch]);
+    if (t >= E.smack) st.shake = [[E.smack + 40, 2, 200]];
+    if (t < E.smack) sat('surprised', perch);
+    else if (t < E.ouch) sat('hide', perch);
+    else if (t < E.sit) { st.sprite = 'pat'; st.sp = ['rel', 0.8, -0.2]; }   // over her head, at the armrest end
+    else if (t < E.spin) sat('sHappy', seat);
+    else if (t < E.gone[1]) spin(E.spin);
+    else st.sprite = 'sHappy';
+    say(E.stun + 100, E.smack, 'mobileLose'); say(E.smack + 300, E.sit, 'mobileOuch');
     return st;
   }
 
