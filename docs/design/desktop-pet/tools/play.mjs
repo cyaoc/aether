@@ -13,7 +13,8 @@ const line = args.includes('--line') && args.splice(args.indexOf('--line'), 1);
 const page = args.includes('--page') && args.splice(args.indexOf('--page'), 1);
 const room = opt('--room', '明亮画面'), port = opt('--port', 8820);
 const [what, times, out] = args;
-const [name, kind, mishap] = what.split(':');
+// the cos daily takes its costume after a slash: 日常:cos/格斗少女:出事 (#418)
+const [name, kindCostume, mishap] = what.split(':'), [kind, costume] = (kindCostume ?? '').split('/');
 // What it plays on, as x with its canvas cv and the page's corner on it, and how the show starts.
 const target = page ? {
   url: `http://localhost:${port}/desktop-pet`,
@@ -24,7 +25,7 @@ const target = page ? {
   url: `http://localhost:${port}/render.html?board=DP-DesktopPet.dc.html&props=${encodeURIComponent(JSON.stringify({ scene: '手动', controls: '隐藏', caption: '隐藏', room }))}`,
   // the page in its default bottom-right corner
   setup: `const x = dc, cv = document.querySelector('canvas'), corner = [1400, 420];`,
-  start: `x.start(${JSON.stringify(name)}, ${JSON.stringify(name === '日常' ? { kind, mishap: mishap === '出事' } : kind ? { result: kind } : {})})`
+  start: `x.start(${JSON.stringify(name)}, ${JSON.stringify(name === '日常' ? { kind, costume, mishap: mishap === '出事' } : kind ? { result: kind } : {})})`
 };
 const js = `(async () => {
   ${target.setup}

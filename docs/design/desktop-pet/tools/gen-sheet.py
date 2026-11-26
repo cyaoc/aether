@@ -1,6 +1,6 @@
 """Make one pose sheet with her size fixed while it is drawn.
 
-python gen-sheet.py <sheet number> <out dir> [--tries 3] [--redo 5,6]
+python gen-sheet.py <sheet number> <out dir> [--tries 3] [--redo 5,6] [--start ready.png] [--edit "what to change"]
 
 Codex gets the sheet's canvas: 1536 x 1024 flat green, 3 x 2 cells of 512, and cell 1 already holding her everyday
 standing drawing (the anchor), ANCHOR_H px tall with her feet on GROUND: the same drawing at the same size on every
@@ -15,7 +15,10 @@ A cell that is off is drawn again: the cells that passed stay, the failing ones 
 it into the pose there (drawn from an empty cell, a head under a hat came out 8% small), up to --tries times; each cell
 keeps its best try. Cells whose eyes cannot be found (closed, turned away, behind
 her hands) are listed to be looked at by eye. A sheet already in the out dir is picked up again: its passing cells stay,
-and --redo draws the cells listed again too (wrong by eye: a plaster on the wrong knee).
+and --redo draws the cells listed again too (wrong by eye: a plaster on the wrong knee). --start pastes a drawing of hers
+that passed (a costume's ready pose) into the failing cells instead of the anchor: turned from the everyday anchor into a
+long coat or a crown, she came out 8-15% too tall six times over (the cos daily, #418); from her own outfit she keeps its size. --edit has codex change one thing in every cell of the sheet already there (her chest
+in a costume, #418) and keeps each pose; the edited cells are measured again and the failing ones drawn again.
 
 Out: sheet-<n>.png (transparent, cell 1 the anchor exactly) and sheet-<n>-check.png (each cell on grey, its gate).
 """
@@ -38,6 +41,13 @@ SHEETS = {1: ("common", "pet-base", None), 2: ("lottery", "pet-base", None), 3: 
           11: ("hike11", "outfit-pose-base", "hike-sheet"), 12: ("cycle12", "outfit-pose-base", "cycle-sheet"),
           18: ("pkSign", "pet-base", None), 19: ("gacha19", "pet-base", None), 20: ("gacha20", "pet-base", None),
           23: ("daily23", "pet-base", None)}
+# the cos daily (#418): two sheets per cosplay, each drawn from its design sheet textures/cos-<name>-sheet.webp
+COS = ["ninja", "fire", "ice", "miao", "esports", "warlord", "fighter"]
+SHEETS.update({27 + 2 * k + j: (f"{c}{27 + 2 * k + j}", "cos-pose-base", f"cos-{c}-sheet") for k, c in enumerate(COS) for j in (0, 1)})
+# the negative that goes with a base prompt (a cosplay has a wig, short hems, a headset, silver jewelry)
+NEGATIVE = {"cos-pose-base": "cos-pose-negative",
+            # by outfit, before the base: the fighter shows her midriff and wears no badge
+            "cos-fighter-sheet": "cos-fighter-pose-negative"}
 # what she holds in a sheet's cells, attached after who she is so codex copies it (the 扭蛋 daily, #403)
 GACHA = PKG / "wip-gacha"
 PROPS = {19: [GACHA / "battery-fit/battery.png", GACHA / "plush/plush.png"]}
@@ -45,14 +55,32 @@ PROPS = {19: [GACHA / "battery-fit/battery.png", GACHA / "plush/plush.png"]}
 # (pkSign was named here until it went onto the board)
 FIRST_NAMES = {"gacha19": [None, "gBattery", "gShake", "gTwist", "gHug", "gEmpty"],
                "gacha20": [None, "gWail", "gWipe", "gPointHome", "gRub", "gCapsule"],
-               "daily23": [None, "hHungry", "mPhone", None, None, None]}  # 火锅、手游 (#411): only two new standing poses
+               "daily23": [None, "hHungry", "mPhone", None, None, None],  # 火锅、手游 (#411): only two new standing poses
+               # the cos daily (#418): ready, the pose, the move (wind-up, the blow, settling), then what goes wrong
+               "ninja27": [None, "njReady", "njShy", "njStance", "njPalm", "njSettle"],
+               "ninja28": [None, "njLensOut", "njSearch", "njLensIn", "njThanks", None],
+               "fire29": [None, "fnReady", "fnPose", "fnWindup", "fnThrow", "fnCatch"],
+               "fire30": [None, "fnBurn", "fnSinged", None, None, None],
+               "ice31": [None, "icReady", "icProud", "icSnapReady", "icSnap", "icArms"],
+               "ice32": [None, "icSneeze", "icShiver", "icRubNose", None, None],
+               "miao33": [None, "miReady", "miPose", "miHold", "miOpen", "miFinger"],
+               "miao34": [None, "miBug", "miCower", "miRelief", None, None],
+               "esports35": [None, "esReady", "esV", "esAim", "esRecoil", "esBlow"],
+               "esports36": [None, "esTwirl", "esLookUp", "esOuch", None, None],
+               "warlord37": [None, "wlReady", "wlPose", "wlCrouch", "wlPull", "wlAim"],
+               "warlord38": [None, "wlShot", "wlShoulder", "wlSting", None, None],
+               "fighter39": [None, "ftReady", "ftBump", "ftGuard", "ftPunch", "ftUpper"],
+               "fighter40": [None, "ftKick", "ftWipe", "ftSplit", "ftRub", None]}
 CASTLE = [None, "pIdle", "spin", "curtsy", "walkA", "lookBack"]  # the castle's princess idle moves to cell 2
 # upright on the ground line: her eyes are as high above her feet as the anchor's
 UPRIGHT = {"wave", "cheer", "surprised", "announce", "point", "hope", "clap", "crack", "pout", "shy", "hum", "giftBox",
            "shakeBox", "crownV", "pIdle", "capSalute", "spyglass", "admSalute", "govPoint", "govWave", "gymReady", "curl",
            "gymWipe", "hikeReady", "hikeUp", "bikeReady", "bikeUp", "skiShake", "signHide", "signUp", "signCheer",
            "signUrge", "gBattery", "gShake", "gTwist", "gHug", "gEmpty", "gWipe", "gPointHome", "gRub", "gCapsule",
-           "hHungry", "mPhone"}
+           "hHungry", "mPhone", "njReady", "njShy", "njSettle", "njLensOut", "njLensIn", "njThanks", "fnReady", "fnPose", "fnCatch", "fnSinged",
+           "icReady", "icProud", "icSnapReady", "icSnap", "icArms", "icRubNose", "miReady", "miPose", "miHold", "miOpen",
+           "miFinger", "miBug", "miRelief", "esReady", "esV", "esBlow", "esTwirl", "wlReady", "wlPose", "wlShoulder",
+           "ftReady", "ftBump", "ftWipe"}
 NAMES = ["top-left", "top-middle", "top-right", "bottom-left", "bottom-middle", "bottom-right"]
 NEW = ("Use your built-in image generation tool (not code) to create ONE image, then copy the generated PNG file to {out}. "
        "Do not write any code. The LAST attached image is the canvas to fill; the image just before it is the approved "
@@ -72,7 +100,13 @@ NEW_FIRST = NEW.replace("the image just before it is the approved earlier versio
                         "the poses described below, and take every size only from the canvas")
 FROM_EARLIER = "The image just before it is the approved earlier version of this sheet: copy the poses from it, never its sizes."
 FROM_REFS = "The images before it show who she is: copy her face, hair, outfit and drawing style from them, never their sizes."
-assert NEW_FIRST != NEW and FROM_EARLIER in REDO  # the wording above must keep matching NEW and REDO
+ANCHOR_START = "she stands in her everyday standing pose, exactly as in the top-left cell: turn her there into the pose, outfit"
+OWN_START = "she already stands in the right outfit at exactly the right size: turn her there into the pose, outfit"
+EDIT = ("Use your built-in image generation tool (not code) to edit the LAST attached image into ONE new image, then copy the "
+        "generated PNG file to {out}. Do not write any code. It is a 3 by 2 pose sheet on flat #00FF00 green. In every cell but the "
+        "top-left one, change ONLY this: {change} Keep every pose, expression, prop, size and position exactly as it is, and keep the "
+        "top-left cell and every empty cell exactly as they are. The images before it show who she is. Image: {body}")
+assert NEW_FIRST != NEW and FROM_EARLIER in REDO and ANCHOR_START in REDO  # the wording above must keep matching NEW and REDO
 
 
 def canvas_cell(i):
@@ -139,8 +173,9 @@ def measure(c, ref, name):
 
 
 def score(g):
-    """Lower is better: failed checks first, then how far off."""
-    return (len(g["fails"]), sum(abs(g.get(k, 1) - 1) for k in ("scale", "eyeline")))
+    """Lower is better: a cell marked to be drawn again (--redo) last, so any new drawing replaces it; then failed checks,
+    then how far off."""
+    return ("redo" in g["fails"], len(g["fails"]), sum(abs(g.get(k, 1) - 1) for k in ("scale", "eyeline")))
 
 
 def main():
@@ -155,6 +190,18 @@ def main():
         k = argv.index("--redo")
         redo = [int(c) - 1 for c in argv[k + 1].split(",")]
         del argv[k:k + 2]
+    start = None
+    if "--start" in argv:
+        k = argv.index("--start")
+        start = np.asarray(Image.open(argv[k + 1]).convert("RGBA"))
+        x0, y0, x1, y1 = bbox(start)
+        start = start[y0:y1, x0:x1]
+        del argv[k:k + 2]
+    edit = None
+    if "--edit" in argv:
+        k = argv.index("--edit")
+        edit = argv[k + 1]
+        del argv[k:k + 2]
     n, out = int(argv[0]), Path(argv[1]).resolve()
     out.mkdir(parents=True, exist_ok=True)
     key_, base, outfit = SHEETS[n]
@@ -164,7 +211,7 @@ def main():
     A = standing()
     ref = eye_ref(A)
 
-    body = " ".join((T / f).read_text().strip() for f in (f"{base}.txt", f"sheet-{n}.txt", "pet-negative.txt"))
+    body = " ".join((T / f).read_text().strip() for f in (f"{base}.txt", f"sheet-{n}.txt", f"{NEGATIVE.get(outfit, NEGATIVE.get(base, 'pet-negative'))}.txt"))
     refs = [MASCOT / "chibi-sheet.webp", MASCOT / "chibi-turnaround.webp"]
     if outfit:
         refs.append(PKG / f"textures/{outfit}.webp")
@@ -187,6 +234,22 @@ def main():
         for i in redo:
             best[i] = ({"eyes": False, "fails": ["redo"], "match": 0}, best[i][1])
         print("kept: " + "; ".join(f"{i + 1} {names[i]} {' '.join(best[i][0]['fails']) or 'ok'}" for i in range(1, 6) if names[i]))
+        if edit:
+            sheet = place_anchor(np.zeros((2 * CELL, 3 * CELL, 4), np.uint8), A)
+            for i, (_, c) in best.items():
+                x, y = canvas_cell(i)
+                sheet[y:y + CELL, x:x + CELL] = c
+            on_green(sheet).save(out / f"sheet-{n}-edit.png")
+            png = out / f"sheet-{n}-edited.png"
+            got = run_codex(EDIT.format(out=png, change=edit, body=body), refs + [out / f"sheet-{n}-edit.png"], png,
+                            out / f"sheet-{n}-edited.log.txt")
+            if got is None:
+                sys.exit("edit: codex gave no image")
+            for i in range(1, 6):  # every edited cell replaces the old one: the change is the point, the gate follows
+                if names[i]:
+                    best[i] = (measure(got[i], ref, names[i]), got[i])
+            todo = [i for i in range(1, 6) if names[i] and best[i][0]["fails"]]
+            print("edit: " + "; ".join(f"{i + 1} {names[i]} {' '.join(best[i][0]['fails']) or 'ok'}" for i in range(1, 6) if names[i]))
     for t in range(tries):
         if not todo:
             break
@@ -200,10 +263,12 @@ def main():
                 x, y = canvas_cell(i)
                 # a failing cell starts again from the anchor itself: codex keeps a head it edits at the size it is,
                 # where it drew a head under a hat 8% small from an empty cell
-                sheet[y:y + CELL, x:x + CELL] = place_anchor(np.zeros((CELL, CELL, 4), np.uint8), A) if i in todo else c
+                sheet[y:y + CELL, x:x + CELL] = place_anchor(np.zeros((CELL, CELL, 4), np.uint8), A if start is None else start) if i in todo else c
             on_green(sheet).save(out / f"sheet-{n}-redo{t + 1}.png")
             cells_ = ", ".join(NAMES[i] for i in todo)
             redo_text = REDO.replace(FROM_EARLIER, FROM_REFS) if first else REDO
+            if start is not None:
+                redo_text = redo_text.replace(ANCHOR_START, OWN_START)
             got = run_codex(redo_text.format(out=png, cells=cells_, body=body), refs + [out / f"sheet-{n}-redo{t + 1}.png"],
                             png, log)
         if got is None:

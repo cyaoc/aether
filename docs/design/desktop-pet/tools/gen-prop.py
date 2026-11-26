@@ -25,6 +25,11 @@ CASTLE = PKG / "textures/castle-closed.webp"
 GATE = 0.04  # how far codex may redraw her bigger or smaller
 # canvas size; her centre x and shoe soles y; references after the castle; the prop's height in her heights (a gate)
 PROPS = {"flagship": ((1536, 1024), (170, 990), [], (2.0, 2.45)),
+         # the cos daily (#418): what flies by itself, drawn from the costume's design sheet: the fire-fan kunoichi's fan circling
+         # her, the ice general's cap sneezed off her head, the esports girl's gun spun off her finger
+         "fan": ((1024, 1024), (300, 900), [PKG / "textures/cos-fire-sheet.webp"], (0.15, 0.22)),  # as big as in her hand (fnCatch)
+         "cap": ((1024, 1024), (300, 900), [PKG / "textures/cos-ice-sheet.webp"], (0.10, 0.24)),
+         "gun": ((1024, 1024), (300, 900), [PKG / "textures/cos-esports-sheet.webp"], (0.08, 0.20)),
          "emblem": ((1024, 1024), (230, 900), [], None),
          "giftbox": ((1024, 1024), (300, 900), [], None),
          "balloons": ((1024, 1024), (230, 900), [], None),

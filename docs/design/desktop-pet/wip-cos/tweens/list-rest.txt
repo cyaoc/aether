@@ -1,0 +1,49 @@
+fnIn idle fnReady --still
+fnOut fnCatch idle --still
+fnOut2 fnSinged idle --still
+fnPoseIn fnReady fnPose
+fnWindupIn fnPose fnWindup
+fnThrowGo fnWindup fnThrow
+fnCatchIn fnThrow fnCatch
+fnBurnIn fnCatch fnBurn
+fnSingedIn fnBurn fnSinged
+icIn idle icReady --still
+icOut icArms idle --still
+icOut2 icRubNose idle --still
+icProudIn icReady icProud
+icSnapReadyIn icProud icSnapReady
+icSnapGo icSnapReady icSnap
+icArmsIn icSnap icArms
+icSneezeGo icSnap icSneeze
+icShiverIn icSneeze icShiver
+icCapOn icShiver icRubNose
+miIn idle miReady --still
+miOut miFinger idle --still
+miOut2 miRelief idle --still
+miPoseIn miReady miPose
+miHoldIn miPose miHold
+miOpenGo miHold miOpen
+miFingerIn miOpen miFinger
+miBugIn miOpen miBug
+miCowerGo miBug miCower
+miReliefIn miCower miRelief
+esIn idle esReady --still
+esOut esBlow idle --still
+esVIn esReady esV
+esAimIn esV esAim
+esFire esAim esRecoil
+esBlowIn esRecoil esBlow
+esTwirlIn esRecoil esTwirl
+esLookUpIn esTwirl esLookUp
+esOuchGo esLookUp esOuch
+esPickUp esOuch esReady
+wlIn idle wlReady --still
+wlOut wlShoulder idle --still
+wlPoseIn wlReady wlPose
+wlCrouchIn wlPose wlCrouch
+wlPullUp wlCrouch wlPull
+wlAimIn wlPull wlAim
+wlShotGo wlAim wlShot
+wlShoulderIn wlShot wlShoulder
+wlStingGo wlPull wlSting
+wlPickUp wlSting wlReady
