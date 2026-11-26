@@ -405,7 +405,7 @@ public sealed class DesktopPetSettingsTests
         Assert.False(Switch(page, "哼歌").IsChecked);
         Assert.All(later, label => Assert.True(Switch(page, label).IsChecked));
         Assert.Contains("砸到脚、破音、摔一跤、扭蛋落空、辣到、砸脸、cos 失手", Texts(page));
-        Assert.Subset(TestLabels(page).ToHashSet(), new HashSet<string> { "扭蛋", "扭蛋：出事", "火锅", "火锅：出事", "手游", "手游：出事", "cos", "cos：出事" });
+        Assert.Subset(TestLabels(page).ToHashSet(), later.SelectMany(label => new[] { label, $"{label}：出事" }).ToHashSet());
         foreach (var label in later)
             Switch(page, label).IsChecked = false;
         GuiHarness.Tab(page, 3);
