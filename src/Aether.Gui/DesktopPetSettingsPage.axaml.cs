@@ -115,8 +115,9 @@ public partial class DesktopPetSettingsPage : SettingsPage
     {
         ShowsTab.IsVisible = Tabs.SelectedIndex == 0;
         MoodsTab.IsVisible = Tabs.SelectedIndex == 1;
-        GameTab.IsVisible = Tabs.SelectedIndex == 2;
-        LinesTab.IsVisible = Tabs.SelectedIndex == 3;
+        DailyTab.IsVisible = Tabs.SelectedIndex == 2;
+        GameTab.IsVisible = Tabs.SelectedIndex == 3;
+        LinesTab.IsVisible = Tabs.SelectedIndex == 4;
     }
 
     protected override void LoadRows()

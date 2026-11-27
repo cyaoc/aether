@@ -8,7 +8,7 @@ using static Aether.Gui.Tests.Support.DesktopPetForm;
 
 namespace Aether.Gui.Tests;
 
-// The 桌宠 page as canvas DP1 draws it (preview/gui-*.webp in the design package).
+// The 桌宠 page as canvas DP1 draws it, its 心情 and 日常 tabs as DD3–DD8 do (preview/gui-*.webp in the design package).
 public sealed partial class VisualReviewTests
 {
     [Theory]
@@ -45,17 +45,24 @@ public sealed partial class VisualReviewTests
                 using var pet = await DesktopPetEvents.OpenAsync(harness.Client, TestContext.Current.CancellationToken);
                 await GuiHarness.WaitForAsync(() => viewModel.WebService.DesktopPet.Connected);
                 Capture("shows");
-                GuiHarness.Tab(page, 1);
+                GuiHarness.Tab(page, "心情");
                 Capture("moods");
-                // Design package preview/gui-switches*.webp; switched back on so the scenes after it stay unsaved-free.
-                await TurnAsync(page, on: false, "沮丧", "出事");
+                // Design package preview/gui-switches*.webp, a tab each since #425; switched back on so the scenes after it stay unsaved-free.
+                await TurnAsync(page, on: false, "沮丧");
                 Capture("switches");
-                await TurnAsync(page, on: true, "沮丧", "出事");
-                // 做哪几样 and the mishap note sit below the narrowest window's fold.
-                page.FindControl<ScrollViewer>("MoodsTab")!.ScrollToEnd();
-                GuiHarness.Flush();
+                await TurnAsync(page, on: true, "沮丧");
+                // Design package preview/gui-daily-tab*.webp.
+                GuiHarness.Tab(page, "日常");
                 Capture("daily");
-                GuiHarness.Tab(page, 3);
+                await TurnAsync(page, on: false, "出事");
+                Capture("daily-switches");
+                await TurnAsync(page, on: true, "出事");
+                var dailyRows = page.FindControl<ItemsControl>("DailyRows")!;
+                var real = dailyRows.ItemsSource;
+                PadDailyActions(page, 18);
+                Capture("daily-18");
+                dailyRows.ItemsSource = real;
+                GuiHarness.Tab(page, "台词");
                 Pick(page, "LineKindList", "大礼物");
                 Capture("lines");
                 // The design's list scrolled down to its lines, 露破绽 the last it shows.
@@ -63,7 +70,7 @@ public sealed partial class VisualReviewTests
                 Pick(page, "LineKindList", "招人");
                 kinds.ScrollIntoView(kinds.Items.OfType<DesktopPetLineKind>().Single(kind => kind.Kind.Label == "露破绽"));
                 Capture("game-lines");
-                GuiHarness.Tab(page, 2);
+                GuiHarness.Tab(page, "小游戏");
                 harness.Client.WebService.SetDesktopPetRoom(true);
                 await GuiHarness.WaitForAsync(() => page.FindControl<Button>("SummonButton")!.IsEnabled);
                 Capture("game");
@@ -77,7 +84,7 @@ public sealed partial class VisualReviewTests
                 GuiHarness.Click(page, "SummonButton");
                 await GuiHarness.WaitForAsync(() => page.FindControl<TextBlock>("SummonText")!.Text == "它在路上…");
                 Capture("game-called");
-                GuiHarness.Tab(page, 0);
+                GuiHarness.Tab(page, "演出");
                 GuiHarness.Click(page, "TestButton");
                 await pet.NextAsync(DesktopPet.Test);
                 Capture("testing");

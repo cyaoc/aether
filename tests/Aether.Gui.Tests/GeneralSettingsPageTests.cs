@@ -21,7 +21,7 @@ public sealed class GeneralSettingsPageTests
         Assert.False(page.FindControl<ToggleSwitch>("AutoUpdateInput")!.IsEffectivelyVisible);
         Assert.False(page.FindControl<NumericUpDown>("RetentionInput")!.IsEffectivelyVisible);
 
-        GuiHarness.Tab(page, 1);
+        GuiHarness.Tab(page, "更新和日志");
         Assert.Equal("日志设置重启后生效；自动更新下次打开时生效", page.TimingHint);
         Assert.True(page.FindControl<ToggleSwitch>("AutoUpdateInput")!.IsEffectivelyVisible);
         Assert.True(page.FindControl<NumericUpDown>("RetentionInput")!.IsEffectivelyVisible);
@@ -35,7 +35,7 @@ public sealed class GeneralSettingsPageTests
     {
         var port = GuiHarness.FreePort();
         page.FindControl<NumericUpDown>("WebPortInput")!.Text = port.ToString();
-        GuiHarness.Tab(page, 1);
+        GuiHarness.Tab(page, "更新和日志");
         page.FindControl<ComboBox>("LogLevelInput")!.SelectedItem = LogLevel.Warning;
         GuiHarness.Flush();
         Assert.True(GuiHarness.FindVisual<TextBlock>(page, "DirtyMessage").IsVisible);
@@ -58,7 +58,7 @@ public sealed class GeneralSettingsPageTests
             Assert.Equal(name, ShownDetail(page));
         }
 
-        GuiHarness.Tab(page, 1);
+        GuiHarness.Tab(page, "更新和日志");
         Assert.False(Shown(page.FindControl<ListBox>("PageList")!));
         Assert.DoesNotContain(GeneralSettingsForm.Pages, name => Shown(GeneralSettingsForm.Detail(page, name)));
         return Task.CompletedTask;
@@ -92,7 +92,7 @@ public sealed class GeneralSettingsPageTests
         foreach (var (navigation, picked) in new[] { (2, "Video"), (3, "Video"), (4, "GiftBoard"), (5, "DesktopPet") })
         {
             GeneralSettingsForm.Pick(general, "Lottery");
-            GuiHarness.Tab(general, 1);
+            GuiHarness.Tab(general, "更新和日志");
             window.Navigation.SelectedIndex = navigation;
             if (navigation == 2) welcome.Select(1);
             GuiHarness.Flush();
@@ -121,27 +121,24 @@ public sealed class GeneralSettingsPageTests
             foreach (var name in GeneralSettingsForm.Pages)
             {
                 GeneralSettingsForm.Pick(general, name);
-                AssertFits(list);
-                AssertFits(detail);
+                GuiHarness.AssertFits(list);
+                GuiHarness.AssertFits(detail);
             }
         }
-        GuiHarness.Tab(general, 1);
-        AssertFits(GuiHarness.FindVisual<Grid>(general, "PART_BodyLayout").Children.OfType<ScrollViewer>().Single());
+        GuiHarness.Tab(general, "更新和日志");
+        GuiHarness.AssertFits(GuiHarness.FindVisual<Grid>(general, "PART_BodyLayout").Children.OfType<ScrollViewer>().Single());
     });
 
     [Fact]
     public Task The_update_and_logs_tab_scrolls_when_the_window_is_too_short_for_it() => GeneralSettingsForm.Open(1040, 300, Running, (page, _) =>
     {
-        GuiHarness.Tab(page, 1);
+        GuiHarness.Tab(page, "更新和日志");
         var layout = GuiHarness.FindVisual<Grid>(page, "PART_BodyLayout");
         var body = layout.Children.OfType<ScrollViewer>().Single();
         Assert.True(body.Viewport.Height <= layout.Bounds.Height, $"{body.Viewport.Height} tall in {layout.Bounds.Height}");
         Assert.True(body.Extent.Height > body.Viewport.Height);
         return Task.CompletedTask;
     });
-
-    private static void AssertFits(ScrollViewer viewer) =>
-        Assert.True(viewer.Extent.Height <= viewer.Viewport.Height, $"{viewer.Extent.Height} tall in {viewer.Viewport.Height}");
 
     private static string ShownDetail(GeneralSettingsPage page) =>
         Assert.Single(GeneralSettingsForm.Pages, name => Shown(GeneralSettingsForm.Detail(page, name)));

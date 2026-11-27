@@ -177,12 +177,17 @@ internal sealed class GuiHarness : IDisposable
         }
     }
 
-    /// <summary>Switches a settings page with tabs, the 桌宠 page or the general settings, to the tab at <paramref name="index"/>.</summary>
-    public static void Tab(SettingsPage page, int index)
+    /// <summary>Switches a settings page with tabs, the 桌宠 page or the general settings, to the tab that reads <paramref name="label"/>.</summary>
+    public static void Tab(SettingsPage page, string label)
     {
-        page.FindControl<ListBox>("Tabs")!.SelectedIndex = index;
+        var tabs = page.FindControl<ListBox>("Tabs")!;
+        tabs.SelectedItem = tabs.Items.Cast<ListBoxItem>().Single(tab => Equals(tab.Content, label));
         Flush();
     }
+
+    /// <summary>All of what the viewer holds shows without scrolling.</summary>
+    public static void AssertFits(ScrollViewer viewer) =>
+        Assert.True(viewer.Extent.Height <= viewer.Viewport.Height, $"{viewer.Extent.Height} tall in {viewer.Viewport.Height}");
 
     public static T FindVisual<T>(Visual parent, string name) where T : Control =>
         parent.GetVisualDescendants().OfType<T>().Single(control => control.Name == name);
