@@ -13,7 +13,7 @@
 import { execFileSync } from 'node:child_process';
 import fs from 'node:fs';
 import { NAME, ROUTES, STAR, STEP, VIEWERS, announced, drive, end, frames, itemsOf, send, spendOf, told, walk } from './routes.mjs';
-import { DAILY, GACHA, HOTPOT, MOBILE } from '../../src/Aether.Core/Pages/desktop-pet/engine.mjs';
+import { COS, DAILY, GACHA, HOTPOT, MOBILE } from '../../src/Aether.Core/Pages/desktop-pet/engine.mjs';
 
 const here = new URL('.', import.meta.url).pathname, eval_ = here + '../../docs/design/desktop-pet/tools/cdp-eval.mjs';
 const args = process.argv.slice(2), opt = (k, d) => { const i = args.indexOf(k); return i < 0 ? d : args.splice(i, 2)[1]; };
@@ -24,11 +24,13 @@ const RESULT = { Gain: '赚', Even: '平', Loss: '亏', Jackpot: '大奖', BigWi
 // A 盲盒查询's 试演 on the board: its result as the board names it, with the page's numbers where they are not the board's own
 // (投入 15, 赚 4.5).
 const QUERY = { Gain: { result: '赚' }, Even: { result: '回本', profit: 0 }, Loss: { result: '亏', spend: 45, profit: -12.5 }, None: { result: '没有记录' } };
-const KIND = { hum: '哼歌', gym: '举哑铃', hike: '爬山', bike: '骑车', ski: '滑雪', gacha: '扭蛋', hotpot: '火锅', mobileGame: '手游' };
+const KIND = { hum: '哼歌', gym: '举哑铃', hike: '爬山', bike: '骑车', ski: '滑雪', gacha: '扭蛋', hotpot: '火锅', mobileGame: '手游', cosplay: 'cos' };
+// A cos's costumes (COS) as the board names them.
+const COSTUME = { ninja: '白眼格斗忍者', fighter: '格斗少女' };
 const MOOD = { calm: 0, happy: 0, bored: 15, gloomy: 40, sleepy: 60 };
 const { shows } = JSON.parse(fs.readFileSync(here + '../../src/Aether.Core/Pages/desktop-pet/shows.json', 'utf8'));
 // (the board's numbers are character 1's)
-const SLOW = JSON.parse(fs.readFileSync(here + '../../src/Aether.Core/Pages/characters/1/character.json', 'utf8')).desktopPet.slow;
+const { slow: SLOW, points: POINTS } = JSON.parse(fs.readFileSync(here + '../../src/Aether.Core/Pages/characters/1/character.json', 'utf8')).desktopPet;
 const at = (dur, extra = []) => [...new Set([200, 600, Math.round(dur * 0.25), Math.round(dur * 0.5), Math.round(dur * 0.75), dur - 150, ...extra])].sort((a, b) => a - b);
 // The 扭蛋's moments besides those (GACHA.t; a moment is the first frame at or after it): her sprite's drawing holding out the
 // battery just before and after it lets go, and fading till her in-between from gRub has it, frames 2 and 3 (give); the
@@ -37,9 +39,9 @@ const at = (dur, extra = []) => [...new Set([200, 600, Math.round(dur * 0.25), M
 const T = GACHA.t, W = T.won, L = T.lost, gone = ([a, b]) => [a, (a + b) / 2, b - 20], popUp = a => [a, a + 100, a + 200, a + 350];
 const give = [T.give - 70, T.give - 60, T.give, T.give + 40, T.give + 90], up = popUp(T.up);
 // The 手游's (MOBILE.t): the sofa popping up and shrinking away; her slow in-betweens sitting down, lying back and sitting up,
-// frames 2 and 3 and the pose after (slow, her change of pose at a); won her cheering, lost her freezing and the phone falling
-// on her face as the corner shakes.
-const M = MOBILE.t, MW = M.won, ML = M.lost, slow = (a, pair) => [a, a + SLOW[pair], a + 2 * SLOW[pair]];
+// frames 2 and 3 and the pose after (slow, her change of pose at a: 90 ms a frame, or slower, or [frame 2, frame 3]); won her
+// cheering, lost her freezing and the phone falling on her face as the corner shakes.
+const M = MOBILE.t, MW = M.won, ML = M.lost, slow = (a, pair) => { const [f2, f3 = f2] = [SLOW[pair] ?? 90].flat(); return [a, a + f2, a + f2 + f3]; };
 const lying = [...popUp(M.up), ...slow(M.sit, 'mPhone>mSit'), ...slow(M.lie, 'mSit>mPlay')];
 // The 火锅's (HOTPOT.t): the table popping up and shrinking away, her kneeling behind it and getting up (slow) and the bowl
 // coming; yum the sprite at her chopsticks, mouth open, and chewing; spicy the chili burning and the sprite starting, flying
@@ -47,6 +49,16 @@ const lying = [...popUp(M.up), ...slow(M.sit, 'mPhone>mSit'), ...slow(M.lie, 'mS
 // ms), frame 3 and hDrink.
 const HP = HOTPOT.t, HY = HP.yum, HS = HP.spicy, table = [...popUp(HP.up), ...slow(HP.kneel, 'idle>hPray'), HP.bowl - 100, HP.bowl];
 const [drink2, drink3] = SLOW['hSpicy>hDrink'];
+// A cos's, in each costume done and gone wrong (COS, with character 1's points.cos): each change of her pose (slow), into the
+// costume and back out of it too, each effect and 100 ms on, each move of the sprite and 200 ms on, and the lens or the cap she
+// drops landing and the sprite taking it.
+const cosMoments = (costume, mishap) => {
+  const c = COS[costume](POINTS.cos[costume]), end = DAILY.cosplay[0] + (mishap ? DAILY.cosplay[1] : 0), I = mishap && c.item;
+  const poses = [[0, 'idle'], ...c.steps, ...(mishap ? c.fall : c.calm), [end - 200, 'idle']];
+  const fx = [...c.fx, ...(mishap ? c.fallFx : c.calmFx)].map(f => f[1]), sprite = c.sprite[mishap ? 'fall' : 'calm'].map(([ms]) => ms);
+  return at(end, [...poses.slice(1).flatMap(([ms, pose], i) => slow(ms, `${poses[i][1]}>${pose}`)), ...fx.flatMap(ms => [ms, ms + 100]),
+    ...sprite.flatMap(ms => [ms, ms + 200]), ...(I ? [I.pop + 250, I.pop + 500, ...I.pick] : [])]);
+};
 const MOMENTS = {
   gacha: at(DAILY.gacha[0], [...give, ...up, T.open - 20, T.open, T.open + W.rise, T.open + W.down - 20, W.hug - 100, W.hug, ...gone(W.gone)]),
   'gacha-Mishap': at(DAILY.gacha[0] + DAILY.gacha[1], [...give, ...up, L.wail, L.wail + 130, L.wail + 260, ...gone(L.gone)]),
@@ -63,8 +75,11 @@ for (const row of shows) {
   for (const variant of row.tests) if (NAME[row.id] ?? STEP[variant]) cases.push({ id: row.id + (variant ? '-' + variant : ''),
     board: `dc.start(${JSON.stringify(NAME[row.id] ?? STEP[variant])}, ${JSON.stringify(row.id === 'blindBoxQuery' ? QUERY[variant] : variant ? { result: RESULT[variant] } : {})})`,
     page: `pet.start(${JSON.stringify(row.id)}, { nickname: '星河', result: ${JSON.stringify(variant)} })` });
-  if (KIND[row.id]) for (const mishap of [false, true]) { const id = row.id + (mishap ? '-Mishap' : ''); cases.push({ id, ms: MOMENTS[id],
-    board: `dc.start('日常', { kind: ${JSON.stringify(KIND[row.id])}, mishap: ${mishap} })`, page: `pet.start(${JSON.stringify(row.id)}, { mishap: ${mishap} })` }); }
+  if (KIND[row.id]) for (const costume of row.id === 'cosplay' ? Object.keys(COS) : [undefined]) for (const mishap of [false, true]) {
+    const id = [row.id, costume, mishap && 'Mishap'].filter(Boolean).join('-');
+    cases.push({ id, ms: costume ? cosMoments(costume, mishap) : MOMENTS[id],
+      board: `dc.start('日常', ${JSON.stringify({ kind: KIND[row.id], costume: COSTUME[costume], mishap })})`, page: `pet.start(${JSON.stringify(row.id)}, ${JSON.stringify({ mishap, costume })})` });
+  }
 }
 for (const [mood, minutes] of Object.entries(MOOD)) cases.push({ id: mood, ms: at(30000, [23100, 23600, 24300]),
   set: `x.lastGift = x.lastAny = x.now() - ${minutes} * 60000 - 1; ${mood === 'happy' ? 'x.recent = [x.now(), x.now(), x.now()];' : ''}` });
