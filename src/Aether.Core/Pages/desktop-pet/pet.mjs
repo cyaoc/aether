@@ -12,17 +12,21 @@ const SPRITE_SPEED = 0.8;
 // Her speech bubble, all of it, at 28 px text instead of 18, legible on a phone at 1080p (README 7).
 const BUBBLE_SCALE = 28 / 18, BUBBLE_FONT = `500 ${18 * BUBBLE_SCALE}px ${SANS}`;
 // The sprite keeps these drawings while it flies, since they carry something.
-const CARRY = new Set(['crown', 'glow', 'lift', 'lift2', 'lid', 'sCarry', 'sGive', 'sPlush', 'sBottle', 'sGiveBottle']);   // (sCarry, sGive, sPlush: the 扭蛋 daily's battery and plush; sBottle, sGiveBottle: the 火锅 daily's 豆奶; never dropped in flight)
+const CARRY = new Set(['crown', 'glow', 'lift', 'lift2', 'lid', 'sCarry', 'sGive', 'sPlush', 'sBottle', 'sGiveBottle', 'sLens', 'sCap', 'sBug']);
+// (sCarry, sGive, sPlush: the 扭蛋 daily's battery and plush; sBottle, sGiveBottle: the 火锅 daily's 豆奶; sLens, sCap, sBug: the cos
+// daily's lens, cap and caterpillar; never dropped in flight)
 // A prop kept while she got up from it (a show cut in on her at the table or on the sofa): once she is up she goes over to her
 // new place in UNPROP ms.
 const UNPROP = 250;
 // The sheets a show or 日常小动作 needs beyond those she always has: they load when it starts (the lottery's too as she waits
 // through one, the chest game's when the 捣蛋鬼 is to come), not with the page, which would decode all her pictures at once
-// (design package README 11).
+// (design package README 11); a cos only its costume's, cosplay/<costume>.
 const SEGMENTS = { hum: ['daily1'], gym: ['gym10'], hike: ['hike11'], bike: ['cycle12'], ski: ['ski9'], castle: ['castleSheet'],
   gacha: ['gacha19', 'gacha20', 'gacha22', 'sp4'], hotpot: ['daily23', 'hotpot24', 'hotpot25'], mobileGame: ['daily23', 'hotpot25', 'sofa26'], captain: ['voyage'], admiral: ['voyage'], governor: ['voyage'], lottery: ['lottery'], game: ['game13', 'game14', 'game15', 'game16', 'game17', 'sp3'],
   pkCondition: ['pkSign'], pkDouble: ['pkSign'], pkDoubleEnding: ['pkSign'], pkLastSeconds: ['pkSign'],
-  pkOpponent: ['lottery'], pkResult: ['lottery'], pkSwing: ['lottery'], pkChallenge: ['lottery'] };
+  pkOpponent: ['lottery'], pkResult: ['lottery'], pkSwing: ['lottery'], pkChallenge: ['lottery'],
+  'cosplay/ninja': ['ninja27', 'ninja28', 'sp6'], 'cosplay/fire': ['fire29', 'fire30', 'sp6'], 'cosplay/ice': ['ice31', 'ice32', 'sp6'], 'cosplay/miao': ['miao33', 'miao34', 'sp6'],
+  'cosplay/esports': ['esports35', 'esports36', 'sp6'], 'cosplay/warlord': ['warlord37', 'warlord38', 'sp6'], 'cosplay/fighter': ['fighter39', 'fighter40', 'sp6'] };
 const LATER = Object.values(SEGMENTS).flat();
 // The 捣蛋鬼's drawings and the chest's, the same for every character (prankster/prankster.json).
 const PRANKSTER = '/desktop-pet/prankster/';
@@ -332,9 +336,10 @@ export class Pet extends Engine {
     this.gameLoaded = true;
   }
 
+  // (after it has started: a cos loads the costume it picked)
   start(name, opts) {
-    for (const k of SEGMENTS[name] ?? []) this.loadSheet(k);
     super.start(name, opts);
+    if (this.cur?.name === name) for (const k of this.segments(name, this.cur.opts)) this.loadSheet(k);
   }
 
   update(now) {
@@ -541,17 +546,20 @@ export class Pet extends Engine {
     g.rotate(-s.a); g.translate(-x, -y); g.clip(); g.drawImage(c.im, c.x, c.y, c.w, c.h, b.x, b.y, b.w, b.h); g.restore();
   }
 
-  // Whether the sheets the show name loads as it first plays (SEGMENTS) are all there.
-  loaded(name) { return SEGMENTS[name].every(k => this.cells[k]); }
+  // The sheets the show name loads as it first plays (SEGMENTS), a cos its costume's; and whether they are all there.
+  segments(name, { costume } = {}) { return SEGMENTS[costume ? `${name}/${costume}` : name] ?? []; }
+  loaded(name, opts) { return this.segments(name, opts).every(k => this.cells[k]); }
 
   // Her sign's sheet loads as her first sign show starts (SEGMENTS): until it is there she stands as she was and no sign flies.
   signShow(name, t, st, opts, say) { if (this.loaded(name)) super.signShow(name, t, st, opts, say); }
 
-  // Her 扭蛋's sheets (her sprite's carrying the battery and the plush too), her 火锅's and her 手游's load as each first plays
-  // (SEGMENTS): until they are there she stands as she was and no cabinet, table or sofa comes.
+  // Her 扭蛋's sheets (her sprite's carrying the battery and the plush too), her 火锅's, her 手游's and a cos costume's (her
+  // sprite's carrying what she drops) load as each first plays (SEGMENTS): until they are there she stands as she was and no
+  // cabinet, table or sofa comes, nor the sprite to dress her.
   gacha(t, st, o, line) { return this.loaded('gacha') ? super.gacha(t, st, o, line) : st; }
   hotpot(t, st, o, line) { return this.loaded('hotpot') ? super.hotpot(t, st, o, line) : st; }
   mobile(t, st, o, line) { return this.loaded('mobileGame') ? super.mobile(t, st, o, line) : st; }
+  cosplay(t, st, o, line) { return this.loaded('cosplay', o) ? super.cosplay(t, st, o, line) : st; }
 
   // The sprite flies to where it is wanted instead of jumping there; its speed decides which way it faces.
   follow(target, dt, st) {

@@ -34,9 +34,11 @@ public sealed class DesktopPetBrowserTests
           for (let t = 0; t < ms; t += 1000 / 60) { pet.master.currentTime = start + t; clock += 1000 / 60; pet.frame(); each(t); }
         };
         """;
-    private static readonly string[] DailySheets = ["pose-3-daily-1", "pose-9-ski", "pose-10-gym", "pose-11-hike", "pose-12-cycle", "pose-19-gacha", "pose-20-gacha2", "pose-22-gacha3", "sprite-pose-4", "pose-23-daily", "pose-24-hotpot", "pose-25-hotpot2", "pose-26-sofa"];
+    private static readonly string[] DailySheets = ["pose-3-daily-1", "pose-9-ski", "pose-10-gym", "pose-11-hike", "pose-12-cycle", "pose-19-gacha", "pose-20-gacha2", "pose-22-gacha3", "sprite-pose-4", "pose-23-daily", "pose-24-hotpot", "pose-25-hotpot2", "pose-26-sofa",
+        "pose-27-cos-ninja", "pose-28-cos-ninja2", "pose-29-cos-fire", "pose-30-cos-fire2", "pose-31-cos-ice", "pose-32-cos-ice2", "pose-33-cos-miao", "pose-34-cos-miao2",
+        "pose-35-cos-esports", "pose-36-cos-esports2", "pose-37-cos-warlord", "pose-38-cos-warlord2", "pose-39-cos-fighter", "pose-40-cos-fighter2", "sprite-pose-6"];
     // Her in-betweens from standing into each 日常小动作's first pose: they come with that daily's sheets, not with the page.
-    private static readonly string[] DailyInBetweens = ["humIn", "gymIn", "hikeIn", "bikeIn", "skiIn", "gPointIn", "hHungryIn", "hKneel", "mPhoneIn"];
+    private static readonly string[] DailyInBetweens = ["humIn", "gymIn", "hikeIn", "bikeIn", "skiIn", "gPointIn", "hHungryIn", "hKneel", "mPhoneIn", "njIn", "fnIn", "icIn", "miIn", "esIn", "wlIn", "ftIn"];
 
     [Fact]
     public async Task The_page_is_transparent_while_the_desktop_pet_is_off_and_scales_with_the_browser_source_at_three_to_four()
@@ -285,13 +287,32 @@ public sealed class DesktopPetBrowserTests
         await page.H.Client.WebService.TestShowAsync("gym", null, "星河");
 
         await page.Browser.WaitAsync("window.pet.cur?.name === 'gym'");
+        await AssertLoadsAsync(page, "frames/gymIn", ["pose-10-gym"], ["pose-9-ski", "frames/skiIn"]);
+    }
+
+    [Fact]
+    public async Task A_cos_loads_the_pictures_of_the_costume_it_plays_and_no_other_costumes()
+    {
+        await using var page = await StartAsync();
+        await page.OpenAsync(480, 640);
+
+        await page.Browser.EvaluateAsync("pet.start('cosplay', { costume: 'fighter' }), true");
+
+        await AssertLoadsAsync(page, "frames/ftIn", ["pose-39-cos-fighter", "pose-40-cos-fighter2", "sprite-pose-6"], ["pose-27-cos-ninja", "pose-28-cos-ninja2", "frames/njIn"]);
+    }
+
+    /// <summary>Waits for the page to ask for <paramref name="last"/> as the show just started loads its pictures, then checks
+    /// it asked for <paramref name="loaded"/> too and for none of <paramref name="others"/>, without errors.</summary>
+    private static async Task AssertLoadsAsync(PageSession page, string last, string[] loaded, string[] others)
+    {
+        bool Asked(string file) => page.Browser.Requests.Any(url => url.EndsWith("/" + file + ".webp", StringComparison.Ordinal));
         await Eventually.TrueAsync(async () =>
         {
             await page.Browser.EvaluateAsync("true");
-            return page.Browser.Requests.Any(url => url.EndsWith("/frames/gymIn.webp", StringComparison.Ordinal));
+            return Asked(last);
         });
-        Assert.Contains(page.Browser.Requests, url => url.EndsWith("/pose-10-gym.webp", StringComparison.Ordinal));
-        Assert.DoesNotContain(page.Browser.Requests, url => url.EndsWith("/pose-9-ski.webp", StringComparison.Ordinal) || url.EndsWith("/frames/skiIn.webp", StringComparison.Ordinal));
+        Assert.All(loaded, file => Assert.True(Asked(file), file));
+        Assert.All(others, file => Assert.False(Asked(file), file));
         Assert.Empty(page.Browser.Errors);
     }
 
