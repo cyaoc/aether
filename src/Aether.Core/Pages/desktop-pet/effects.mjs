@@ -230,6 +230,38 @@ export function drawFx(g, f, st, her, now, pet) {
         g.globalAlpha = 0.85 * Math.sin(Math.PI * v); g.beginPath(); g.arc(x, y, 3 + 4 * v, 0, Math.PI * 2); g.fill(); }
       g.restore(); break;
     }
+    // a shot from the muzzle (f[2]): a flash there, and a pink energy bolt streaking off the page's left edge
+    case 'bolt': {
+      const x = f[2].x - t * 1.4, tail = Math.min(46, f[2].x - x); if (x < -60) break;   // its trail never reaches back past the muzzle
+      if (t < 160) { g.save(); g.globalAlpha = 1 - t / 160; g.fillStyle = '#FFB3D6'; g.beginPath(); g.arc(f[2].x, f[2].y, 10 + t * 0.05, 0, Math.PI * 2); g.fill(); g.restore(); star(f[2].x, f[2].y, 14 * (1 - t / 160), '#fff', 1); }
+      if (tail > 2) { const gr = g.createLinearGradient(x, 0, x + tail, 0); gr.addColorStop(0, '#FF5FA2'); gr.addColorStop(1, 'rgba(255,95,162,0)');
+        g.save(); g.fillStyle = gr; g.beginPath(); g.ellipse(x + tail / 2, f[2].y, tail / 2, 5, 0, 0, Math.PI * 2); g.fill(); g.fillStyle = '#fff'; g.beginPath(); g.ellipse(x + 4, f[2].y, 6, 3, 0, 0, Math.PI * 2); g.fill(); g.restore(); }
+      break;
+    }
+    // the gun spun on her fingertip (f[2]) until f[4][0], flown up off the page until f[4][1], falling onto her head (f[3])
+    // until f[4][2]
+    case 'gunTrick': {
+      const [s1, s2, s3] = f[4].map(v => v - from); if (t > s3) break;
+      const im = pet.props.gun, s = H / pet.art.anchor; let x, y, rot;
+      if (t < s1) { x = f[2].x; y = f[2].y; rot = t / 45; }
+      else if (t < s2) { const u = (t - s1) / (s2 - s1); x = f[2].x + 30 * u; y = f[2].y - (f[2].y + 80) * ease(u); rot = t / 30; }
+      else { const u = (t - s2) / (s3 - s2); x = f[3].x; y = -80 + (f[3].y + 80) * u * u; rot = t / 40; }
+      g.save(); g.translate(x, y); g.rotate(rot); g.drawImage(im, -im.width * s * 0.3, -im.height * s * 0.5, im.width * s, im.height * s); g.restore();
+      break;
+    }
+    // a green light arrow forming in the empty groove (f[2]: its rear, f[3]: its front) and, from f[4], shot off the left edge
+    case 'arrow': {
+      const R = f[4] - from, len = Math.hypot(f[3].x - f[2].x, f[3].y - f[2].y), ux = (f[3].x - f[2].x) / len, uy = (f[3].y - f[2].y) / len;
+      let tail, head;
+      if (t < R) { const u = ease(k01(t, 0, 500)); tail = f[2]; head = { x: f[2].x + ux * len * u, y: f[2].y + uy * len * u }; }
+      else { const d = (t - R) * 2.4; head = { x: f[3].x + ux * d, y: f[3].y + uy * d }; tail = { x: head.x - ux * len, y: head.y - uy * len }; if (Math.max(head.x, tail.x) < -60) break; }
+      g.save(); g.lineCap = 'round';
+      g.globalAlpha = 0.45; g.strokeStyle = '#B6FF9E'; g.lineWidth = 12; g.beginPath(); g.moveTo(tail.x, tail.y); g.lineTo(head.x, head.y); g.stroke();
+      g.globalAlpha = 1; g.strokeStyle = '#E9FFE0'; g.lineWidth = 4; g.beginPath(); g.moveTo(tail.x, tail.y); g.lineTo(head.x, head.y); g.stroke();
+      g.fillStyle = '#7CFF6A'; g.beginPath(); g.moveTo(head.x + ux * 12, head.y + uy * 12); g.lineTo(head.x - uy * 7, head.y + ux * 7); g.lineTo(head.x + uy * 7, head.y - ux * 7); g.closePath(); g.fill();
+      if (t >= R) { g.globalAlpha = 0.5 * (1 - k01(t, R, R + 500)); g.strokeStyle = '#B6FF9E'; g.lineWidth = 3; g.beginPath(); g.moveTo(tail.x, tail.y); g.lineTo(f[3].x, f[3].y); g.stroke(); }
+      g.restore(); break;
+    }
     case 'dust': {
       if (t > 600) break;
       const p = f[4] || (f[2] ? at(...f[2]) : { x: st.x, y: st.y }), n = f[3] || 4;
