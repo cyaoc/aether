@@ -109,7 +109,12 @@ its mishap: `GACHA`, `gacha`, the cabinet `drawGacha`; the board's `GACHA` parts
 the 火锅's is the chili burning her, the beef picked from the red pot: `HOTPOT`, `hotpot`, `atTable`, the pot's steam `potSteam` and
 the chili's `flame`; the board's `HOTPOT` points measured on her pictures, the pot's rim `pot` and where the 豆奶 is handed over
 `give`, and the meatball on her chopsticks its `hotpot` has inline, `tip`, are her `points.hotpot`, how far back she kneels, `back`, and its timeline `t` stay in `HOTPOT`; the 手游's is losing, the phone
-falling on her face: `MOBILE`, `mobile`, the sofa standing from her `propSpot.sofa`), entries, gifts, blind boxes,
+falling on her face: `MOBILE`, `mobile`, the sofa standing from her `propSpot.sofa`; a cos's is its costume's own: `COS`,
+`cosplay` (the board's `cos`), in a costume picked as it starts (`o.costume`), the palm strike's rings `aura`, what she drops,
+`item`, popping out and picked up by her sprite (`itemSpot`), and its blowing `blowAir` (`blowSpot`); the board's `COS`
+numbers measured on her drawings and her sprite's, where its effects burst and its blows land, where her sprite takes her
+hand and where what she drops pops from, lands and is handed back, are her `points.cos.<costume>`, its timelines, effects
+and her sprite's ways stay in `COS`), entries, gifts, blind boxes,
 castles, 大航海, a new first place on the 礼物榜 (found by the 礼物榜页's `../gift-board/changes.mjs`), each step of a lottery,
 a 盲盒查询's 账单卡 and, in a PK, the 对手情报卡 her sprite prints (`pkMatch`, `intelShow`, the card `pk-intel.mjs`, the design
 package's `lib/pk-intel.js`), her 举牌 (`pkCondition`, `pkDouble`, `pkCountdown`: the double bonus's condition, the double on, a
@@ -136,12 +141,12 @@ cabinet does (`popped`, `drawPopped`).
 
 The page is 480 × 640 design px, scaled with the browser source and standing on its bottom edge, and draws her pictures at
 their own resolution. It loads her pictures and props at once but for the sheets of the 日常小动作 (the 扭蛋's with her sprite's
-carrying the battery and the plush), the castle, 大航海, the lottery and her PK sign, each with its strips and the in-betweens
+carrying the battery and the plush, and a cos only its costume's two and her sprite's sheet 6), the castle, 大航海, the lottery and her PK sign, each with its strips and the in-betweens
 into it from a pose she always has (`tweenSheet`) when it first plays (the lottery's too when she first waits through one,
 and with a PK's other shows, which have poses of it), and the 宝箱小游戏's, hers and the 捣蛋鬼's, when it is first to come: all of them decoded take about 584 MB, the 扭蛋's 110 MB more, the 火锅's and
-the 手游's 147 MB and the game's more. Her sprite's sheet of the 火锅 (`sp5`) loads with the page all the same: its chewing is
+the 手游's 147 MB, a cos costume's about 12 MB and its in-betweens (all seven 84 MB) and the game's more. Her sprite's sheet of the 火锅 (`sp5`) loads with the page all the same: its chewing is
 one of the sprite's moving drawings, which are measured on their cells as the page loads. A pose whose sheet is still loading keeps her in the drawing she has, her sign waits for its sheet to fly, and through a
-扭蛋, a 火锅 or a 手游 she stands as she was until its sheets are there. A load that fails, as when the web service restarts, is tried again when
+扭蛋, a 火锅, a 手游 or a cos she stands as she was until its sheets are there. A load that fails, as when the web service restarts, is tried again when
 next asked for, at the soonest a second later: the game's while it is still to come, a sheet's when its show next plays.
 
 ## The 宝箱小游戏
@@ -171,7 +176,7 @@ The page's checks against the board, for whoever changes it or her pictures. The
 the page beside the board, as the web service serves it, telling it it is on in a connected room with the default settings:
 `node docs/design/desktop-pet/tools/server.mjs 8820`.
 
-- `DesktopPetCharacters.test.mjs` (`node --test`) finds every change of pose in her shows with no way across, and on the
+- `DesktopPetCharacters.test.mjs` (`node --test`) finds every change of pose in her shows (a cos in each costume) with no way across, and on the
   宝箱小游戏's routes every change of hers with none and of the 捣蛋鬼's with neither in-betweens nor a cut written down, and
   any picture `prankster.json` names that is not there. `DesktopPetGame.test.mjs` checks when the 捣蛋鬼 comes and goes, the
   tug bar's rules (the sides, 秒杀, time-up and 绝杀, what danmaku do), what scares it off and what goes into her chest.
@@ -180,10 +185,10 @@ the page beside the board, as the web service serves it, telling it it is on in 
   seed, frame by frame on one clock, on Chrome's CPU canvas, and compares their pixels. `DesktopPetBrowserTests` runs it, about a minute, when
   `AETHER_TEST_CHROME` is set.
 - `node docs/design/desktop-pet/tools/motion-scan.mjs 8820 --page` finds the sprite moving more than 20 px in a frame. It plays
-  every show in real time, about eleven minutes, too long for a test: run it after changing the sprite's flight, its circling, a toss or
+  every show (a cos in each costume) in real time, about eleven minutes, too long for a test: run it after changing the sprite's flight, its circling, a toss or
   the pace of a round.
 - `node docs/design/desktop-pet/tools/play.mjs <show[:variant]> <ms,…> <out.png> --page [--line]` grabs the page at moments
-  of a 试演 playing in real time.
+  of a show playing in real time as its 试演 does, a cos in the costume after a slash (`cosplay/fighter:Mishap`).
 
 ## Deliberate differences from the board
 
@@ -227,6 +232,8 @@ the page beside the board, as the web service serves it, telling it it is on in 
   the next started ends nothing, and a 试演 whose pages all went away (the streaming software reloaded it) is over too.
 - Shows, 心情, 日常小动作, endings, lottery steps and kinds of lines go by their ids in the 演出表 rather than the board's Chinese
   names, and her lines are picked with `Math.random`, not the board's fixed seed.
+- A cos picks its costume as it starts, a 试演's too, by the same draw as the board's after which daily and whether it goes
+  wrong; the board has a button for each costume, and played without one it took the first.
 - The 宝箱小游戏 comes on its own every `pranksterMinutes`, counted from the room connecting, never at 0, and at most twice an
   hour, or when the streamer 叫它来; the board's game was on or off and came every 30 minutes. It sets off once its pictures
   are there and only in a connected room: one due when the room disconnects does not come, and one here runs off as at a PK,
