@@ -2,7 +2,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
-import { DAILY, Engine, GLOW, PK_SIGN, seeded } from '../../src/Aether.Core/Pages/desktop-pet/engine.mjs';
+import { COS, DAILY, Engine, FOOT, GLOW, PK_SIGN, SPRITE_H, TWEEN, seeded } from '../../src/Aether.Core/Pages/desktop-pet/engine.mjs';
 import { PK_INTEL } from '../../src/Aether.Core/Pages/desktop-pet/pk-intel.mjs';
 import { SETTINGS } from './Support/DesktopPetSettings.mjs';
 import { MEASURE, box, gamePet, gifts, item, play, playing, round, state } from './Support/DesktopPetGame.mjs';
@@ -431,17 +431,18 @@ test('a 日常小动作 going wrong says a line of its kind at random, never the
   assert.deepEqual(said, [['乙'], ['丙']]);
 });
 
-// A 日常小动作 started on her page, gone wrong (mishap) or not, and what she is doing ms into it on the page's clock.
-function daily(show, mishap) {
+// A 日常小动作 started on her page with opts, gone wrong (mishap) or not, a cos in its costume, and what she is doing ms into it
+// on the page's clock.
+function daily(show, opts) {
   const engine = gamePet(character);
-  engine.start(show, { mishap });
+  engine.start(show, opts);
   const { start } = engine.cur;
   return [engine, ms => { engine.master.currentTime = start + ms; return engine.stateAt(engine.now()); }];
 }
 
 // Her poses from those ms into a 日常小动作 on her page, and that it plays until end ms.
-function assertPlays(show, mishap, poses, end) {
-  const [engine, at] = daily(show, mishap);
+function assertPlays(show, opts, poses, end) {
+  const [engine, at] = daily(show, opts);
   assert.deepEqual(Object.keys(poses).map(ms => at(+ms).pose), Object.values(poses));
   at(end - 1);
   assert.equal(playing(engine), show);
@@ -450,35 +451,151 @@ function assertPlays(show, mishap, poses, end) {
 }
 
 test('a 扭蛋 takes her to the cabinet and back: won she hugs the plush, 14.8 s; empty she wails and wipes her tears, 15.2 s', () => {
-  assertPlays('gacha', false, { 0: 'gPointHome', 4300: 'gPress', 5000: 'gTurn', 7400: 'gTake', 9000: 'gShake', 10000: 'gTwist', 11400: 'gHug', 14000: 'idle' }, 14800);
-  assertPlays('gacha', true, { 10500: 'gEmpty', 11400: 'gWail', 13500: 'gWipe', 14700: 'idle' }, 15200);
+  assertPlays('gacha', { mishap: false }, { 0: 'gPointHome', 4300: 'gPress', 5000: 'gTurn', 7400: 'gTake', 9000: 'gShake', 10000: 'gTwist', 11400: 'gHug', 14000: 'idle' }, 14800);
+  assertPlays('gacha', { mishap: true }, { 10500: 'gEmpty', 11400: 'gWail', 13500: 'gWipe', 14700: 'idle' }, 15200);
 });
 
 test('a 火锅 has her kneel at the table her sprite brings: yum she eats and feeds it, 11.8 s; spicy it fetches her 豆奶, 12.8 s', () => {
-  assertPlays('hotpot', false, { 0: 'hHungry', 2300: 'hPray', 3100: 'hSit', 3700: 'hPickClear', 4700: 'hBlow', 5500: 'hYum', 7300: 'hFeed', 9300: 'hPray', 10500: 'idle' }, 11800);
-  assertPlays('hotpot', true, { 3700: 'hPickRed', 6000: 'hSpicy', 8300: 'hDrink', 10300: 'hPray', 11500: 'idle' }, 12800);
+  assertPlays('hotpot', { mishap: false }, { 0: 'hHungry', 2300: 'hPray', 3100: 'hSit', 3700: 'hPickClear', 4700: 'hBlow', 5500: 'hYum', 7300: 'hFeed', 9300: 'hPray', 10500: 'idle' }, 11800);
+  assertPlays('hotpot', { mishap: true }, { 3700: 'hPickRed', 6000: 'hSpicy', 8300: 'hDrink', 10300: 'hPray', 11500: 'idle' }, 12800);
 });
 
 test('a 手游 on the sofa: won she cheers kicking her legs, 10.6 s; lost the phone falls on her face and she holds her nose, 11.6 s', () => {
   const lying = { 0: 'mPhone', 1699: 'mPhone', 1700: 'mSit', 2500: 'mPlay', 6599: 'mPlay' };
-  assertPlays('mobileGame', false, { ...lying, 6600: 'mWin', 8800: 'mSit', 9400: 'mPhone' }, 10600);
-  assertPlays('mobileGame', true, { ...lying, 6600: 'mStunned', 7400: 'mSmack', 8100: 'mOuch', 9800: 'mSit', 10400: 'mPhone' }, 11600);
+  assertPlays('mobileGame', { mishap: false }, { ...lying, 6600: 'mWin', 8800: 'mSit', 9400: 'mPhone' }, 10600);
+  assertPlays('mobileGame', { mishap: true }, { ...lying, 6600: 'mStunned', 7400: 'mSmack', 8100: 'mOuch', 9800: 'mSit', 10400: 'mPhone' }, 11600);
+});
+
+// Each costume of a cos, done and gone wrong: dressed by 0.7 s, dressed back over the last 0.9 s, 7.4 s and 9.6 s.
+for (const [costume, label, calm, wrong] of [
+  ['fighter', '格斗少女 bumps her gloves, takes her guard, throws a straight, an uppercut and a side kick and wipes her nose; cramped she does the splits, rubs her thigh and stands up',
+    { 699: 'idle', 700: 'ftReady', 1100: 'ftBump', 2200: 'ftGuard', 3400: 'ftPunch', 3800: 'ftUpper', 4200: 'ftKick', 4900: 'ftWipe', 7199: 'ftWipe', 7200: 'idle' },
+    { 4200: 'ftKick', 4500: 'ftSplit', 6400: 'ftRub', 8300: 'ftReady', 9399: 'ftReady', 9400: 'idle' }],
+  ['ninja', '白眼格斗忍者 pokes her fingertips together, drops into her stance, thrusts her palm and settles; her lens popped out she crouches for it, puts it back and thanks her sprite',
+    { 699: 'idle', 700: 'njReady', 1100: 'njShy', 2400: 'njStance', 3500: 'njPalm', 4300: 'njSettle', 7199: 'njSettle', 7200: 'idle' },
+    { 3500: 'njPalm', 4100: 'njLensOut', 4800: 'njSearch', 6300: 'njLensIn', 7300: 'njThanks', 9399: 'njThanks', 9400: 'idle' }],
+  ['fire', '火焰扇子女忍者 flicks her fan open, draws it back by her ear, throws it and catches it; still burning it sets her ponytail alight and she holds the singed tip',
+    { 699: 'idle', 700: 'fnReady', 1100: 'fnPose', 2300: 'fnWindup', 2900: 'fnThrow', 4120: 'fnCatch', 7199: 'fnCatch', 7200: 'idle' },
+    { 2900: 'fnThrow', 4120: 'fnCatch', 4700: 'fnBurn', 5950: 'fnSinged', 9399: 'fnSinged', 9400: 'idle' }],
+  ['ice', '冰系女将军 puts her fists on her hips, raises her hand, snaps her fingers and folds her arms; she sneezes, shivers and rubs her nose',
+    { 699: 'idle', 700: 'icReady', 1100: 'icProud', 2300: 'icSnapReady', 3000: 'icSnap', 3900: 'icArms', 7199: 'icArms', 7200: 'idle' },
+    { 3000: 'icSnap', 3900: 'icSneeze', 4600: 'icShiver', 6400: 'icRubNose', 9399: 'icRubNose', 9400: 'idle' }],
+  ['miao', '苗疆蛊毒少女 holds up her orchid fingers, takes her pot, lifts its lid and raises her fingertip; a caterpillar on her hand she cowers and is relieved',
+    { 699: 'idle', 700: 'miReady', 1100: 'miPose', 2300: 'miHold', 3000: 'miOpen', 4300: 'miFinger', 7199: 'miFinger', 7200: 'idle' },
+    { 3000: 'miOpen', 3600: 'miBug', 4500: 'miCower', 6300: 'miRelief', 9399: 'miRelief', 9400: 'idle' }],
+  ['esports', '电竞少女 makes a V, aims, fires three shots, the gun kicking up each time, and blows on its muzzle; showing off she spins it, it flies up and comes down on her head and she picks it up',
+    { 699: 'idle', 700: 'esReady', 1100: 'esV', 2300: 'esAim', 2800: 'esRecoil', 3100: 'esAim', 3400: 'esRecoil', 3700: 'esAim', 4000: 'esRecoil', 4600: 'esBlow', 7199: 'esBlow', 7200: 'idle' },
+    { 4000: 'esRecoil', 4600: 'esTwirl', 5700: 'esLookUp', 6300: 'esOuch', 7600: 'esReady', 9399: 'esReady', 9400: 'idle' }],
+  ['warlord', '绿袍女武将 stands her crossbow up, stands on its bow pulling the string, aims, shoots and shoulders it; stung by the string she drops it, picks it up and stands it up again',
+    { 699: 'idle', 700: 'wlReady', 1100: 'wlPose', 2200: 'wlCrouch', 2800: 'wlPull', 3500: 'wlAim', 4400: 'wlShot', 5100: 'wlShoulder', 7199: 'wlShoulder', 7200: 'idle' },
+    { 2800: 'wlPull', 3300: 'wlSting', 5600: 'wlReady', 6000: 'wlPose', 8000: 'wlReady', 9399: 'wlReady', 9400: 'idle' }]
+]) test(`a cos as ${label}, 7.4 s and 9.6 s`, () => {
+  assertPlays('cosplay', { mishap: false, costume }, calm, 7400);
+  assertPlays('cosplay', { mishap: true, costume }, wrong, 9600);
+});
+
+// What else a cos in its costume, done or gone wrong, has at those ms: an effect of that kind setting off (fx) or turning (turn,
+// its f[4]: the ice pillars shattering, a butterfly settling on her fingertip, the light arrow shooting off), the corner
+// starting to shake (shake), her sprite's drawing (sprite) making for a spot off the page's left (offLeft) and the kind of
+// line she says (line; null: no bubble).
+for (const [costume, mishap, label, moments] of [
+  ['fire', false, '火焰扇子女忍者\'s fan leaves her hand at 3.08 s and sparks back in it at 4.3 s', { 3080: { fx: 'fanFly' }, 4300: { fx: 'spark' } }],
+  ['fire', true, '火焰扇子女忍者\'s fan still burns in her hand and her ponytail catches; her sprite blows it out, it smokes and she says it is singed',
+    { 4300: { fx: 'fireAt' }, 4700: { fx: 'shock', line: 'cosFireBurn' }, 4880: { fx: 'fireAt' }, 4950: { sprite: 'sBlow' }, 5250: { fx: 'blowAir' }, 5950: { fx: 'smoke' }, 6300: { line: 'cosFireSinged' } }],
+  ['ice', false, '冰系女将军\'s snap sparks at 3.18 s and her ice pillars rise from 3.2 s', { 3180: { fx: 'spark' }, 3200: { fx: 'pillars' } }],
+  ['ice', true, '冰系女将军\'s sneeze blows her cap off and shatters her pillars at 4.08 s; her sprite has it at 5.1 s, no bubble while it brings it, and she says it is back',
+    { 3900: { fx: 'shock', line: 'cosIceSneeze' }, 4080: { fx: 'item', turn: 'pillars' }, 5100: { sprite: 'sCap' }, 5300: { line: null }, 6649: { line: null }, 6650: { line: 'cosIceCap' } }],
+  ['miao', false, '苗疆蛊毒少女\'s crown glints three times and butterflies come out of her pot at 3.18 s, one settling on her fingertip at 4.48 s',
+    { 1300: { fx: 'glint' }, 1500: { fx: 'glint' }, 1700: { fx: 'glint' }, 3180: { fx: 'butterflies' }, 4480: { turn: 'butterflies' } }],
+  ['miao', true, '苗疆蛊毒少女 finds a caterpillar, flings it off as she cowers, her sprite takes it at 5.7 s and from 5.95 s carries it off the page\'s left, and she is relieved',
+    { 3600: { line: 'cosMiaoBug' }, 3780: { fx: 'shock' }, 4500: { fx: 'item' }, 5700: { sprite: 'sBug' }, 5950: { sprite: 'sBug', offLeft: true }, 6300: { line: 'cosMiaoRelief' } }],
+  ['esports', false, '电竞少女 fires at 2.8, 3.4 and 4 s, the corner shaking with each shot', { 2800: { fx: 'bolt', shake: true }, 3400: { fx: 'bolt', shake: true }, 4000: { fx: 'bolt', shake: true } }],
+  ['esports', true, '电竞少女 spins her gun, it flies up and comes down on her head at 6.3 s, the corner shaking, and her sprite pats it',
+    { 4600: { line: 'cosEsportsTwirl' }, 4780: { fx: 'gunTrick' }, 5700: { fx: 'shock', sprite: 'surprised' }, 6300: { fx: 'impact', shake: true, line: 'cosEsportsBonk' }, 6500: { fx: 'dizzy', sprite: 'pat' }, 6600: { fx: 'tears' } }],
+  ['warlord', false, '绿袍女武将\'s light arrow forms from 3.68 s and shoots off at 4.58 s in a flash, the corner shaking', { 3680: { fx: 'arrow' }, 4580: { fx: 'flash', turn: 'arrow', shake: true } }],
+  ['warlord', true, '绿袍女武将\'s string stings her hand, her sprite flies round to blow on it and she says she will hit it next time',
+    { 3300: { line: 'cosWarlordSting', sprite: 'surprised' }, 3480: { fx: 'impact' }, 3600: { fx: 'tears' }, 3700: { sprite: 'sBlow' }, 4100: { fx: 'blowAir' }, 6000: { line: 'cosWarlordAgain' } }]
+]) test(`a cos as ${label}`, () => {
+  const [, at] = daily('cosplay', { mishap, costume });
+  for (const [ms, { fx, turn, shake, sprite, offLeft, line }] of Object.entries(moments)) {
+    const st = at(+ms);
+    if (fx) assert.ok(st.fx.some(([kind, from]) => kind === fx && from === +ms), `${fx} at ${ms}`);
+    if (turn) assert.ok(st.fx.some(f => f[0] === turn && f[4] === +ms), `${turn} turning at ${ms}`);
+    if (shake) assert.ok(st.shake.some(([from]) => from === +ms), `shake at ${ms}`);
+    if (sprite) assert.equal(st.sprite, sprite, ms);
+    // (its whole drawing past the edge)
+    if (offLeft) assert.ok(st.sp[0] === 'at' && st.sp[1] < -SPRITE_H, `off the page's left at ${ms}`);
+    if (line !== undefined) assert.ok(line ? lines[line].includes(st.bubble?.text) : !st.bubble, `${line} at ${ms}`);
+  }
+});
+
+test('绿袍女武将\'s light arrow lies level along her crossbow as she aims', () => {
+  const [, at] = daily('cosplay', { mishap: false, costume: 'warlord' }), [, , rear, front] = at(3680).fx.find(f => f[0] === 'arrow');
+  assert.ok(rear.x > front.x, 'it points to the page\'s left');
+  assert.equal(rear.y, front.y);
+});
+
+// The drawing of hers a cos in its costume, done, has shown up to ms: the pose she went into last before it, once her
+// in-between into it has played out (TWEEN a frame, or her slow's), else null.
+function drawnIn(engine, costume, ms) {
+  const c = COS[costume](character.desktopPet.points.cos[costume]), poses = [[0, 'idle'], ...c.steps, ...c.calm], i = poses.findLastIndex(([from]) => from < ms);
+  const [[into, pose], [, before]] = [poses[i], poses[i - 1]];
+  return into + engine.route(before, pose).length * (engine.art.slow[`${before}>${pose}`] || TWEEN) <= ms ? pose : null;
+}
+
+test('火焰扇子女忍者\'s fan leaves her throwing hand and comes back into her catching hand, and 电竞少女\'s first shot leaves the muzzle, each as she is drawn then', () => {
+  const { fire, esports } = character.desktopPet.points.cos;
+  const [engine, at] = daily('cosplay', { mishap: false, costume: 'fire' }), thrown = at(3080), [, , from, to, D] = thrown.fx.find(f => f[0] === 'fanFly');
+  assert.deepEqual([drawnIn(engine, 'fire', 3080), drawnIn(engine, 'fire', 3080 + D)], [fire.throwHand.pose, fire.catchHand.pose]);
+  assert.deepEqual([from, to], [engine.onPose(thrown, fire.throwHand.pose, fire.throwHand.at), engine.onPose(thrown, fire.catchHand.pose, fire.catchHand.at)]);
+  const [gunner, aim] = daily('cosplay', { mishap: false, costume: 'esports' }), shot = aim(2800), [, , muzzle] = shot.fx.find(f => f[0] === 'bolt' && f[1] === 2800);
+  assert.equal(drawnIn(gunner, 'esports', 2800), esports.muzzle.pose);
+  assert.deepEqual(muzzle, gunner.onPose(shot, esports.muzzle.pose, esports.muzzle.at));
+});
+
+test('格斗少女 bounces on her toes in her guard, from 2.4 s until her straight', () => {
+  const [, at] = daily('cosplay', { mishap: false, costume: 'fighter' });
+  assert.deepEqual([2399, 2530, 3400].map(ms => Math.round(at(ms).y)), [FOOT.y, FOOT.y - 5, FOOT.y]);
+});
+
+test('a cos dresses her as one of the costumes of COS at random, or the one it is given, and she strikes its pose saying its line', () => {
+  const KIND = { ninja: 'cosNinja', fire: 'cosFire', ice: 'cosIce', miao: 'cosMiao', esports: 'cosEsports', warlord: 'cosWarlord', fighter: 'cosFighter' }, engine = pet(), seen = new Set();
+  for (let n = 0; n < 40; n++) {
+    engine.start('cosplay', {});
+    const { costume } = engine.cur.opts;
+    seen.add(costume);
+    assert.ok(lines[KIND[costume]].includes(engine.cur.line), costume);
+  }
+  assert.deepEqual([...seen].sort(), Object.keys(COS).sort());
+  for (const costume of Object.keys(COS)) { engine.start('cosplay', { costume }); assert.equal(engine.cur.opts.costume, costume); }
+});
+
+test('her first 日常小动作 on her own is the board\'s from the same seed: which one, whether it goes wrong and a cos\'s costume', () => {
+  // the board's first from each seed (its update draws the daily, whether it goes wrong, then the costume), worked out on
+  // DP-DesktopPet.dc.html with its DAILY and COS: a cos in each of the seven costumes, and a 扭蛋 gone wrong
+  const BOARD = { 1: ['gacha', true], 4: ['cosplay', false, 'fire'], 43: ['cosplay', false, 'miao'], 89: ['cosplay', true, 'fighter'],
+    104: ['cosplay', false, 'warlord'], 107: ['cosplay', false, 'esports'], 111: ['cosplay', false, 'ninja'], 116: ['cosplay', false, 'ice'] };
+  for (const [seed, picked] of Object.entries(BOARD)) {
+    const engine = pet({}, seeded(+seed));
+    advance(engine, 6000);
+    assert.deepEqual([playing(engine), engine.cur.opts.mishap, engine.cur.opts.costume].filter(v => v !== undefined), picked, seed);
+  }
 });
 
 test('her sprite hands her the battery and lets go of its drawing holding one 60 ms before hers has it, never two at once', () => {
-  const [, at] = daily('gacha', false);
+  const [, at] = daily('gacha', { mishap: false });
   assert.deepEqual([1800, 2239, 2240].map(ms => at(ms).sprite), ['sCarry', 'sGive', 'sHappy']);
 });
 
 test('a gift cutting her 扭蛋 short as she turns the knob takes the cabinet, the battery and the capsule with it', () => {
-  const [engine, at] = daily('gacha', false), turning = at(6000);
+  const [engine, at] = daily('gacha', { mishap: false }), turning = at(6000);
   assert.ok(turning.gacha.knob && turning.gacha.bay);
   engine.gift(gifts(1, 100));
   const st = engine.stateAt(engine.now());
   assert.deepEqual([playing(engine), st.gacha, st.halves, st.pop], ['gift', undefined, undefined, undefined]);
 });
 
-for (const [kind, label, wrongly] of [['gacha', '扭蛋', 'empty'], ['hotpot', '火锅', 'spicy'], ['mobileGame', '手游', 'lost']]) test(`a ${label} comes as one of the 日常小动作 left on, ${wrongly} as often as one goes wrong, and never once turned off`, () => {
+for (const [kind, label, wrongly] of [['gacha', '扭蛋', 'empty'], ['hotpot', '火锅', 'spicy'], ['mobileGame', '手游', 'lost'], ['cosplay', 'cos', 'its costume\'s mishap']]) test(`a ${label} comes as one of the 日常小动作 left on, ${wrongly} as often as one goes wrong, and never once turned off`, () => {
   const others = Object.keys(DAILY).filter(other => other !== kind);
   for (const [mishapPercent, wrong] of [[100, true], [0, false]]) {
     const engine = pet({ off: others, mishapPercent });

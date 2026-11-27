@@ -2,10 +2,10 @@
 // once from calm and once from happy (where the sprite circles her), and tracks the sprite frame by frame: any frame it
 // moves more than 20 px (at 60 fps) is printed. A sprite that dashes that fast reads as a jump: its circle used to take
 // its angle from a clock, so a show handing over to the happy idle sent it across her at 29 px a frame, and stills never
-// showed it. With --page it plays Aether's 桌宠页 instead, every row of its 演出表 with each 试演 variant. Speeds are taken on
-// the clock the sprite's speed cap uses: the time each frame was drawn at, which follow() takes its step from (a
-// performance.now read after the frame came a few ms late now and then made a 13 px step look like 22). server.mjs must be
-// running on the port (8820); it plays in real time, about ten minutes for the whole board.
+// showed it. With --page it plays Aether's 桌宠页 instead, every row of its 演出表 with each 试演 variant (a cos in each costume
+// of the page's COS). Speeds are taken on the clock the sprite's speed cap uses: the time each frame was drawn at, which
+// follow() takes its step from (a performance.now read after the frame came a few ms late now and then made a 13 px step
+// look like 22). server.mjs must be running on the port (8820); it plays in real time, about ten minutes for the whole board.
 import { execFileSync } from 'node:child_process';
 import fs from 'node:fs';
 
@@ -22,11 +22,12 @@ const costumes = [...board.matchAll(/^  (\S+): \{ steps:/gm)].map(m => m[1]);
 
 // What it plays on, as x, how x starts over, and its runs, each [label, show, options].
 const target = page ? `
-  const { pet: x } = await import('/desktop-pet/page.mjs'), { MOOD, seeded } = await import('/desktop-pet/engine.mjs');
+  const { pet: x } = await import('/desktop-pet/page.mjs'), { COS, MOOD, seeded } = await import('/desktop-pet/engine.mjs');
   await Promise.all(Object.keys(x.art.sheets).map(k => x.loadSheet(k)));
   const reset = () => x.reset(seeded(7)), runs = [];
   for (const row of (await (await fetch('/desktop-pet/shows.json')).json()).shows.filter(row => row.group !== MOOD))
-    for (const variant of row.tests) runs.push([row.id + (variant ? '·' + variant : ''), row.id, { result: variant, mishap: variant === 'Mishap' }]);` : `
+    for (const variant of row.tests) for (const costume of row.id === 'cosplay' ? Object.keys(COS) : [undefined])
+      runs.push([[row.id, costume].filter(Boolean).join('/') + (variant ? '·' + variant : ''), row.id, { result: variant, mishap: variant === 'Mishap', costume }]);` : `
   await new Promise(r => setTimeout(r, 500));
   const x = dc, reset = () => x.reset(), runs = [];
   for (const name of ${JSON.stringify(events)}) for (const opts of dc.eventVariants(name)) runs.push([name + (opts.result ? '·' + opts.result : ''), name, opts]);

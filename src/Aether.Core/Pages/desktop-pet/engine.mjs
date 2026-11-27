@@ -192,6 +192,8 @@ const GIFTS = ['gift', BLIND_BOX, 'castle', 'guard'];
 const BOX_LINES = { Gain: 'blindBoxGain', Even: 'blindBoxEven', Loss: 'blindBoxLoss', Jackpot: 'blindBoxJackpot' };
 export const PAGE = { w: 480, h: 640 }, H = 250, FOOT = { x: 240, y: 626 };
 export const SPRITE_H = 76;
+// How long each in-between frame of hers plays, where her slow gives none of its own (ms).
+export const TWEEN = 90;
 // How high she rises in each hop up or down the 总督's stair of light (README 3, 7).
 export const HOP = 40;
 // The sports (README 6), each in its own outfit: the sprite dresses her for it, she gets ready and goes for act ms; then
@@ -249,6 +251,137 @@ export const MOBILE = {
     won: { win: 6600, sit: 8800, stand: 9400, spin: 9600, gone: [10000, 10300], end: 10600 },
     lost: { stun: 6600, smack: 7400, ouch: 8100, sit: 9800, stand: 10400, spin: 10600, gone: [11000, 11300], end: 11600 } } };
 DAILY.mobileGame = [MOBILE.t.won.end, MOBILE.t.lost.end - MOBILE.t.won.end];
+// The cos daily (#418, design package README 18): the sprite dresses her as one costume (o.costume, picked when it starts),
+// she strikes its pose, does its move and settles, or it goes wrong (o.mishap); the sprite dresses her back. Every costume
+// fits DAILY.cosplay: dressed by 700 ms, dressed back from the end less 900. steps: [ms, pose] either way, then calm or fall;
+// bounce: [from, to] she bounces on her toes; fx, calmFx, fallFx: effects ([kind, ms, ...], a point { pose, at }: fractions
+// of that drawing of hers); blow: what her sprite blows on; lines: [ms, line kind] once it has gone wrong (each matching
+// what she does then; false: no bubble from then); sprite: [ms, sprite pose, where] for each ending (where: null at its spot by her; ['onPose', pose, fx, fy]:
+// above that point of one of her drawings by dy sprite heights (default 0.45: its arms reaching down to it), where her
+// hand or eyes will be). What was measured on her drawings is her points.cos of the costume, P, each costume's numbers made
+// of them as it plays (cosplay).
+export const COS = {
+  // she pokes her fingertips together shyly, drops into a low stance gathering both palms at her hip and thrusts her right
+  // palm out: two pale blue rings burst from it one after the other (P.palm); she settles, fist in palm. Or the contact lens
+  // of her left eye pops out with the blow and lands glinting on the ground at her left, the page's right (that eye her own
+  // dark brown, the other still pale): she crouches patting the ground in front of her; the sprite spots the glint, picks it
+  // up and brings it to her fingertip; she puts it back in and, both eyes pale again, thanks it (用户：“小精灵滴水、会有不雅
+  // 感觉”, “注意美瞳和她原本的瞳孔颜色”).
+  ninja: P => ({ steps: [[700, 'njReady'], [1100, 'njShy'], [2400, 'njStance'], [3500, 'njPalm']],
+    calm: [[4300, 'njSettle']], fall: [[4100, 'njLensOut'], [4800, 'njSearch'], [6300, 'njLensIn'], [7300, 'njThanks']],
+    fx: [['aura', 3680, P.palm]], calmFx: [], shake: [[3680, 1, 120]],
+    fallFx: [['shock', 4100]],
+    // the lens (P.item, itemSpot): it pops from her left eye in the strike and lands on the ground at her left (the page's
+    // right: on the page's left it flew across her face); the sprite, low over it, draws it up into its arm and holds it out
+    // where her fingertip will hold it
+    item: { kind: 'lens', pop: 4150, pick: [5400, 5600], ...P.item },
+    lines: [[4100, 'cosNinjaLens'], [7300, 'cosNinjaFound']],
+    sprite: { calm: [[700, 'sHappy', null], [2400, 'hide', ['rel', 1.3, 0.3]], [4300, 'flag', null]],
+      // to the lens and back low along the ground in front of her feet: straight across it flew over her face
+      fall: [[700, 'sHappy', null], [2400, 'hide', ['rel', 1.3, 0.3]], [4100, 'surprised', ['rel', 1.3, 0.3]], [4500, 'sHappy', ['rel', 1.25, 0.85]],
+        [4800, 'sHappy', ['item', 'pick']], [5600, 'sLens', ['item', 'pick']], [5800, 'sLens', ['rel', 1.25, 0.85]], [6050, 'sLens', ['item', 'give']],
+        [6480, 'sHappy', ['rel', 1.3, 0.3]], [7300, 'sHappy', null]] } }),
+  // she flicks her fan open over her face and winks, draws it back by her ear and throws it (P.throwHand): it loops round her,
+  // spinning and trailing flames, back into her hand (P.catchHand). Or the caught fan is still burning and sets the end of
+  // her ponytail (her wig, P.ponytail) alight: she drops it hopping, the sprite flies round low to her left and blows it out;
+  // she holds the singed tip.
+  fire: P => ({ steps: [[700, 'fnReady'], [1100, 'fnPose'], [2300, 'fnWindup'], [2900, 'fnThrow']],
+    // the fan leaves her hand as the throw's in-between ends (3080) and is back as her catching drawing shows (4300)
+    // (the flame drawn on her ponytail goes with her drawing: she lets go of it as the sprite's puffs end)
+    calm: [[4120, 'fnCatch']], fall: [[4120, 'fnCatch'], [4700, 'fnBurn'], [5950, 'fnSinged']],
+    fx: [['fanFly', 3080, P.throwHand, P.catchHand, 1220]],
+    calmFx: [['spark', 4300, ...P.catchHand.at, 8]],
+    fallFx: [['fireAt', 4300, P.catchHand, 400, 1.8], ['shock', 4700], ['fireAt', 4880, P.ponytail, 1070],
+      ['blowAir', 5250, { sprite: 'blow' }, P.ponytail, 700], ['smoke', 5950, P.ponytail, 2400], ['tears', 4800, 1300]],
+    blow: P.ponytail,
+    lines: [[4700, 'cosFireBurn'], [6300, 'cosFireSinged']],
+    sprite: { calm: [[700, 'sHappy', null], [2300, 'hide', ['rel', 1.6, 0.55]], [4300, 'flag', null]],
+      // low in front of her to her left, then up by the flame (straight across it flew over her face)
+      fall: [[700, 'sHappy', null], [2300, 'hide', ['rel', 1.6, 0.55]], [4700, 'surprised', ['rel', 1.2, 0.95]], [4950, 'sBlow', ['blow']],
+        // down from her head by her left side (straight down it passed over her face)
+        [6100, 'pat', 'head'], [7400, 'sHappy', ['rel', -0.25, 0.25]], [7700, 'sHappy', null]] } }),
+  // chin up, fists on her hips; she raises her hand and snaps (P.snap): a ring of ice pillars shoots up round her; she folds
+  // her arms. Or it is too cold: a huge sneeze blows her cap off (P.item) and shatters the pillars; the cap lands at her
+  // right, she shivers, the sprite picks it up and brings it back onto her head (P.head); she rubs her nose.
+  ice: P => ({ steps: [[700, 'icReady'], [1100, 'icProud'], [2300, 'icSnapReady'], [3000, 'icSnap']],
+    calm: [[3900, 'icArms']], fall: [[3900, 'icSneeze'], [4600, 'icShiver'], [6400, 'icRubNose']],
+    fx: [['spark', 3180, ...P.snap, 8]],
+    calmFx: [['pillars', 3200, [[-0.85, 0.42], [-0.55, 0.58], [0.55, 0.55], [0.85, 0.4]], 7200, null]],
+    fallFx: [['pillars', 3200, [[-0.85, 0.42], [-0.55, 0.58], [0.55, 0.55], [0.85, 0.4]], 9000, 4080], ['shock', 3900], ['tears', 4800, 1500]],
+    fallShake: [[4080, 3, 260]],
+    item: { kind: 'cap', pop: 4080, pick: [4900, 5100], ...P.item },
+    // (no bubble while the sprite brings the cap over her head: it went behind the bubble)
+    lines: [[3900, 'cosIceSneeze'], [5300, false], [6650, 'cosIceCap']],
+    sprite: { calm: [[700, 'sHappy', null], [2300, 'sHappy', ['rel', 1.5, 0.25]], [3900, 'flag', null]],
+      // the cap goes back on as her drawing with it shows (6580): it holds it over her head, as the crown is brought
+      fall: [[700, 'sHappy', null], [2300, 'sHappy', ['rel', 1.5, 0.25]], [3900, 'surprised', ['rel', 1.5, 0.25]], [4300, 'sHappy', ['item', 'pick']],
+        [5100, 'sCap', ['item', 'pick']], [5400, 'sCap', ['onPose', ...P.head, -0.55]], [6580, 'sHappy', ['rel', 1.5, 0.25]], [7300, 'sHappy', null]] } }),
+  // her crown's tassels swing as she tilts her head, orchid fingers by her cheek (her silver crown glinting, P.crown); she
+  // lifts the lid of her silver pot (P.pot) and blue butterflies flutter out round her, one settling on her raised fingertip
+  // (P.finger). Or a fat caterpillar crawls out onto her hand (P.item): she drops the pot and cowers; it falls in front of
+  // her and the sprite carries it off, far away to the left.
+  miao: P => ({ steps: [[700, 'miReady'], [1100, 'miPose'], [2300, 'miHold'], [3000, 'miOpen']],
+    calm: [[4300, 'miFinger']], fall: [[3600, 'miBug'], [4500, 'miCower'], [6300, 'miRelief']],
+    fx: [['glint', 1300, ...P.crown[0]], ['glint', 1500, ...P.crown[1]], ['glint', 1700, ...P.crown[2]]],
+    calmFx: [['butterflies', 3180, P.pot, P.finger, 4480, 7200]],
+    fallFx: [['shock', 3780], ['tears', 4700, 1500]],
+    // (flung off as she starts flapping her hand, before she is down: after it, it slid down her face)
+    item: { kind: 'bug', pop: 4500, pick: [5500, 5700], ...P.item },
+    lines: [[3600, 'cosMiaoBug'], [6300, 'cosMiaoRelief']],
+    sprite: { calm: [[700, 'sHappy', null], [3000, 'sHappy', ['rel', 1.45, 0.35]], [4300, 'flag', null]],
+      fall: [[700, 'sHappy', null], [3000, 'sHappy', ['rel', 1.45, 0.35]], [3600, 'surprised', ['rel', 1.45, 0.35]], [4500, 'surprised', ['rel', 1.2, 0.95]],
+        [4800, 'sHappy', ['item', 'pick']], [5700, 'sBug', ['item', 'pick']], [5950, 'sBug', ['at', -110, FOOT.y - 0.55 * H]], [7000, 'sHappy', null]] } }),
+  // a V sign and a wink; she aims left and fires three shots, the gun kicking up each time, and blows on its muzzle. Or
+  // she shows off spinning it on her finger (P.finger): it flies up off the page and comes down on her head (P.head); she
+  // picks it up.
+  esports: P => ({ steps: [[700, 'esReady'], [1100, 'esV'], [2300, 'esAim'], [2800, 'esRecoil'], [3100, 'esAim'], [3400, 'esRecoil'], [3700, 'esAim'], [4000, 'esRecoil']],
+    calm: [[4600, 'esBlow']], fall: [[4600, 'esTwirl'], [5700, 'esLookUp'], [6300, 'esOuch'], [7600, 'esReady']],
+    // each shot leaves the muzzle (P.muzzle) as she pulls the trigger, the gun still level (fired as the kick showed, it left
+    // from where the muzzle had been: 用户：“子弹没从枪里出来”)
+    fx: [['bolt', 2800, P.muzzle], ['bolt', 3400, P.muzzle], ['bolt', 4000, P.muzzle]],
+    shake: [[2800, 1, 90], [3400, 1, 90], [4000, 1, 90]], calmFx: [],
+    fallFx: [['gunTrick', 4780, P.finger, P.head, [5700, 6000, 6300]], ['shock', 5700],
+      ['impact', 6300, P.head], ['dizzy', 6500, 1100], ['tears', 6600, 900]],
+    fallShake: [[6300, 2, 200]],
+    lines: [[4600, 'cosEsportsTwirl'], [6300, 'cosEsportsBonk']],
+    sprite: { calm: [[700, 'sHappy', null], [2300, 'hide', ['rel', 1.3, 0.3]], [4600, 'flag', null]],
+      fall: [[700, 'sHappy', null], [2300, 'hide', ['rel', 1.3, 0.3]], [4600, 'sHappy', ['rel', 1.3, 0.3]], [5700, 'surprised', ['rel', 1.3, 0.3]], [6500, 'pat', 'head'],
+        [7600, 'sHappy', ['rel', -0.25, 0.25]], [7900, 'sHappy', null]] } }),
+  // she stands her giant crossbow up beside her, chin high; stands on its bow and pulls the string up to the trigger; aims
+  // left while a green light arrow forms in the empty groove, and shoots it off the page; the crossbow onto her shoulder,
+  // her fist up. Or the string slips half way and stings her hand (P.hand): she drops it and hops, the sprite flies round
+  // low to blow on her fingers; she picks the crossbow up and stands it up again ("下次一定").
+  warlord: P => ({ steps: [[700, 'wlReady'], [1100, 'wlPose'], [2200, 'wlCrouch'], [2800, 'wlPull']],
+    calm: [[3500, 'wlAim'], [4400, 'wlShot'], [5100, 'wlShoulder']], fall: [[3300, 'wlSting'], [5600, 'wlReady'], [6000, 'wlPose'], [8000, 'wlReady']],
+    // the arrow lies along the top of the stock, level, from the trigger's nut to the bow (P.arrow, read off the drawing: its
+    // rear was first taken on her hands, and the arrow lay slanted: 用户：“弩箭怎么是斜的”)
+    fx: [], calmFx: [['arrow', 3680, ...P.arrow, 4580], ['flash', 4580, 0.5]],
+    calmShake: [[4580, 2, 160]],
+    fallFx: [['impact', 3480, P.hand], ['tears', 3600, 1800], ['blowAir', 4100, { sprite: 'blow' }, P.hand, 1100]],
+    blow: P.hand,
+    lines: [[3300, 'cosWarlordSting'], [6000, 'cosWarlordAgain']],
+    sprite: { calm: [[700, 'sHappy', null], [2200, 'sHappy', ['rel', 1.35, 0.3]], [5100, 'flag', null]],
+      fall: [[700, 'sHappy', null], [2200, 'sHappy', ['rel', 1.35, 0.3]], [3300, 'surprised', ['rel', 1.2, 0.95]], [3700, 'sBlow', ['blow']], [5400, 'sHappy', null]] } }),
+  // she knocks her gloves together (P.bump), takes her guard bouncing on her toes, throws a straight, an uppercut and a side
+  // kick (each blow lands as its in-between's last frame gives way to the pose, 180 ms in: P.punch, P.upper, P.kick) and
+  // wipes her nose; or her thigh cramps mid-kick, she drops into the splits, the sprite pulls her up by her raised hand
+  // (P.pull) and she rubs her thigh. The sprite keeps to her right, clear of her fists and boot, which go out to her left.
+  fighter: P => ({ steps: [[700, 'ftReady'], [1100, 'ftBump'], [2200, 'ftGuard'], [3400, 'ftPunch'], [3800, 'ftUpper'], [4200, 'ftKick']],
+    // (going wrong she stands up from rubbing her thigh before she is dressed back: changing clothes while straightening up
+    // moved her 7-13 px, three tries over)
+    calm: [[4900, 'ftWipe']], fall: [[4500, 'ftSplit'], [6400, 'ftRub'], [8300, 'ftReady']], bounce: [2400, 3400],
+    fx: [['spark', 1280, ...P.bump, 8], ['impact', 3580, P.punch], ['impact', 3980, P.upper]],
+    calmFx: [['impact', 4380, P.kick]], fallFx: [['shock', 4500], ['tears', 4700, 1700]],
+    shake: [[3580, 1, 100], [3980, 1, 100]], calmShake: [[4380, 2, 140]],
+    lines: [[4500, 'cosFighterCramp'], [7100, 'cosFighterWarmup']],
+    sprite: { calm: [[700, 'sHappy', null], [2200, 'hide', ['rel', 1.32, 0.3]], [4900, 'flag', null]],
+      fall: [[700, 'sHappy', null], [2200, 'hide', ['rel', 1.32, 0.3]], [4500, 'surprised', ['rel', 1.32, 0.3]], [5000, 'pat', 'head'],
+        // her raised right hand in the in-between ftRubUp's frame 2, held while it pulls (slow)
+        [5900, 'sPull', ['onPose', ...P.pull]], [7000, 'sHappy', null]] } })
+};
+DAILY.cosplay = [7400, 2200];
+// How far her sprite's lips stay from what it blows on (px of its sheet, as her points.cos.lips).
+const BLOW_GAP = 141;
 
 // ---- The 宝箱小游戏 (#372, #382; design package README 12). Nothing of it is on the page until the 捣蛋鬼 comes, and nothing of
 // it stays: her shows are all as they were, and her chest is at home, off the left of the page, where the game only counts
@@ -482,6 +615,10 @@ export class Engine extends EventTarget {
   start(name, opts) {
     const now = this.now(), c = this.cur, gm = this.gm, { dailyMinSeconds, dailyMaxSeconds } = this.settings;
     if (opts.until != null && opts.until - now < PK_SIGN.least || opts.by <= now) return;
+    // a cos is in one costume of COS, picked as it starts unless it is given one: on her own, after which 日常小动作 and whether
+    // it goes wrong
+    const costumes = Object.keys(COS);
+    if (name === 'cosplay') opts = { ...opts, costume: opts.costume ?? costumes[Math.floor(this.rng() * costumes.length)] };
     this.trialOver(c);
     // a PK countdown cut off goes back to the head of the queue: once the bigger show is over it is held up again for what is
     // left, if PK_SIGN.least or more (the check above); every other show cut off is gone
@@ -519,11 +656,13 @@ export class Engine extends EventTarget {
   }
 
   // A blind box says the lines of its ending, a 盲盒查询 its result's, the lottery its step's, 守住了 by a 绝杀 that one's, a PK's
-  // result and 中途比分 their ending's and a 双倍挑战 how it came out; every other show its own.
+  // result and 中途比分 their ending's, a 双倍挑战 how it came out and a cos its costume's (cosNinja for ninja); every other show
+  // its own.
   lineKey(name, opts = {}) {
     const ev = this.events[name];
     return ev?.group === BLIND_BOX ? BOX_LINES[opts.result || 'Gain'] : name === 'blindBoxQuery' ? 'query' + (opts.result || 'Gain')
       : name === 'pkResult' || name === 'pkSwing' ? 'pk' + (opts.result || 'Win') : name === 'pkChallenge' ? 'pkChallenge' + (opts.result || 'Done')
+      : name === 'cosplay' ? 'cos' + opts.costume[0].toUpperCase() + opts.costume.slice(1)
       : ev?.steps ? ev.steps[opts.result].line : name === 'chestKept' && opts.buzzer ? 'chestKeptBuzzer' : name;
   }
 
@@ -677,8 +816,8 @@ export class Engine extends EventTarget {
   guard(g) { this.fire(GUARDS[g.guardLevel - 1], { nickname: g.nickname, spend: g.spend }); this.gifted(this.now()); }
 
   // A 试演 plays the show from its start (a blind box from its shaking), or holds her in the 心情, until it is stopped. It
-  // scares the 捣蛋鬼 off as what happened would.
-  testShow({ show, variant, nickname, id }) {
+  // scares the 捣蛋鬼 off as what happened would. A cos is in the costume given (the checks give each), else one picked.
+  testShow({ show, variant, nickname, id, costume }) {
     const scare = this.gm.visit ? this.scared(this.now()) : {};
     this.trial = null;
     if (this.events[show].group === MOOD) {
@@ -686,7 +825,7 @@ export class Engine extends EventTarget {
       if (scare.frizz) this.gm.fix = { start: this.now(), pose: scare.frizz };
       this.trial = show; return;
     }
-    this.start(show, { nickname, result: variant, mishap: variant === 'Mishap', trial: true, trialId: id, ...scare });
+    this.start(show, { nickname, result: variant, mishap: variant === 'Mishap', costume, trial: true, trialId: id, ...scare });
   }
 
   // Only the 试演: a show of what happened since it plays on.
@@ -1909,6 +2048,7 @@ export class Engine extends EventTarget {
     if (o.kind === 'gacha') return this.gacha(t, st, o, line);
     if (o.kind === 'hotpot') return this.hotpot(t, st, o, line);
     if (o.kind === 'mobileGame') return this.mobile(t, st, o, line);
+    if (o.kind === 'cosplay') return this.cosplay(t, st, o, line);
     // humming: the sprite sways along; when her voice cracks it hides its head
     const main = DAILY[o.kind][0];
     st._t = t;
@@ -2128,6 +2268,60 @@ export class Engine extends EventTarget {
     else st.sprite = 'sHappy';
     say(E.stun + 100, E.smack, 'mobileLose'); say(E.smack + 300, E.sit, 'mobileOuch');
     return st;
+  }
+
+  // The cos daily (COS): dressed like a sport (dress), then the costume's steps and its ending.
+  cosplay(t, st, o, line) {
+    st._t = t;
+    const c = COS[o.costume](this.art.points.cos[o.costume]), end = DAILY.cosplay[0] + (o.mishap ? DAILY.cosplay[1] : 0), back = end - 900;
+    const say = (from, until, key) => { if (t >= from && t < until) st.bubble = { text: key ? this.saying(key, o.seed + from) : line, t: t - from }; };
+    st.fx.push(['flash', 700, 0.8], ['flash', back + 700, 0.8]);
+    if (t < 700) { this.dress(st, t, 0); return st; }
+    if (t >= back + 700) { st.sprite = 'sHappy'; return st; }
+    st.pose = at(t, [...c.steps, ...(o.mishap ? c.fall : c.calm)]);
+    if (c.bounce && t >= c.bounce[0] && t < c.bounce[1]) st.y -= 5 * Math.abs(Math.sin(Math.PI * (t - c.bounce[0]) / 260));
+    // a place given as { pose, at } (fractions of that drawing of hers: a blow's star stays where it landed, on the pose it
+    // hit; on the pose she is in it jumped onto her face when she moved on) or { sprite: 'blow' } (its lips there) on the page
+    const place = v => v?.pose ? this.onPose(st, v.pose, v.at) : v?.sprite === 'blow' ? this.blowSpot(c, st).lips : Array.isArray(v) && typeof v[0] === 'object' ? v.map(place) : v;
+    if (o.mishap && c.item) { const I = c.item, sp = this.itemSpot(c, st); st.fx.push(['item', I.pop, I.kind, sp.from, sp.ground, I.pick, sp.paw]); }
+    st.fx.push(...[...c.fx, ...(o.mishap ? c.fallFx : c.calmFx)].map(f => f.map(place)));
+    st.shake = [...(c.shake || []), ...((o.mishap ? c.fallShake : c.calmShake) || [])];
+    const list = c.sprite[o.mishap ? 'fall' : 'calm'], i = list.findLastIndex(([ms]) => t >= ms), [ms, sprite, where] = list[i], prev = list[i - 1]?.[2];
+    st.sprite = sprite; st.sp = where;
+    // back to its spot in front of her from her right: down low on her right first, then along in front of her feet (straight
+    // across it flew over her body)
+    if (where == null && prev?.[0] === 'rel' && prev[1] > 1 && prev[2] < 0.8 && t < ms + 350) st.sp = ['rel', 1.15, 0.95];
+    if (where?.[0] === 'item') { const q = this.itemSpot(c, st)[where[1]]; st.sp = ['at', q.x, q.y]; }
+    if (where?.[0] === 'blow') { const q = this.blowSpot(c, st).at; st.sp = ['at', q.x, q.y]; }
+    if (where?.[0] === 'onPose') { const b = this.herBox(st, this.cell(where[1])); st.sp = ['at', b.x + b.w * where[2], b.y + b.h * where[3] + (where[4] ?? -0.45) * SPRITE_H]; }
+    if (t >= back) this.dress(st, t, back);
+    if (o.mishap && t >= c.lines[0][0]) { const [ms, key] = c.lines.findLast(([ms]) => t >= ms); if (key !== false) say(ms, back, key); }
+    else say(1300, o.mishap ? c.lines[0][0] : back);
+    return st;
+  }
+
+  // A point of one of her drawings (fractions of it) on the page, where she stands.
+  onPose(st, pose, [fx, fy]) { const b = this.herBox({ ...st, y: FOOT.y }, this.cell(pose)); return { x: b.x + b.w * fx, y: b.y + b.h * fy }; }
+
+  // Something she drops (COS.<costume>.item): where it pops from (from, on one of her drawings), the ground it lands on
+  // (from her feet, in her heights; a cap rests on its brim), the sprite's spot low over it as it picks it up and its
+  // paw there (sprite: the thing in its drawing from its centre, sp6 px), and its spot holding it where she takes it
+  // (give, on one of her drawings).
+  itemSpot(c, st) {
+    const I = c.item, k = SPRITE_H / this.cell('sLens', this.art.sprite).ruler, off = { x: I.sprite[0] * k, y: I.sprite[1] * k };
+    const half = I.kind === 'cap' ? this.props.cap.height * H / this.art.anchor / 2 : 0;
+    const ground = { x: FOOT.x + I.ground[0] * H, y: FOOT.y + I.ground[1] - half };
+    // as low as it goes over it, its lowest wisp clear of the page's bottom
+    const pick = { x: ground.x - off.x, y: Math.min(ground.y - off.y, PAGE.h - 0.55 * SPRITE_H) }, give = I.give && this.onPose(st, I.give[0], I.give.slice(1));
+    return { from: this.onPose(st, I.from[0], I.from.slice(1)), ground, pick, paw: { x: pick.x + off.x, y: pick.y + off.y }, give: give && { x: give.x - off.x, y: give.y - off.y } };
+  }
+
+  // The sprite blowing on something (COS.<costume>.blow), its lips BLOW_GAP short of it (her points.cos.lips: its lips from
+  // its centre, sp6 px): its spot (at) and its lips (lips) on the page.
+  blowSpot(c, st) {
+    const [ox, oy] = this.art.points.cos.lips, k = SPRITE_H / this.cell('sLens', this.art.sprite).ruler, p = this.onPose(st, c.blow.pose, c.blow.at);
+    const at = { x: p.x - (ox + BLOW_GAP) * k, y: p.y - oy * k };
+    return { at, lips: { x: at.x + ox * k, y: at.y + oy * k } };
   }
 
   // The capsule's two halves leaving her hands at a: popping off to either side as the plush comes out (pop), or slipping

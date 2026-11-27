@@ -3,7 +3,8 @@
 // and plays it in real time, grabbing the page at those ms into it, side by side; --line draws a red line at her home x. Time-jumped stills (freeze) are not enough to
 // judge motion: the board's pose changes run on real time, and stills taken by jumping the clock showed poses that never
 // play together. With --page it plays a 试演 on Aether's 桌宠页 instead, named as its 演出表 names it: <show[:variant]>, such
-// as blindBoxLarge:Jackpot or bike:Mishap, on a transparent ground. server.mjs must be running.
+// as blindBoxLarge:Jackpot or bike:Mishap, a cos with its costume after a slash, cosplay/fighter:Mishap, on a transparent
+// ground. server.mjs must be running.
 import { execFileSync } from 'node:child_process';
 import fs from 'node:fs';
 
@@ -14,13 +15,13 @@ const page = args.includes('--page') && args.splice(args.indexOf('--page'), 1);
 const room = opt('--room', '明亮画面'), port = opt('--port', 8820);
 const [what, times, out] = args;
 // the cos daily takes its costume after a slash: 日常:cos/格斗少女:出事 (#418)
-const [name, kindCostume, mishap] = what.split(':'), [kind, costume] = (kindCostume ?? '').split('/');
+const [name, kindCostume, mishap] = what.split(':'), [kind, costume] = (kindCostume ?? '').split('/'), [show, pageCostume] = name.split('/');
 // What it plays on, as x with its canvas cv and the page's corner on it, and how the show starts.
 const target = page ? {
   url: `http://localhost:${port}/desktop-pet`,
   setup: `const { pet: x } = await import('/desktop-pet/page.mjs'); await Promise.all(Object.keys(x.art.sheets).map(k => x.loadSheet(k)));
     x.resize(480, 640); const cv = x.canvas, corner = [0, 0];`,
-  start: `x.testShow({ show: ${JSON.stringify(name)}, variant: ${JSON.stringify(kind ?? null)}, nickname: '星河' })`
+  start: `x.testShow(${JSON.stringify({ show, variant: kind ?? null, nickname: '星河', costume: pageCostume })})`
 } : {
   url: `http://localhost:${port}/render.html?board=DP-DesktopPet.dc.html&props=${encodeURIComponent(JSON.stringify({ scene: '手动', controls: '隐藏', caption: '隐藏', room }))}`,
   // the page in its default bottom-right corner
@@ -31,9 +32,10 @@ const js = `(async () => {
   ${target.setup}
   const ts = [${times}], out = document.createElement('canvas');
   out.width = 480 * ts.length; out.height = 640; const g = out.getContext('2d');
-  await new Promise(r => setTimeout(r, 500)); ${target.start}; const c = x.cur;
+  // a 试演 of a 心情 holds her in it with no show of its own: its moments are from now
+  await new Promise(r => setTimeout(r, 500)); ${target.start}; const t0 = x.cur?.start ?? x.now();
   for (let i = 0; i < ts.length; i++) {
-    while (x.now() - c.start < ts[i]) await new Promise(r => requestAnimationFrame(r));
+    while (x.now() - t0 < ts[i]) await new Promise(r => requestAnimationFrame(r));
     await new Promise(r => requestAnimationFrame(r));
     g.drawImage(cv, ...corner, 480, 640, i * 480, 0, 480, 640);
     if (${!!line}) { g.fillStyle = 'red'; g.fillRect(i * 480 + 240, 0, 1, 640); }

@@ -5,7 +5,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { existsSync, readFileSync, readdirSync } from 'node:fs';
-import { MOOD } from '../../src/Aether.Core/Pages/desktop-pet/engine.mjs';
+import { COS, MOOD } from '../../src/Aether.Core/Pages/desktop-pet/engine.mjs';
 import { gamePet } from './Support/DesktopPetGame.mjs';
 import { NAME, ROUTES, STAR, STEP, VIEWERS, drive, frames, walk } from '../../scripts/desktop-pet/routes.mjs';
 
@@ -13,14 +13,19 @@ const pages = new URL('../../src/Aether.Core/Pages/', import.meta.url), read = p
 const { shows } = read('desktop-pet/shows.json'), prankster = read('desktop-pet/prankster/prankster.json');
 // Her sprite's own pictures (the character's sprite section) by the names the shows give them.
 const SINGLES = ['sIdle', 'sBlink', 'sHappy', 'sLook'];
+// Each show the page plays with each of its 试演 variants, and a cos in each costume of COS (as the design package's
+// tools/check-board.mjs plays the board's): its id and what it starts with.
+const PLAYS = shows.filter(row => row.group !== MOOD).flatMap(row => row.tests.flatMap(variant => (row.id === 'cosplay' ? Object.keys(COS) : [undefined])
+  .map(costume => [row.id, { result: variant, mishap: variant === 'Mishap', costume }])));
 
 // Every state she can be in: each show the page plays from its start to its end (each blind box ending, each lottery step,
-// each 日常小动作 with and without its mishap, woken up first), each 心情 for half a minute and a round of blind boxes she shakes.
+// each 日常小动作 with and without its mishap, each cos costume, woken up first), each 心情 for half a minute and a round of blind
+// boxes she shakes.
 // Her 桌宠页 stands in a box for each of her pictures (gamePet): any size will do for which poses and drawings she takes.
 function everyState(character) {
   const engine = gamePet(character), states = [];
-  for (const row of shows.filter(row => row.group !== MOOD)) for (const variant of row.tests) {
-    engine.testShow({ show: row.id, variant, nickname: '星河' });
+  for (const [show, { result, costume }] of PLAYS) {
+    engine.testShow({ show, variant: result, nickname: '星河', costume });
     const { start, dur } = engine.cur = { ...engine.cur, pre: 1000, wakeLine: '' };
     for (let t = 0; t < 1000 + dur; t += 20) { engine.master.currentTime = start + t; states.push(engine.stateAt(engine.now())); }
   }
@@ -36,13 +41,13 @@ function routing(character) {
   return pet;
 }
 
-// Each change of pose in a show the page plays (each 试演 variant), from standing in and back out to it, with the first show
-// it comes in.
+// Each change of pose in a show the page plays (each 试演 variant, each cos costume), from standing in and back out to it, with
+// the first show it comes in.
 function poseChanges(character) {
   const engine = gamePet(character), changes = {};
-  for (const row of shows.filter(row => row.group !== MOOD)) for (const variant of row.tests) {
-    const poses = [...showPoses(engine, row.id, { result: variant, mishap: variant === 'Mishap', seed: 0 }), 'idle'];
-    poses.slice(1).forEach((pose, i) => { if (pose !== poses[i]) changes[`${poses[i]}>${pose}`] ??= row.id + (variant ? '·' + variant : ''); });
+  for (const [show, opts] of PLAYS) {
+    const poses = [...showPoses(engine, show, { ...opts, seed: 0 }), 'idle'];
+    poses.slice(1).forEach((pose, i) => { if (pose !== poses[i]) changes[`${poses[i]}>${pose}`] ??= [show, opts.costume, opts.result].filter(Boolean).join('·'); });
   }
   return changes;
 }
@@ -141,5 +146,8 @@ for (const folder of readdirSync(new URL('characters/', pages), { withFileTypes:
     const { flagship, admship, castleClosed, gacha, hotpot } = art.points;
     for (const point of [flagship.deck, flagship.mast, admship.mast, ...admship.rig, castleClosed.gate, gacha.bay, gacha.outlet, gacha.hug, hotpot.pot, hotpot.give.her, hotpot.give.sprite, hotpot.tip]) assert.ok(point.length === 2 && point.every(Number.isFinite), 'points');
     assert.deepEqual([gacha.win.length, gacha.knob.length, typeof gacha.cell], [4, 3, 'number'], 'the 扭蛋 cabinet\'s window, knob and cell');
+    // the cos daily's points are numbers and the poses of hers they were measured on
+    const leaves = v => typeof v === 'object' ? Object.values(v).flatMap(leaves) : [v];
+    for (const v of leaves(art.points.cos)) assert.ok(typeof v === 'string' ? art.poses[v] : Number.isFinite(v), `points.cos ${v}`);
   });
 }

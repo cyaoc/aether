@@ -86,7 +86,7 @@ public partial class DesktopPetSettingsPage : SettingsPage
             (BoredOn, BoredNote, "托腮发呆，隔一阵叹口气", "不会无聊"),
             (GloomyOn, GloomyNote, "蹲着画圈圈，头上一片阴影", "不会沮丧"),
             (SleepyOn, SleepyNote, "抱着膝盖打瞌睡，有人来就惊醒", "不会犯困"),
-            (MishapOn, MishapNote, "砸到脚、破音、摔一跤、扭蛋落空、辣到、砸脸", "不会出事"),
+            (MishapOn, MishapNote, "砸到脚、破音、摔一跤、扭蛋落空、辣到、砸脸、cos 失手", "不会出事"),
             (PranksterOn, PranksterMinutesNote, "有人在看、她闲着时它自己来", "只在你点「叫它来」时来"),
             (LuckyOn, LuckyNote, "砸中谁，对面 20 秒内的礼物算双倍", "不出幸运纸团")
         })
