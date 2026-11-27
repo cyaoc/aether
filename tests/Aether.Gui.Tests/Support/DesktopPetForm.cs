@@ -1,3 +1,4 @@
+using Aether.Core;
 using Avalonia.Automation;
 using Avalonia.Controls;
 using Avalonia.VisualTree;
@@ -30,6 +31,16 @@ internal static class DesktopPetForm
     /// <summary>The labels of the kinds of lines listed.</summary>
     public static IEnumerable<string> LineKindLabels(DesktopPetSettingsPage page) =>
         page.FindControl<ListBox>("LineKindList")!.Items.OfType<DesktopPetLineKind>().Select(kind => kind.Kind.Label);
+
+    /// <summary>Fills 做哪几样 up to <paramref name="count"/> switches with placeholders, to see how many daily actions fit.</summary>
+    public static void PadDailyActions(DesktopPetSettingsPage page, int count)
+    {
+        var rows = page.FindControl<ItemsControl>("DailyRows")!;
+        var real = rows.Items.Cast<DesktopPetShowRow>().ToArray();
+        rows.ItemsSource = real.Concat(Enumerable.Range(real.Length + 1, count - real.Length)
+            .Select(i => new DesktopPetShowRow(new Show($"later{i}", ShowGroup.Daily, $"第{i}样", "", [], [])))).ToArray();
+        GuiHarness.Flush();
+    }
 
     public static ToggleSwitch Switch(DesktopPetSettingsPage page, string name) => Shown<ToggleSwitch>(page, name);
 

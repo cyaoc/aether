@@ -445,22 +445,22 @@ public sealed partial class VisualReviewTests
                             GeneralSettingsForm.Pick(settings, name);
                             generalTexts.UnionWith(CheckFixedText());
                         }
-                        GuiHarness.Tab(settings, 1);
+                        GuiHarness.Tab(settings, "更新和日志");
                         generalTexts.UnionWith(CheckFixedText());
-                        GuiHarness.Tab(settings, 0);
+                        GuiHarness.Tab(settings, "网页服务");
                         Assert.Subset(generalTexts, new HashSet<string>
                             { "礼物榜页", "送礼观众的排行", "480 × 1000，可以等比放大", "桌宠页", "480 × 640", "软件更新", "日志", "日志保留" });
                     }
                     if (index != Array.IndexOf(ReviewedPages, "desktop-pet")) continue;
                     // Its tabs show one at a time, so each is checked.
                     var pet = window.GetVisualDescendants().OfType<DesktopPetSettingsPage>().Single();
-                    GuiHarness.Tab(pet, 1);
+                    GuiHarness.Tab(pet, "心情");
                     Assert.Subset(CheckFixedText().ToHashSet(), new HashSet<string> { "冷场心情", "托腮发呆，隔一阵叹口气" });
-                    GuiHarness.Tab(pet, 2);
+                    GuiHarness.Tab(pet, "日常");
                     Assert.Subset(CheckFixedText().ToHashSet(), new HashSet<string> { "日常小动作", "% 的几率出点小事", "举哑铃" });
-                    GuiHarness.Tab(pet, 3);
+                    GuiHarness.Tab(pet, "小游戏");
                     Assert.Subset(CheckFixedText().ToHashSet(), new HashSet<string> { "捣蛋鬼偷宝箱", "分钟来一次", "幸运纸团" });
-                    GuiHarness.Tab(pet, 4);
+                    GuiHarness.Tab(pet, "台词");
                     Assert.Subset(CheckFixedText().ToHashSet(), new HashSet<string> { "冷场后来了人", "恢复默认", "添加一句" });
                 }
                 var general = window.GetVisualDescendants().OfType<SettingsPage>().Single(p => p.IsEffectivelyVisible);
@@ -939,7 +939,7 @@ public sealed partial class VisualReviewTests
             try
             {
                 await GuiHarness.AccountReadAsync(viewModel);
-                GuiHarness.Tab(GeneralSettingsForm.Of(window), 1);
+                GuiHarness.Tab(GeneralSettingsForm.Of(window), "更新和日志");
                 foreach (var (pageIndex, name) in new[] { (8, "LogLevelInput"), (2, "GuardInput") })
                 {
                     var input = GuiHarness.VisibleComboBox(window, pageIndex, name);
@@ -1106,9 +1106,9 @@ public sealed partial class VisualReviewTests
                 if (ReviewedPages[i] == "general")
                 {
                     var settings = GeneralSettingsForm.Of(window);
-                    GuiHarness.Tab(settings, 1);
+                    GuiHarness.Tab(settings, "更新和日志");
                     Capture("general-update-and-logs");
-                    GuiHarness.Tab(settings, 0);
+                    GuiHarness.Tab(settings, "网页服务");
                     GeneralSettingsForm.Pick(settings, "GiftBoard");
                 }
                 Capture(ReviewedPages[i]);
@@ -1258,7 +1258,7 @@ public sealed partial class VisualReviewTests
                 await GuiHarness.AccountReadAsync(viewModel);
                 window.Navigation.SelectedIndex = Array.IndexOf(ReviewedPages, "general");
                 var page = GeneralSettingsForm.Of(window);
-                GuiHarness.Tab(page, 1);
+                GuiHarness.Tab(page, "更新和日志");
                 Capture("on");
                 page.FindControl<ToggleSwitch>("AutoUpdateInput")!.IsChecked = false;
                 Capture("dirty");

@@ -55,13 +55,13 @@ public sealed class DesktopPetSettingsTests
             case "switch": page.FindControl<ToggleSwitch>("EnabledInput")!.IsChecked = true; break;
             case "show": Switch(page, "进场").IsChecked = false; break;
             case "threshold": Pick(page, "ShowGroupList", "礼物"); Number(page, "大礼物门槛（电池）").Text = "20000"; break;
-            case "mood": GuiHarness.Tab(page, 1); Switch(page, "犯困").IsChecked = false; break;
-            case "daily": GuiHarness.Tab(page, 2); Switch(page, "滑雪").IsChecked = false; break;
-            case "mishap": GuiHarness.Tab(page, 2); Number(page, "出事的几率（%）").Text = "50"; break;
-            case "prankster": GuiHarness.Tab(page, 3); Number(page, "它最多每几分钟自己来一次").Text = "10"; break;
-            case "lucky": GuiHarness.Tab(page, 3); Number(page, "每个纸团是幸运纸团的几率").Text = "20"; break;
-            case "line": GuiHarness.Tab(page, 4); Line(page, 1).Text = "欢迎{昵称}"; break;
-            case "addLine": GuiHarness.Tab(page, 4); GuiHarness.Click(page, "AddLineButton"); break;
+            case "mood": GuiHarness.Tab(page, "心情"); Switch(page, "犯困").IsChecked = false; break;
+            case "daily": GuiHarness.Tab(page, "日常"); Switch(page, "滑雪").IsChecked = false; break;
+            case "mishap": GuiHarness.Tab(page, "日常"); Number(page, "出事的几率（%）").Text = "50"; break;
+            case "prankster": GuiHarness.Tab(page, "小游戏"); Number(page, "它最多每几分钟自己来一次").Text = "10"; break;
+            case "lucky": GuiHarness.Tab(page, "小游戏"); Number(page, "每个纸团是幸运纸团的几率").Text = "20"; break;
+            case "line": GuiHarness.Tab(page, "台词"); Line(page, 1).Text = "欢迎{昵称}"; break;
+            case "addLine": GuiHarness.Tab(page, "台词"); GuiHarness.Click(page, "AddLineButton"); break;
         }
         GuiHarness.Flush();
         Assert.True(GuiHarness.FindVisual<TextBlock>(page, "DirtyMessage").IsEffectivelyVisible);
@@ -82,14 +82,14 @@ public sealed class DesktopPetSettingsTests
         Number(page, "大礼物门槛（电池）").Text = "10000";
         GuiHarness.Flush();
         Assert.Contains("这一轮 2000 – 9999 电池", Texts(page));
-        GuiHarness.Tab(page, 2);
+        GuiHarness.Tab(page, "日常");
         Switch(page, "哼歌").IsChecked = false;
-        GuiHarness.Tab(page, 1);
+        GuiHarness.Tab(page, "心情");
         Switch(page, "无聊").IsChecked = false;
         GuiHarness.Flush();
         Assert.Contains("不会无聊", Texts(page));
         Assert.False(Number(page, "无聊：几分钟后进入").IsEnabled);
-        GuiHarness.Tab(page, 4);
+        GuiHarness.Tab(page, "台词");
         Pick(page, "LineKindList", "大礼物");
         Line(page, 1).Text = "{昵称}，谢谢你～";
         Pick(page, "LineKindList", "普通礼物");
@@ -118,7 +118,7 @@ public sealed class DesktopPetSettingsTests
     [Fact]
     public Task The_chest_game_tab_saves_how_often_the_prankster_comes_on_its_own_and_a_paper_ball_is_lucky_and_has_no_helper_keyword() => WithPage(async (page, harness) =>
     {
-        GuiHarness.Tab(page, 3);
+        GuiHarness.Tab(page, "小游戏");
         var lucky = Number(page, "每个纸团是幸运纸团的几率");
         Assert.Equal(("30", "30"), (Number(page, "它最多每几分钟自己来一次").Text, lucky.Text));
         Assert.Subset(Texts(page).ToHashSet(), new HashSet<string?> { "有人在看、她闲着时它自己来", "砸中谁，对面 20 秒内的礼物算双倍" });
@@ -147,13 +147,13 @@ public sealed class DesktopPetSettingsTests
         return WithPage((page, harness) =>
         {
             Assert.DoesNotContain("bored_minutes", before);
-            GuiHarness.Tab(page, 1);
+            GuiHarness.Tab(page, "心情");
             Assert.Equal([(true, "15"), (true, "40"), (true, "60")],
                 new[] { ("无聊", "无聊：几分钟后进入"), ("沮丧", "沮丧：几分钟后进入"), ("犯困", "犯困：几分钟后进入") }
                     .Select(row => (Switch(page, row.Item1).IsChecked == true, Number(page, row.Item2).Text)));
-            GuiHarness.Tab(page, 2);
+            GuiHarness.Tab(page, "日常");
             Assert.Equal((true, "25"), (Switch(page, "出事").IsChecked == true, Number(page, "出事的几率（%）").Text));
-            GuiHarness.Tab(page, 3);
+            GuiHarness.Tab(page, "小游戏");
             Assert.Equal((true, "30"), (Switch(page, "捣蛋鬼自己来").IsChecked == true, Number(page, "它最多每几分钟自己来一次").Text));
             Assert.Equal((true, "30"), (Switch(page, "幸运纸团").IsChecked == true, Number(page, "每个纸团是幸运纸团的几率").Text));
             Assert.False(page.IsDirty);
@@ -172,18 +172,18 @@ public sealed class DesktopPetSettingsTests
     [Fact]
     public Task A_number_the_file_holds_as_0_shows_its_switch_off_with_its_default_ready_to_turn_back_on() => WithPage(async (page, harness) =>
     {
-        GuiHarness.Tab(page, 1);
+        GuiHarness.Tab(page, "心情");
         Assert.Equal((false, "40", false), (Switch(page, "沮丧").IsChecked, Number(page, "沮丧：几分钟后进入").Text, Number(page, "沮丧：几分钟后进入").IsEnabled));
         Assert.Subset(Texts(page).ToHashSet(), new HashSet<string?> { "不会沮丧", "托腮发呆，隔一阵叹口气", "抱着膝盖打瞌睡，有人来就惊醒" });
         Assert.Equal((true, true), (Switch(page, "无聊").IsChecked, Switch(page, "犯困").IsChecked));
-        GuiHarness.Tab(page, 2);
+        GuiHarness.Tab(page, "日常");
         Assert.Equal((false, "25", false), (Switch(page, "出事").IsChecked, Number(page, "出事的几率（%）").Text, Number(page, "出事的几率（%）").IsEnabled));
         Assert.Contains("不会出事", Texts(page));
-        GuiHarness.Tab(page, 3);
+        GuiHarness.Tab(page, "小游戏");
         Assert.True(Switch(page, "捣蛋鬼自己来").IsChecked);
         Assert.False(page.IsDirty);
 
-        GuiHarness.Tab(page, 1);
+        GuiHarness.Tab(page, "心情");
         Switch(page, "沮丧").IsChecked = true;
         GuiHarness.Flush();
         Assert.Contains("蹲着画圈圈，头上一片阴影", Texts(page));
@@ -194,7 +194,7 @@ public sealed class DesktopPetSettingsTests
     }, prepare: harness => harness.SaveSettings(("desktop_pet.gloomy_minutes", "0"), ("desktop_pet.mishap_percent", "0")));
 
     // The switches in front of a number, by the tab they are on.
-    private static readonly (int Tab, string[] Switches)[] NumberSwitches = [(1, ["无聊", "沮丧", "犯困"]), (2, ["出事"]), (3, ["捣蛋鬼自己来", "幸运纸团"])];
+    private static readonly (string Tab, string[] Switches)[] NumberSwitches = [("心情", ["无聊", "沮丧", "犯困"]), ("日常", ["出事"]), ("小游戏", ["捣蛋鬼自己来", "幸运纸团"])];
 
     [Fact]
     public Task No_tab_says_that_0_turns_a_number_off_whether_it_is_on_or_off() => WithPage(page =>
@@ -217,7 +217,7 @@ public sealed class DesktopPetSettingsTests
     [InlineData("")]
     public Task A_number_switched_on_must_be_positive_while_one_switched_off_is_not_checked(string typed) => WithPage(async (page, harness) =>
     {
-        GuiHarness.Tab(page, 3);
+        GuiHarness.Tab(page, "小游戏");
         var minutes = Number(page, "它最多每几分钟自己来一次");
         minutes.Text = typed;
         GuiHarness.Flush();
@@ -239,7 +239,7 @@ public sealed class DesktopPetSettingsTests
     {
         Assert.DoesNotContain("小游戏·她", page.FindControl<ListBox>("ShowGroupList")!.Items.Cast<DesktopPetShowGroup>().Select(group => group.Group.Label));
         Assert.DoesNotContain("守住了", TestLabels(page));
-        GuiHarness.Tab(page, 4);
+        GuiHarness.Tab(page, "台词");
         Assert.Subset(LineKindLabels(page).ToHashSet(),
             new HashSet<string> { "别丢啦", "绝杀守住", "点名", "回嘴", "露破绽", "趁现在", "收下小花花", "绝杀得手" });
         Pick(page, "LineKindList", "守住了");
@@ -260,7 +260,7 @@ public sealed class DesktopPetSettingsTests
         var port = Settings.Load(harness.DataDirectory).WebServicePort.Value;
         File.WriteAllText(Settings.FilePath(harness.DataDirectory), $"web_service:\n  port: {port}\ndesktop_pet: {{enabled: false}}\n");
         page.RefreshFileStatus(Settings.Load(harness.DataDirectory));
-        GuiHarness.Tab(page, 4);
+        GuiHarness.Tab(page, "台词");
         Pick(page, "LineKindList", "大礼物");
         GuiHarness.Flush();
         Assert.True(GuiHarness.FindVisual<TextBlock>(page, "LinesReadOnly").IsVisible);
@@ -277,40 +277,45 @@ public sealed class DesktopPetSettingsTests
             ["desktop_pet.lines.1.bigGift"] = System.Text.Json.JsonSerializer.Serialize(Character.Current.Lines["bigGift"])
         });
         page.RefreshFileStatus(Settings.Load(harness.DataDirectory));
-        GuiHarness.Tab(page, 4);
+        GuiHarness.Tab(page, "台词");
         GuiHarness.Flush();
         Assert.DoesNotContain("已改", Texts(page));
         return Task.CompletedTask;
     });
 
-    // #425: at the narrowest window (816 × 600 is the page's share of 1040 × 600) neither tab scrolls.
-    [Fact]
-    public Task Moods_and_dailies_each_have_a_tab_that_fits_the_narrowest_window_without_scrolling() => WithPage(page =>
+    // #425: at the default window and the narrowest (the page's share of 1200 × 720 and of 1040 × 600) neither tab scrolls,
+    // nor does 日常 with twice the daily actions it has (design package preview/gui-daily-tab-18-min-window.webp).
+    [Theory]
+    [InlineData(976, 720)]
+    [InlineData(816, 600)]
+    public Task Moods_and_daily_actions_each_have_a_tab_that_shows_only_its_own_rows_and_does_not_scroll(int width, int height) => WithPage(page =>
     {
-        var window = (Window)TopLevel.GetTopLevel(page)!;
-        (window.Width, window.Height) = (816, 600);
-        GuiHarness.Tab(page, 1);
-        Assert.Contains("冷场心情", Texts(page));
-        Assert.DoesNotContain("日常小动作", Texts(page));
-        AssertFits("MoodsTab");
-        GuiHarness.Tab(page, 2);
-        Assert.Subset(Texts(page).ToHashSet(), new HashSet<string?> { "日常小动作", "出事", "做哪几样", "cos" });
-        Assert.DoesNotContain("冷场心情", Texts(page));
-        AssertFits("DailyTab");
+        Assert.Equal(["演出", "心情", "日常", "小游戏", "台词"], page.FindControl<ListBox>("Tabs")!.Items.Cast<ListBoxItem>().Select(tab => tab.Content));
+        Assert.Equal(height, page.Bounds.Height);
+        string?[] moods = ["冷场心情", "无聊", "沮丧", "犯困"];
+        string?[] dailyActions = ["日常小动作", "间隔", "出事", "做哪几样",
+            .. page.FindControl<ItemsControl>("DailyRows")!.Items.Cast<DesktopPetShowRow>().Select(row => row.Show.Label)];
+        GuiHarness.Tab(page, "心情");
+        AssertShows("MoodsTab", moods, hidden: dailyActions);
+        GuiHarness.Tab(page, "日常");
+        AssertShows("DailyTab", dailyActions, hidden: moods);
+        PadDailyActions(page, 18);
+        GuiHarness.AssertFits(page.FindControl<ScrollViewer>("DailyTab")!);
         return Task.CompletedTask;
 
-        void AssertFits(string tab)
+        void AssertShows(string tab, string?[] shown, string?[] hidden)
         {
-            var scroll = page.FindControl<ScrollViewer>(tab)!;
-            Assert.Equal(600, page.Bounds.Height);
-            Assert.InRange(scroll.Extent.Height, 1, scroll.Viewport.Height);
+            var texts = Texts(page).ToHashSet();
+            Assert.Subset(texts, shown.ToHashSet());
+            Assert.Empty(texts.Intersect(hidden));
+            GuiHarness.AssertFits(page.FindControl<ScrollViewer>(tab)!);
         }
-    });
+    }, width, height);
 
     [Fact]
     public Task The_daily_actions_least_seconds_may_equal_the_most_but_not_exceed_them() => WithPage(page =>
     {
-        GuiHarness.Tab(page, 2);
+        GuiHarness.Tab(page, "日常");
         Number(page, "日常最短间隔（秒）").Text = "41";
         GuiHarness.Flush();
         Assert.False(page.CanSave);
@@ -328,7 +333,7 @@ public sealed class DesktopPetSettingsTests
     [Fact]
     public Task Insert_offers_only_the_kinds_placeholders_and_puts_one_in_the_line_being_edited() => WithPage(page =>
     {
-        GuiHarness.Tab(page, 4);
+        GuiHarness.Tab(page, "台词");
         Pick(page, "LineKindList", "冷场后来了人");
         Assert.Contains("这一类没有可插入的内容，台词照写就行", Texts(page));
         Pick(page, "LineKindList", "大礼物");
@@ -382,7 +387,7 @@ public sealed class DesktopPetSettingsTests
     {
         Settings.Save(harness.DataDirectory, new Dictionary<string, string> { ["desktop_pet.enabled"] = "true" });
         await ((MainWindowViewModel)page.DataContext!).WebService.ApplyWebSettingsAsync(Settings.Load(harness.DataDirectory));
-        GuiHarness.Tab(page, 3);
+        GuiHarness.Tab(page, "小游戏");
         var button = page.FindControl<Button>("SummonButton")!;
         var (text, note) = (page.FindControl<TextBlock>("SummonText")!, page.FindControl<TextBlock>("SummonNote")!);
         await GuiHarness.WaitForAsync(() => note.Text == "先在直播姬里加好桌宠页");
@@ -416,7 +421,7 @@ public sealed class DesktopPetSettingsTests
         Assert.Subset(TestLabels(page).ToHashSet(),
             new HashSet<string> { "对手情报卡", "最后10秒", "双倍挑战：挑战失败", "中途比分：被追近", "PK 结果：险胜", "PK 结果：输" });
         Switch(page, "PK 结果").IsChecked = false;
-        GuiHarness.Tab(page, 4);
+        GuiHarness.Tab(page, "台词");
         PickLines(page, "惨败·收尾", "惨败后，她站起来鞠躬时；每次随机一句，不连着重复", "pkBigLossAfter");
 
         await GuiHarness.SaveAsync(page);
@@ -428,7 +433,7 @@ public sealed class DesktopPetSettingsTests
         WithPage(async (page, harness) =>
     {
         string[] later = ["扭蛋", "火锅", "手游", "cos"];
-        GuiHarness.Tab(page, 2);
+        GuiHarness.Tab(page, "日常");
         Assert.Equal(["哼歌", "举哑铃", "爬山", "骑车", "滑雪", .. later],
             page.FindControl<ItemsControl>("DailyRows")!.Items.Cast<DesktopPetShowRow>().Select(row => row.Show.Label));
         Assert.False(Switch(page, "哼歌").IsChecked);
@@ -437,7 +442,7 @@ public sealed class DesktopPetSettingsTests
         Assert.Subset(TestLabels(page).ToHashSet(), later.SelectMany(label => new[] { label, $"{label}：出事" }).ToHashSet());
         foreach (var label in later)
             Switch(page, label).IsChecked = false;
-        GuiHarness.Tab(page, 4);
+        GuiHarness.Tab(page, "台词");
         Assert.Subset(LineKindLabels(page).ToHashSet(), new HashSet<string>
         {
             "扭蛋", "扭中了", "扭空", "没扭中", "打起精神", "火锅", "好吃", "辣到了", "得救了", "手游", "赢了", "输了", "砸到脸",
@@ -471,10 +476,11 @@ public sealed class DesktopPetSettingsTests
         Assert.Equal(Character.Current.Lines[id][0], Line(page, 1).Text);
     }
 
-    private static Task WithPage(Func<DesktopPetSettingsPage, Task> test) => WithPage((page, _) => test(page));
+    private static Task WithPage(Func<DesktopPetSettingsPage, Task> test, int width = 1200, int height = 720) =>
+        WithPage((page, _) => test(page), width: width, height: height);
 
-    /// <summary>The page at 1200 × 720 over data that <paramref name="prepare"/> may change first.</summary>
-    private static Task WithPage(Func<DesktopPetSettingsPage, GuiHarness, Task> test, Action<GuiHarness>? prepare = null) =>
+    /// <summary>The page in a window of the given size over data that <paramref name="prepare"/> may change first.</summary>
+    private static Task WithPage(Func<DesktopPetSettingsPage, GuiHarness, Task> test, Action<GuiHarness>? prepare = null, int width = 1200, int height = 720) =>
         HeadlessApp.Session.Dispatch(async () =>
     {
         using var harness = new GuiHarness();
@@ -482,7 +488,7 @@ public sealed class DesktopPetSettingsTests
         prepare?.Invoke(harness);
         var viewModel = harness.CreateViewModel();
         var page = new DesktopPetSettingsPage(harness.DataDirectory) { DataContext = viewModel };
-        var window = new Window { Content = page, Width = 1200, Height = 720 };
+        var window = new Window { Content = page, Width = width, Height = height };
         window.Show();
         try
         {

@@ -130,86 +130,102 @@
         </ScrollViewer>
       </Grid>
       <ScrollViewer x:Name="MoodsTab" HorizontalScrollBarVisibility="Disabled" IsVisible="False">
-        <StackPanel Spacing="8">
+        <StackPanel Spacing="10">
           <StackPanel Orientation="Horizontal" Spacing="8">
             <TextBlock Classes="section" Text="冷场心情" />
             <TextBlock Classes="hint" Text="冷场久了她会无聊、沮丧、犯困" />
           </StackPanel>
-          <Grid ColumnDefinitions="68,Auto,Auto,168,*" RowDefinitions="42,Auto,Auto,42,Auto,Auto,42,Auto,Auto" ColumnSpacing="10">
-            <TextBlock Grid.Row="0" FontWeight="SemiBold" Classes.muted="{Binding !#BoredOn.IsChecked}" Text="无聊" VerticalAlignment="Center" />
-            <ToggleSwitch Grid.Row="0" Grid.Column="1" x:Name="BoredOn" Classes="plain" AutomationProperties.Name="无聊" />
-            <NumericUpDown Grid.Row="0" Grid.Column="2" x:Name="BoredInput" Minimum="1" IsEnabled="{Binding #BoredOn.IsChecked}" Classes.invalid="{Binding #BoredError.IsVisible}" FormatString="0.############################" AutomationProperties.Name="无聊：几分钟后进入" />
-            <TextBlock Grid.Row="0" Grid.Column="3" Classes.muted="{Binding !#BoredOn.IsChecked}" Text="分钟没收到礼物" VerticalAlignment="Center" />
-            <TextBlock Grid.Row="0" Grid.Column="4" x:Name="BoredNote" Classes="hint" VerticalAlignment="Center" />
-            <TextBlock Grid.Row="1" Grid.Column="2" Grid.ColumnSpan="3" x:Name="BoredError" Classes="error" />
-            <TextBlock Grid.Row="2" Grid.Column="2" Grid.ColumnSpan="3" x:Name="BoredReadOnly" Classes="hint" Text="{StaticResource SettingsReadOnlyHint}" />
-            <TextBlock Grid.Row="3" FontWeight="SemiBold" Classes.muted="{Binding !#GloomyOn.IsChecked}" Text="沮丧" VerticalAlignment="Center" />
-            <ToggleSwitch Grid.Row="3" Grid.Column="1" x:Name="GloomyOn" Classes="plain" AutomationProperties.Name="沮丧" />
-            <NumericUpDown Grid.Row="3" Grid.Column="2" x:Name="GloomyInput" Minimum="1" IsEnabled="{Binding #GloomyOn.IsChecked}" Classes.invalid="{Binding #GloomyError.IsVisible}" FormatString="0.############################" AutomationProperties.Name="沮丧：几分钟后进入" />
-            <TextBlock Grid.Row="3" Grid.Column="3" Classes.muted="{Binding !#GloomyOn.IsChecked}" Text="分钟没收到礼物" VerticalAlignment="Center" />
-            <TextBlock Grid.Row="3" Grid.Column="4" x:Name="GloomyNote" Classes="hint" VerticalAlignment="Center" />
-            <TextBlock Grid.Row="4" Grid.Column="2" Grid.ColumnSpan="3" x:Name="GloomyError" Classes="error" />
-            <TextBlock Grid.Row="5" Grid.Column="2" Grid.ColumnSpan="3" x:Name="GloomyReadOnly" Classes="hint" Text="{StaticResource SettingsReadOnlyHint}" />
-            <TextBlock Grid.Row="6" FontWeight="SemiBold" Classes.muted="{Binding !#SleepyOn.IsChecked}" Text="犯困" VerticalAlignment="Center" />
-            <ToggleSwitch Grid.Row="6" Grid.Column="1" x:Name="SleepyOn" Classes="plain" AutomationProperties.Name="犯困" />
-            <NumericUpDown Grid.Row="6" Grid.Column="2" x:Name="SleepyInput" Minimum="1" IsEnabled="{Binding #SleepyOn.IsChecked}" Classes.invalid="{Binding #SleepyError.IsVisible}" FormatString="0.############################" AutomationProperties.Name="犯困：几分钟后进入" />
-            <TextBlock Grid.Row="6" Grid.Column="3" Classes.muted="{Binding !#SleepyOn.IsChecked}" Text="分钟什么事都没有" VerticalAlignment="Center" />
-            <TextBlock Grid.Row="6" Grid.Column="4" x:Name="SleepyNote" Classes="hint" VerticalAlignment="Center" />
-            <TextBlock Grid.Row="7" Grid.Column="2" Grid.ColumnSpan="3" x:Name="SleepyError" Classes="error" />
-            <TextBlock Grid.Row="8" Grid.Column="2" Grid.ColumnSpan="3" x:Name="SleepyReadOnly" Classes="hint" Text="{StaticResource SettingsReadOnlyHint}" />
-          </Grid>
+          <!-- Number rows are laid out alike on 心情, 日常 and 小游戏: the boxes at their own height, 12 px between rows, an error or
+               read-only note 4 px under its row from where the name ends. -->
+          <StackPanel Spacing="12">
+            <StackPanel Spacing="4">
+              <StackPanel Orientation="Horizontal" Spacing="10">
+                <TextBlock Width="68" FontWeight="SemiBold" Classes.muted="{Binding !#BoredOn.IsChecked}" Text="无聊" VerticalAlignment="Center" />
+                <ToggleSwitch x:Name="BoredOn" Classes="plain" AutomationProperties.Name="无聊" />
+                <NumericUpDown x:Name="BoredInput" Minimum="1" IsEnabled="{Binding #BoredOn.IsChecked}" Classes.invalid="{Binding #BoredError.IsVisible}" FormatString="0.############################" AutomationProperties.Name="无聊：几分钟后进入" />
+                <TextBlock Width="168" Classes.muted="{Binding !#BoredOn.IsChecked}" Text="分钟没收到礼物" VerticalAlignment="Center" />
+                <TextBlock x:Name="BoredNote" Classes="hint" VerticalAlignment="Center" />
+              </StackPanel>
+              <TextBlock x:Name="BoredError" Classes="error" Margin="78,0,0,0" />
+              <TextBlock x:Name="BoredReadOnly" Classes="hint" Margin="78,0,0,0" Text="{StaticResource SettingsReadOnlyHint}" />
+            </StackPanel>
+            <StackPanel Spacing="4">
+              <StackPanel Orientation="Horizontal" Spacing="10">
+                <TextBlock Width="68" FontWeight="SemiBold" Classes.muted="{Binding !#GloomyOn.IsChecked}" Text="沮丧" VerticalAlignment="Center" />
+                <ToggleSwitch x:Name="GloomyOn" Classes="plain" AutomationProperties.Name="沮丧" />
+                <NumericUpDown x:Name="GloomyInput" Minimum="1" IsEnabled="{Binding #GloomyOn.IsChecked}" Classes.invalid="{Binding #GloomyError.IsVisible}" FormatString="0.############################" AutomationProperties.Name="沮丧：几分钟后进入" />
+                <TextBlock Width="168" Classes.muted="{Binding !#GloomyOn.IsChecked}" Text="分钟没收到礼物" VerticalAlignment="Center" />
+                <TextBlock x:Name="GloomyNote" Classes="hint" VerticalAlignment="Center" />
+              </StackPanel>
+              <TextBlock x:Name="GloomyError" Classes="error" Margin="78,0,0,0" />
+              <TextBlock x:Name="GloomyReadOnly" Classes="hint" Margin="78,0,0,0" Text="{StaticResource SettingsReadOnlyHint}" />
+            </StackPanel>
+            <StackPanel Spacing="4">
+              <StackPanel Orientation="Horizontal" Spacing="10">
+                <TextBlock Width="68" FontWeight="SemiBold" Classes.muted="{Binding !#SleepyOn.IsChecked}" Text="犯困" VerticalAlignment="Center" />
+                <ToggleSwitch x:Name="SleepyOn" Classes="plain" AutomationProperties.Name="犯困" />
+                <NumericUpDown x:Name="SleepyInput" Minimum="1" IsEnabled="{Binding #SleepyOn.IsChecked}" Classes.invalid="{Binding #SleepyError.IsVisible}" FormatString="0.############################" AutomationProperties.Name="犯困：几分钟后进入" />
+                <TextBlock Width="168" Classes.muted="{Binding !#SleepyOn.IsChecked}" Text="分钟什么事都没有" VerticalAlignment="Center" />
+                <TextBlock x:Name="SleepyNote" Classes="hint" VerticalAlignment="Center" />
+              </StackPanel>
+              <TextBlock x:Name="SleepyError" Classes="error" Margin="78,0,0,0" />
+              <TextBlock x:Name="SleepyReadOnly" Classes="hint" Margin="78,0,0,0" Text="{StaticResource SettingsReadOnlyHint}" />
+            </StackPanel>
+          </StackPanel>
         </StackPanel>
       </ScrollViewer>
       <ScrollViewer x:Name="DailyTab" HorizontalScrollBarVisibility="Disabled" IsVisible="False">
-        <StackPanel Spacing="8">
+        <StackPanel Spacing="10">
           <StackPanel Orientation="Horizontal" Spacing="8">
             <TextBlock Classes="section" Text="日常小动作" />
             <TextBlock Classes="hint" Text="心情平静、没在演出的时候，隔一阵做一个；运动各穿各的衣服" />
           </StackPanel>
-          <!-- Rows 42 high like the 冷场心情's, an error or read-only note taking room under its row only when shown. -->
-          <StackPanel>
-            <StackPanel Orientation="Horizontal" Spacing="8" Height="42">
-              <TextBlock Width="70" Text="间隔" VerticalAlignment="Center" />
-              <TextBlock Text="每隔" VerticalAlignment="Center" />
-              <NumericUpDown x:Name="DailyMinInput" Minimum="1" FormatString="0.############################" AutomationProperties.Name="日常最短间隔（秒）" />
-              <TextBlock Text="到" VerticalAlignment="Center" />
-              <NumericUpDown x:Name="DailyMaxInput" Minimum="1" FormatString="0.############################" AutomationProperties.Name="日常最长间隔（秒）" />
-              <TextBlock Text="秒，随机做一个" VerticalAlignment="Center" />
+          <StackPanel Spacing="12">
+            <StackPanel Spacing="4">
+              <StackPanel Orientation="Horizontal" Spacing="8">
+                <TextBlock Width="70" Text="间隔" VerticalAlignment="Center" />
+                <TextBlock Text="每隔" VerticalAlignment="Center" />
+                <NumericUpDown x:Name="DailyMinInput" Minimum="1" FormatString="0.############################" AutomationProperties.Name="日常最短间隔（秒）" />
+                <TextBlock Text="到" VerticalAlignment="Center" />
+                <NumericUpDown x:Name="DailyMaxInput" Minimum="1" FormatString="0.############################" AutomationProperties.Name="日常最长间隔（秒）" />
+                <TextBlock Text="秒，随机做一个" VerticalAlignment="Center" />
+              </StackPanel>
+              <TextBlock x:Name="DailyError" Classes="error" Margin="78,0,0,0" IsVisible="False" />
+              <TextBlock x:Name="DailyMinReadOnly" Classes="hint" Margin="78,0,0,0" Text="{StaticResource SettingsReadOnlyHint}" />
+              <TextBlock x:Name="DailyMaxReadOnly" Classes="hint" Margin="78,0,0,0" Text="{StaticResource SettingsReadOnlyHint}" />
             </StackPanel>
-            <StackPanel Margin="78,0,0,0">
-              <TextBlock x:Name="DailyError" Classes="error" IsVisible="False" />
-              <TextBlock x:Name="DailyMinReadOnly" Classes="hint" Text="{StaticResource SettingsReadOnlyHint}" />
-              <TextBlock x:Name="DailyMaxReadOnly" Classes="hint" Text="{StaticResource SettingsReadOnlyHint}" />
+            <StackPanel Spacing="4">
+              <StackPanel Orientation="Horizontal" Spacing="8">
+                <TextBlock Width="70" Classes.muted="{Binding !#MishapOn.IsChecked}" Text="出事" VerticalAlignment="Center" />
+                <ToggleSwitch x:Name="MishapOn" Classes="plain" AutomationProperties.Name="出事" />
+                <NumericUpDown x:Name="MishapInput" Minimum="1" Maximum="100" IsEnabled="{Binding #MishapOn.IsChecked}" Classes.invalid="{Binding #MishapError.IsVisible}" FormatString="0.############################" AutomationProperties.Name="出事的几率（%）" />
+                <TextBlock Classes.muted="{Binding !#MishapOn.IsChecked}" Text="% 的几率出点小事" VerticalAlignment="Center" />
+                <TextBlock x:Name="MishapNote" Classes="hint" Margin="8,0,0,0" VerticalAlignment="Center" />
+              </StackPanel>
+              <TextBlock x:Name="MishapError" Classes="error" Margin="78,0,0,0" />
+              <TextBlock x:Name="MishapReadOnly" Classes="hint" Margin="78,0,0,0" Text="{StaticResource SettingsReadOnlyHint}" />
             </StackPanel>
-            <StackPanel Orientation="Horizontal" Spacing="8" Height="42">
-              <TextBlock Width="70" Classes.muted="{Binding !#MishapOn.IsChecked}" Text="出事" VerticalAlignment="Center" />
-              <ToggleSwitch x:Name="MishapOn" Classes="plain" AutomationProperties.Name="出事" />
-              <NumericUpDown x:Name="MishapInput" Minimum="1" Maximum="100" IsEnabled="{Binding #MishapOn.IsChecked}" Classes.invalid="{Binding #MishapError.IsVisible}" FormatString="0.############################" AutomationProperties.Name="出事的几率（%）" />
-              <TextBlock Classes.muted="{Binding !#MishapOn.IsChecked}" Text="% 的几率出点小事" VerticalAlignment="Center" />
-              <TextBlock x:Name="MishapNote" Classes="hint" Margin="8,0,0,0" VerticalAlignment="Center" />
-            </StackPanel>
-            <StackPanel Margin="78,0,0,0">
-              <TextBlock x:Name="MishapError" Classes="error" />
-              <TextBlock x:Name="MishapReadOnly" Classes="hint" Text="{StaticResource SettingsReadOnlyHint}" />
+            <StackPanel Spacing="4">
+              <!-- Six to a row in aligned columns (a name's 52 px holds three characters), growing downwards: three rows (18) fit the narrowest
+                   window. A switch stands 6 px above and below its 20 px track, which puts the label level with the first row. -->
+              <Grid ColumnDefinitions="70,*" ColumnSpacing="8">
+                <TextBlock Text="做哪几样" VerticalAlignment="Top" Margin="0,6,0,0" />
+                <ItemsControl Grid.Column="1" x:Name="DailyRows" AutomationProperties.Name="做哪几样">
+                  <ItemsControl.ItemsPanel><ItemsPanelTemplate><UniformGrid Columns="6" RowSpacing="8" /></ItemsPanelTemplate></ItemsControl.ItemsPanel>
+                  <ItemsControl.ItemTemplate>
+                    <DataTemplate x:DataType="local:DesktopPetShowRow">
+                      <StackPanel Orientation="Horizontal" Spacing="8">
+                        <TextBlock Width="52" Classes.muted="{Binding !On}" Text="{Binding Show.Label}" VerticalAlignment="Center" />
+                        <!-- Just its 40 px track: Fluent leaves 12 px after it for the words plain hides. -->
+                        <ToggleSwitch Classes="plain" Width="40" IsChecked="{Binding On, Mode=TwoWay}" IsEnabled="{Binding CanEdit}" AutomationProperties.Name="{Binding Show.Label}" />
+                      </StackPanel>
+                    </DataTemplate>
+                  </ItemsControl.ItemTemplate>
+                </ItemsControl>
+              </Grid>
+              <TextBlock x:Name="DailyReadOnly" Classes="hint" Margin="78,0,0,0" Text="{StaticResource SettingsReadOnlyHint}" />
             </StackPanel>
           </StackPanel>
-          <!-- Six to a row in aligned columns (a name's 52 px holds three characters), growing downwards: three rows (18) fit the narrowest window. -->
-          <Grid ColumnDefinitions="70,*" ColumnSpacing="8">
-            <TextBlock Text="做哪几样" VerticalAlignment="Top" Margin="0,6,0,0" />
-            <ItemsControl Grid.Column="1" x:Name="DailyRows" AutomationProperties.Name="做哪几样">
-              <ItemsControl.ItemsPanel><ItemsPanelTemplate><UniformGrid Columns="6" RowSpacing="8" /></ItemsPanelTemplate></ItemsControl.ItemsPanel>
-              <ItemsControl.ItemTemplate>
-                <DataTemplate x:DataType="local:DesktopPetShowRow">
-                  <StackPanel Orientation="Horizontal" Spacing="8">
-                    <TextBlock Width="52" Classes.muted="{Binding !On}" Text="{Binding Show.Label}" VerticalAlignment="Center" />
-                    <!-- Just its 40 px track: Fluent leaves 12 px after it for the words plain hides. -->
-                    <ToggleSwitch Classes="plain" Width="40" IsChecked="{Binding On, Mode=TwoWay}" IsEnabled="{Binding CanEdit}" AutomationProperties.Name="{Binding Show.Label}" />
-                  </StackPanel>
-                </DataTemplate>
-              </ItemsControl.ItemTemplate>
-            </ItemsControl>
-          </Grid>
-          <TextBlock x:Name="DailyReadOnly" Classes="hint" Margin="78,0,0,0" Text="{StaticResource SettingsReadOnlyHint}" />
         </StackPanel>
       </ScrollViewer>
       <ScrollViewer x:Name="GameTab" HorizontalScrollBarVisibility="Disabled" IsVisible="False">
