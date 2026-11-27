@@ -192,7 +192,7 @@ the page beside the board, as the web service serves it, telling it it is on in 
   every show (a cos in each costume) in real time, about eleven minutes, too long for a test: run it after changing the sprite's flight, its circling, a toss or
   the pace of a round.
 - `node docs/design/desktop-pet/tools/play.mjs <show[:variant]> <ms,…> <out.png> --page [--line]` grabs the page at moments
-  of a show playing in real time as its 试演 does, a cos in the costume after a slash (`cosplay/fighter:Mishap`).
+  of a 试演 playing in real time, a cos in the costume after a slash (`cosplay/fighter:Mishap`).
 
 ## Deliberate differences from the board
 

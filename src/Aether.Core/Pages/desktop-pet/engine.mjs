@@ -812,8 +812,8 @@ export class Engine extends EventTarget {
   guard(g) { this.fire(GUARDS[g.guardLevel - 1], { nickname: g.nickname, spend: g.spend }); this.gifted(this.now()); }
 
   // A 试演 plays the show from its start (a blind box from its shaking), or holds her in the 心情, until it is stopped. It
-  // scares the 捣蛋鬼 off as what happened would.
-  testShow({ show, variant, nickname, id }) {
+  // scares the 捣蛋鬼 off as what happened would. A cos is in the costume given (the checks give each), else one picked.
+  testShow({ show, variant, nickname, id, costume }) {
     const scare = this.gm.visit ? this.scared(this.now()) : {};
     this.trial = null;
     if (this.events[show].group === MOOD) {
@@ -821,7 +821,7 @@ export class Engine extends EventTarget {
       if (scare.frizz) this.gm.fix = { start: this.now(), pose: scare.frizz };
       this.trial = show; return;
     }
-    this.start(show, { nickname, result: variant, mishap: variant === 'Mishap', trial: true, trialId: id, ...scare });
+    this.start(show, { nickname, result: variant, mishap: variant === 'Mishap', costume, trial: true, trialId: id, ...scare });
   }
 
   // Only the 试演: a show of what happened since it plays on.

@@ -24,8 +24,8 @@ const PLAYS = shows.filter(row => row.group !== MOOD).flatMap(row => row.tests.f
 // Her 桌宠页 stands in a box for each of her pictures (gamePet): any size will do for which poses and drawings she takes.
 function everyState(character) {
   const engine = gamePet(character), states = [];
-  for (const [show, opts] of PLAYS) {
-    engine.start(show, { ...opts, nickname: '星河' });
+  for (const [show, { result, costume }] of PLAYS) {
+    engine.testShow({ show, variant: result, nickname: '星河', costume });
     const { start, dur } = engine.cur = { ...engine.cur, pre: 1000, wakeLine: '' };
     for (let t = 0; t < 1000 + dur; t += 20) { engine.master.currentTime = start + t; states.push(engine.stateAt(engine.now())); }
   }
