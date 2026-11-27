@@ -35,7 +35,7 @@ public sealed class BlindBoxV2Tests
         await using var h = new WatchHarness();
         await h.LoginAsync();
         await using var updates = await h.WatchConnectedAsync();
-        var messages = File.ReadAllLines(Path.Combine(AppContext.BaseDirectory, "Fixtures", "gifts-v2-20261009.jsonl"));
+        var messages = FixtureFile.Lines("gifts-v2-20261009.jsonl");
         await h.PushAndSyncAsync(updates, messages);
 
         var rows = TestDatabase.BlindBoxRows(h.DataDirectory);

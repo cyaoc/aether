@@ -36,11 +36,18 @@ internal static class GiftMessages
 
     /// <summary>The text at <paramref name="path"/>, "" when any step is missing or null: avatars and icons are optional, so
     /// a gift without them still counts.</summary>
-    internal static string OptionalText(JsonElement element, params string[] path)
+    internal static string OptionalText(JsonElement element, params string[] path) => At(element, path)?.GetString() ?? "";
+
+    /// <summary>The whole number at <paramref name="path"/>, null when any step is missing or it is not one: for what a
+    /// message can leave out or write otherwise and still count.</summary>
+    internal static long? OptionalNumber(JsonElement element, params string[] path) =>
+        At(element, path) is { ValueKind: JsonValueKind.Number } number && number.TryGetInt64(out var value) ? value : null;
+
+    private static JsonElement? At(JsonElement element, string[] path)
     {
         foreach (var name in path)
-            if (element.ValueKind != JsonValueKind.Object || !element.TryGetProperty(name, out element)) return "";
-        return element.GetString() ?? "";
+            if (element.ValueKind != JsonValueKind.Object || !element.TryGetProperty(name, out element)) return null;
+        return element;
     }
 
     /// <summary>A gift message's guard_level as its sender's 大航海身份, 0 for any but 1 总督, 2 提督 and 3 舰长: it only picks

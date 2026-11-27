@@ -156,7 +156,7 @@ GUI 打开就启动网页服务，不需要登录或连接直播间，不跟功�
 
 普通付费礼物按 `coin_type: gold` 的 `total_coin` 计投入，盲盒按盲盒投入计；免费礼物不计。
 每个直播间的观众各自累计，停手 3 秒结束一轮，和一轮盲盒互不影响；自动重连保留，主动断开清空。
-uid 为 0 只记录日志；目前不按 tid 去重。大航海开通、续费已接入：按实际付的价格计入一轮送礼的投入，和普通礼物在 3 秒内连着送算同一轮（算法见下一节“大航海开通和续费”）。
+uid 为 0 只记录日志；同一次直播间连接里同一个 `tid`（大航海是 `payflow_id`）再推一次只算一次，没有 `tid` 的不去重。大航海开通、续费已接入：按实际付的价格计入一轮送礼的投入，和普通礼物在 3 秒内连着送算同一轮（算法见下一节“大航海开通和续费”）。
 V2 已使用本地人气票消息验证；V1 使用 BAC 示例，未实测。批量、折扣、包裹仍缺真实样本，金额待实战 Trace 核对。
 V1、V2 礼物消息还解出礼物 id、名称、单价、个数、观众头像地址、礼物图标地址和 `tid`（盲盒取它开出的礼物），供礼物榜使用：V1、V2 缺 `face` 或 `gift_info.img_basic` 都按空地址处理，这样的礼物照常进一轮送礼、盲盒统计和礼物榜，页面用昵称首字画头像。
 
@@ -167,9 +167,9 @@ V1、V2 礼物消息还解出礼物 id、名称、单价、个数、观众头像
 ### 大航海开通和续费
 
 观众开通、续费舰长、提督、总督时，`USER_TOAST_MSG_V2`（JSON）当作一份礼物进入一轮送礼，和普通礼物一样触发送礼动画和隐藏款。读取 `sender_uinfo.uid`、`sender_uinfo.base.name`、`sender_uinfo.base.face`（大航海消息常常不带，为空）、`guard_info.guard_level`（1 总督、2 提督、3 舰长）、`pay_info.num`、`pay_info.price`、`pay_info.unit`、`pay_info.payflow_id`、`gift_info.gift_id` 和 `option.source`。
-B站 每次上舰先推一条 `source` 为 0 的、再推一条 2 的，只认 0；`GUARD_BUY` 的 `price` 永远是原价 198 元，不用。除头像外字段缺失都按损坏消息处理，写 Warning 后跳过，继续接收后续消息；`guard_level` 不是 1 到 3、`num` 不是正数、`price` 或 `uid` 为负也一样。uid 为 0 只记录日志，`price` 为 0 的和免费礼物一样不算投入。
+不看 `option.source`，每一条都算（[#427](https://github.com/cyaoc/aether/issues/427)）：0 是在大航海面板开通、续费；1 是从礼物面板的航海分类投喂「舰长一号」「提督一号」「总督一号」，按原价开通或续费 1 个月（2026-11-27 抓到 4 次，都是舰长一号，同一秒都有一条 `REVENUE_DISPLAY_EFFECT`「投喂 舰长一号 x1」；一号不走 `SEND_GIFT`、`SEND_GIFT_V2`）。其他取值没有抓包（blivedm 的作者猜 2 是赠送的），`option` 或 `source` 缺了也一样：照下面的规则算，另把 `source` 和原始 JSON 记一条 Information 日志，上实战时核对。同一个 `payflow_id` 再推一次只算一次，`payflow_id` 为空的不去重。`GUARD_BUY` 的 `price` 永远是原价，不用。除头像和 `option` 外字段缺失都按损坏消息处理，写 Warning 后跳过，继续接收后续消息；`guard_level` 不是 1 到 3、`num` 不是正数、`price` 或 `uid` 为负也一样。uid 为 0 只记录日志，`price` 为 0 的和免费礼物一样不算投入。
 
-`price` 是实际付的价格，已经包含优惠，不用另算折扣：公开抓包里的 138000、168000、198000 都对得上下面的现价，2021、2022 年抓包里的 158000 是 2024 年 7 月调价前的续费价。主播提供的 B站 现价（2026-11，单位电池，10 电池 = 1 元 = 1000 金瓜子）：
+`price` 是实际付的价格，已经包含优惠，不用另算折扣：公开抓包里的 138000、168000、198000 都对得上下面的现价，2021、2022 年抓包里的 158000 是 2024 年 7 月调价前的续费价。2026-11-27 还抓到过 `price` 1900 的舰长开通（19 电池，不在下面的价格表里），一样按实际付的算。主播提供的 B站 现价（2026-11，单位电池，10 电池 = 1 元 = 1000 金瓜子）：
 
 | | 1 个月 | 3 个月 | 6 个月 | 12 个月 | 续费 |
 | --- | ---: | ---: | ---: | ---: | ---: |
@@ -188,10 +188,12 @@ B站 每次上舰先推一条 `source` 为 0 的、再推一条 2 的，只认 0
 单价 = 投入 ÷ 个数（取整）。两种理解能从数值分出来：单月价和多个月折算的每月价都不超过单月原价，多个月的总价都超过它（最低的舰长 3 个月 534000）。推的如果是取整后的单价，乘回去和真实总价最多差几个金瓜子（提督 12 个月：1631333 × 12 = 19575996，真实总价 19576000）。`num` 大于 1 或 `unit` 不是“月”时，把原始的 `guard_level`、`num`、`price`、`unit` 记一条 Information 日志，上实战时核对。
 
 未验证：
-- 一次买多个月（`num` 大于 1）时 `price` 是单价还是总价：公开资料里没有抓包，blivechat 按 `price × num` 算，blivedm-go 按总价算，都没给出依据；上面的规则只是按数值区分的兼容办法；
+- 一次买多个月（`num` 大于 1）时 `price` 会不会是单价：2026-11-27 抓到的一条 12 个月续费推的是总价（`price` 2016000 = 12 × 168000，`num` 12），和上面的规则一致；推单价的没有见过（blivechat 按 `price × num` 算，没给出依据），规则里按数值区分的那一支留着兼容；
+- `source` 不是 0、1 的推送是什么（例如 2）：没有抓包；
+- 同一次上舰会不会推两条而 `payflow_id` 不同（那样会算两次）：2026-11-27 的 22 次里没有，那次是匿名连接，登录连接没有验证；
 - `unit` 不是“月”的情况：公开资料只说正常为“月”，其他内容以 `unit` 为准，没有抓包。
 
-测试样本是按公开字段名和上面的价格表合成的，不是抓包，见[测试数据说明](../tests/Aether.Core.Tests/Fixtures/README.md#user_toast_msg_v2-合成样本)；字段来自 [blivedm](https://github.com/xfgryujk/blivedm/blob/master/blivedm/models/web.py)、[blivechat](https://github.com/xfgryujk/blivechat/blob/master/frontend/src/api/chat/ChatClientDirectWeb.js)、[sjh8130/bili_danmaku](https://github.com/sjh8130/bili_danmaku/blob/HEAD/Testing.md) 和 [BAC 的 USER_TOAST_MSG](https://github.com/pskdje/bilibili-API-collect/blob/master/docs/live/message_stream.md)，2024 年 7 月的调价见 [IT之家](https://www.ithome.com/0/780/661.htm)。
+测试样本大多是按公开字段名和上面的价格表合成的，不是抓包，见[测试数据说明](../tests/Aether.Core.Tests/Fixtures/README.md#user_toast_msg_v2-合成样本)；从 2026-11-27 抓到的 22 次上舰里挑的四条真实推送（脱敏）见[同一份说明](../tests/Aether.Core.Tests/Fixtures/README.md#2026-11-27-上舰真实样本)。字段来自 [blivedm](https://github.com/xfgryujk/blivedm/blob/master/blivedm/models/web.py)、[blivechat](https://github.com/xfgryujk/blivechat/blob/master/frontend/src/api/chat/ChatClientDirectWeb.js)、[sjh8130/bili_danmaku](https://github.com/sjh8130/bili_danmaku/blob/HEAD/Testing.md) 和 [BAC 的 USER_TOAST_MSG](https://github.com/pskdje/bilibili-API-collect/blob/master/docs/live/message_stream.md)，2024 年 7 月的调价见 [IT之家](https://www.ithome.com/0/780/661.htm)。
 
 ## 礼物榜
 
@@ -291,6 +293,7 @@ CLI 和 GUI 的文件日志位于 `data/logs/`，默认记录 Information 及以
 进程未处理异常、未观察到的 Task 异常和 GUI UI 线程未处理异常立即记录，不标记为已处理，
 仍遵循运行时原本的退出行为（未观察到的 Task 异常默认不终止 .NET 进程）。
 跳过无法解析的直播间消息时，警告附原始 JSON；超过 2KB 按 UTF-8 字节截断并注明。
+大航海推送的 `option.source` 不是 0、1（或读不出来）时，Information 里附这条推送 `data` 的原始 JSON，不截断，含买的人的 uid、昵称（见上文"大航海开通和续费"）。
 `log.level` 设为 `Trace` 时，每条直播间消息另记一条完整的原始 JSON，不截断，含观众的 uid、昵称等个人信息，
 只在抓包时临时开启，步骤见 [测试数据说明](../tests/Aether.Core.Tests/Fixtures/README.md)。
 弹幕、礼物、进场三类消息使用同一套格式日志规则：每个直播间连接首次收到带版本的格式、或版本切换时记一条 Information；

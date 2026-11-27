@@ -29,8 +29,7 @@ internal static class SendGiftV1
             // JSON spells false out, so only an explicit false hides the gift; a message without switch counts as shown.
             Shown = !data.TryGetProperty("switch", out var shown) || shown.ValueKind != JsonValueKind.False,
             FaceUrl = GiftMessages.OptionalText(data, "face"),
-            ViewerGuardLevel = GiftMessages.GuardLevel(data.TryGetProperty("guard_level", out var guard)
-                && guard.ValueKind == JsonValueKind.Number && guard.TryGetInt64(out var level) ? level : 0),
+            ViewerGuardLevel = GiftMessages.GuardLevel(GiftMessages.OptionalNumber(data, "guard_level") ?? 0),
             IconUrl = GiftMessages.OptionalText(data, "gift_info", "img_basic")
         });
     }

@@ -155,6 +155,19 @@ public sealed class GiftBoardRecordingTests
             new GiftBoardRow("10001/guard:3", 10001, "测试观众", UserToastFixture.TestFace, "舰长", "", 3, 2, 732000, 4)], await h.BoardRowsAsync());
     }
 
+    // #427: a 舰长一号 sent from the gift panel is a purchase whose source is 1, and went missing while only source 0 counted.
+    [Fact]
+    public async Task A_guard_purchase_sent_from_the_gift_panel_is_on_the_board_in_the_row_of_its_level()
+    {
+        await using var h = new WatchHarness();
+        await using var updates = await h.WatchWithGiftBoardAsync();
+
+        await h.PushAndSyncAsync(updates, UserToastFixture.Captured(1), UserToastFixture.Captured(2));
+
+        // The one bought on the 大航海 panel cost 168000 and the 舰长一号 the list price.
+        Assert.Equal([("10001/guard:3", "舰长", 366000L, 2L)], (await h.BoardRowsAsync()).Select(row => (row.Id, row.GiftName, row.Value, row.Num)));
+    }
+
     [Fact]
     public async Task Guard_months_bought_at_different_prices_add_up_to_exactly_what_was_paid_also_when_read_back()
     {

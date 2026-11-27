@@ -58,7 +58,7 @@ public sealed class BlindBoxAnnouncementTests
         await h.LoginAsync();
         var sent = CaptureSends(h);
         await using var updates = await h.WatchConnectedAsync();
-        var messages = File.ReadAllLines(Path.Combine(AppContext.BaseDirectory, "Fixtures", "gifts-v2-20261009.jsonl"));
+        var messages = FixtureFile.Lines("gifts-v2-20261009.jsonl");
         await h.PushAndSyncAsync(updates, messages[3]);
         h.Time.Advance(TimeSpan.FromMilliseconds(1300));
         await h.PushAndSyncAsync(updates, messages[4]);
@@ -116,7 +116,7 @@ public sealed class BlindBoxAnnouncementTests
         await h.LoginAsync();
         var sent = CaptureSends(h);
         await using var updates = await h.WatchConnectedAsync();
-        var message = File.ReadAllLines(Path.Combine(AppContext.BaseDirectory, "Fixtures", "gifts-v2-20261009.jsonl"))[2];
+        var message = FixtureFile.Lines("gifts-v2-20261009.jsonl")[2];
         using var database = TestDatabase.Open(h.DataDirectory);
         using var writer = database.BeginTransaction();
         var receiving = h.PushAndSyncAsync(updates, message);
