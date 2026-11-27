@@ -19,7 +19,8 @@ public sealed class UserToastV2Tests
 
     // Prices are 金瓜子 from the streamer's 2026-11 price list. A push's price is the unit price up to the single-month
     // list price (198000 舰长, 1998000 提督, 19998000 总督) and the total above it; a unit other than 月 counts once.
-    // No capture of a push with num above 1 or another unit exists, so those rows are synthetic (Fixtures/README.md).
+    // The only capture of a push with num above 1 is a 12-month 续费 (below); none exists of another unit, so those rows
+    // are synthetic (Fixtures/README.md).
     [Theory]
     [InlineData(3, 138000, 1, "月", 138000, 1, 138000)]
     [InlineData(3, 168000, 1, "月", 168000, 1, 168000)]
@@ -80,11 +81,14 @@ public sealed class UserToastV2Tests
     public void A_purchase_whose_spend_overflows_is_rejected() =>
         Assert.Throws<OverflowException>(() => Decode(UserToastFixture.Message(num: long.MaxValue)));
 
-    [Fact]
-    public void An_ordinary_purchase_is_not_logged()
+    // On the 大航海 panel, or a 舰长一号 sent from the gift panel.
+    [Theory]
+    [InlineData(0)]
+    [InlineData(1)]
+    public void An_ordinary_purchase_is_not_logged(long source)
     {
         var logger = new RecordingLogger();
-        Decode(UserToastFixture.Message(), logger);
+        Decode(UserToastFixture.Message(source: source), logger);
         Assert.Empty(logger.Entries);
     }
 
@@ -100,9 +104,42 @@ public sealed class UserToastV2Tests
         Assert.Equal<object?>([3, num, price, unit], [entry.Properties["GuardLevel"], entry.Properties["Num"], entry.Properties["Price"], entry.Properties["Unit"]]);
     }
 
+    // 0 is bought on the 大航海 panel and 1 is a 舰长一号 sent from the gift panel; what 2 is has never been captured (#427).
     [Theory]
+    [InlineData(0)]
     [InlineData(1)]
-    [InlineData(2)] // B站 pushes every purchase twice: source 0 first, then 2.
-    public void Only_source_0_counts_as_the_purchase(long source) =>
-        Assert.Empty(Decode(UserToastFixture.Message(source: source)));
+    [InlineData(2)]
+    public void A_purchase_counts_whatever_its_source(long source) =>
+        Assert.Equal(198000, Assert.Single(Decode(UserToastFixture.Message(source: source))).Spend);
+
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public void A_purchase_of_a_source_never_seen_counts_and_is_logged_whole(bool withoutOption)
+    {
+        var logger = new RecordingLogger();
+        var message = UserToastFixture.Message(source: 2, edit: data => { if (withoutOption) data.Remove("option"); });
+        Assert.Equal(198000, Assert.Single(Decode(message, logger)).Spend);
+        var entry = Assert.Single(logger.Entries);
+        Assert.Equal(LogLevel.Information, entry.Level);
+        Assert.Equal(withoutOption ? null : 2L, entry.Properties["Source"]);
+        Assert.Contains(UserToastFixture.TestPayflowId, Assert.IsType<string>(entry.Properties["Json"]));
+    }
+
+    // The rows of the capture's table in Fixtures/README.md: bought on the 大航海 panel at the 续费 price, a 舰长一号 from the
+    // gift panel (source 1, at the list price), 12 months whose price is the total, and a 开通 at a price off the price list.
+    [Theory]
+    [InlineData(1, 168000, 1, 168000)]
+    [InlineData(2, 198000, 1, 198000)]
+    [InlineData(3, 2016000, 12, 168000)]
+    [InlineData(4, 1900, 1, 1900)]
+    public void A_captured_purchase_is_a_captain_at_what_was_paid(int row, long spend, long count, long unitPrice)
+    {
+        var gift = Assert.Single(Decode(UserToastFixture.Captured(row)));
+        Assert.Equal(new Gift(10001, "测试观众", spend)
+        {
+            GiftId = 10003, GiftName = "舰长", Price = unitPrice, Num = count, Value = spend,
+            Tid = $"261127000000000000000000{row}", GuardLevel = 3, ViewerGuardLevel = 3
+        }, gift);
+    }
 }

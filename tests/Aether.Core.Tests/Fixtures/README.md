@@ -46,9 +46,37 @@
 [BAC 的 USER_TOAST_MSG、GUARD_BUY 示例](https://github.com/pskdje/bilibili-API-collect/blob/master/docs/live/message_stream.md)。
 uid、昵称、头像地址和 `payflow_id` 是测试值。
 一次买多个月（`num` 大于 1）和 `unit` 不是“月”的推送没有任何公开抓包，按公开字段名和主播提供的 2026-11 价格表合成
-（价格表见 [行为参考](../../../docs/reference.md#大航海开通和续费)）；`option.source` 为 2 的那一条也是合成的，依据是
-blivechat 和 blivedm 的说明：上舰时先推 0 的，再推 2 的。
+（价格表见 [行为参考](../../../docs/reference.md#大航海开通和续费)）；`option.source` 为 2 的那一条也是合成的：
+blivedm 的注释说上舰时先推 0 的、再推 2 的，2026-11-27 的 22 次上舰里没有见到。
 `UserToastV2Tests` 在解码层覆盖价格表里的各种组合，`GiftRoundTests` 验证进入一轮送礼、重复推送和缺字段时的警告。
+
+## 2026-11-27 上舰真实样本
+
+查 [#427](https://github.com/cyaoc/aether/issues/427) 时，2026-11-27 下午匿名（uid 0，无 SESSDATA，采集流程同下一节）连 B站 在线人数最高的
+几十个直播间，抓到 22 次上舰，全是舰长：
+`option.source` 为 0 的 18 次，`pay_info.price` 是 138000、168000、1900 或 12 个月的 2016000；为 1 的 4 次，`price` 都是原价
+198000，同一秒同一直播间都有一条 `REVENUE_DISPLAY_EFFECT`，弹幕文字是「投喂 舰长一号 x1」，而且不带旧版 `USER_TOAST_MSG`。
+22 个 `payflow_id` 都不重复，没有 `source` 为 2 的；提督、总督的没有抓到。
+
+`user-toast-v2-20261127.jsonl` 是从这 22 次里挑的四条，每行一个 `USER_TOAST_MSG_V2` JSON：
+
+| 行 | 是什么 | `source` | `op_type` | `price` | `num` | `toast_msg` 的说法 |
+| --- | --- | ---: | ---: | ---: | ---: | --- |
+| 1 | 大航海面板，续费价 | 0 | 2 | 168000 | 1 | 开通了舰长 |
+| 2 | 礼物面板投喂「舰长一号」，原价 | 1 | 2 | 198000 | 1 | 续费了舰长 |
+| 3 | 大航海面板 12 个月，`price` 是总价 | 0 | 2 | 2016000 | 12 | 续费了12个月舰长 |
+| 4 | 大航海面板，价格不在价格表里 | 0 | 1 | 1900 | 1 | 开通了舰长（第1天） |
+
+`op_type` 1 的 10 次都是"开通了…第1天"；2 的 12 次里 9 次写"续费了"、3 次写"开通了"（第 1 行就是），不是第一天。
+`source` 为 1 的 4 次里 `op_type` 1、2 都有：一号既能开通也能续费。bot 不读 `op_type` 和 `toast_msg`。
+
+**真实捕获后脱敏，不是原始副本：** 买的人的 uid 换成 10001、昵称换成"测试观众"（头像抓到时就是空的）；主播的 uid 换成 10000、
+昵称换成"测试主播"、头像清空；`toast_msg` 里的两个昵称跟着换，陪伴天数不是第 1 天的换成 100；`payflow_id`（原为 25 位数字的订单号）
+换成 `261127` 加补零的行号；`guard_info` 的 `start_time`、`end_time`（两个相等，是买的那一秒）换成当天零点，`room_guard_count` 换成 100。
+其余字段（`guard_info` 的等级和 `op_type`、`pay_info` 的金额、`gift_info`、`effect_info`、`option`）原样保留。
+同一秒的 `GUARD_BUY`、`USER_TOAST_MSG`、`REVENUE_DISPLAY_EFFECT` bot 不读，没有收进来。
+`UserToastV2Tests` 逐行核对解出的投入、个数和单价，`GiftBoardRecordingTests` 验证第 1、2 行合成礼物榜上的一行舰长；
+测试用 `Support/UserToastFixture.cs` 的 `Captured(行)` 取，行号就是上表的。
 
 ## 2026-10-05 真实流量
 

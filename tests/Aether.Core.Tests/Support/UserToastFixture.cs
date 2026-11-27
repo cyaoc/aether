@@ -6,11 +6,15 @@ namespace Aether.Core.Tests.Support;
 // blivedm's UserToastV2Message and blivechat's userToastV2Callback; the 138000 and 198000 prices are the ones in BAC's
 // USER_TOAST_MSG and GUARD_BUY samples. uid, names, face and payflow_id are test values. Pushes of several months or of
 // a unit other than 月 have never been captured: they are built from those field names and the streamer's 2026-11 price
-// list. This is not a capture.
+// list. What Message builds is not a capture; Captured is one.
 internal static class UserToastFixture
 {
     public const string TestFace = "https://i0.hdslb.com/bfs/face/test-toast.jpg";
     public const string TestPayflowId = "test-payflow-1";
+
+    /// <summary>Fixtures/user-toast-v2-20261127.jsonl: the push of row <paramref name="row"/> of the table in
+    /// Fixtures/README.md, captured on 2026-11-27 with the people in it replaced.</summary>
+    public static string Captured(int row) => FixtureFile.Lines("user-toast-v2-20261127.jsonl")[row - 1];
 
     /// <summary>A purchase by one viewer, with <paramref name="edit"/> applied to its data object; the default is a 舰长
     /// bought for one month at the list price.</summary>

@@ -55,7 +55,6 @@ public sealed class GiftRoundTests
     [InlineData("guard_info")]
     [InlineData("pay_info")]
     [InlineData("gift_info")]
-    [InlineData("option")]
     public async Task A_guard_purchase_missing_a_field_is_warned_without_losing_the_next_one(string field)
     {
         await using var h = new WatchHarness(enableStreamOverlay: true);
@@ -78,7 +77,7 @@ public sealed class GiftRoundTests
         await h.LoginAsync();
         await using var updates = await h.WatchConnectedAsync(includeGiftRounds: true);
         var message = capture
-            ? File.ReadAllLines(Path.Combine(AppContext.BaseDirectory, "Fixtures", "gifts-v2-20261009.jsonl"))[0]
+            ? FixtureFile.Lines("gifts-v2-20261009.jsonl")[0]
             : BlindGiftV2Fixture.Message(BlindGiftV2Fixture.Broadcast([
                 BlindGiftV2Fixture.Item(num: 3, price: 1000, spend: 2100),
                 BlindGiftV2Fixture.Item(coin: "silver", spend: 9999)], blindId: 0));
