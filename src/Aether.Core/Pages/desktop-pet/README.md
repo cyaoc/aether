@@ -117,7 +117,7 @@ flying round her `fanFly`, its flames `fireAt` and the smoke after them `smoke`,
 (`blowSpot`); the board's `COS` numbers measured on her drawings and her sprite's, where its effects burst and its blows
 land, where the fan leaves her hand and comes back to it, where a shot leaves the muzzle and an arrow lies in its groove,
 where her sprite takes her hand, puts her cap back on and blows, and where what she drops pops from, lands and is handed
-back, are her `points.cos.<costume>`, its timelines, effects (the ice pillars' places, in her heights from her feet) and her
+back, are her `points.cos.<costume>` (her sprite's lips as it blows, the same in every costume, `points.cos.lips`), its timelines, effects (the ice pillars' places, in her heights from her feet) and her
 sprite's ways stay in `COS`), entries, gifts, blind boxes,
 castles, 大航海, a new first place on the 礼物榜 (found by the 礼物榜页's `../gift-board/changes.mjs`), each step of a lottery,
 a 盲盒查询's 账单卡 and, in a PK, the 对手情报卡 her sprite prints (`pkMatch`, `intelShow`, the card `pk-intel.mjs`, the design

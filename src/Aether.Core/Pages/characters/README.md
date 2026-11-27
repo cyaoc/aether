@@ -37,9 +37,9 @@ castle's gate, which `castleShow` takes at 0.503 and 0.676 of the 1024 px pictur
 `outlet` and `cell`, and, as `hug`, where its `gacha` brings the plush down into her arms, 41 and 87), and the 火锅's (`HOTPOT`'s `pot`
 and `give`, and, as `tip`, the meatball its `hotpot` feeds her sprite from, −0.34 and 0.66 of her height), and the cos daily's (`COS`'s,
 by costume as the page's `COS` names them: 白眼格斗忍者 `ninja`'s palm strike `palm` and lens `item`, 火焰扇子女忍者 `fire`'s fan
-leaving her hand `throwHand` and caught `catchHand`, her ponytail's end `ponytail` and her sprite's lips blowing on it `lips`,
+leaving her hand `throwHand` and caught `catchHand`, and her ponytail's end `ponytail`,
 冰系女将军 `ice`'s snapping fingers `snap`, cap `item` and her head it goes back on `head`, 苗疆蛊毒少女 `miao`'s crown glinting
 `crown`, pot `pot`, fingertip `finger` and caterpillar `item`, 电竞少女 `esports`'s gun's muzzle `muzzle`, the fingertip she
-spins her gun on `finger` and her head it falls on `head`, 绿袍女武将 `warlord`'s light arrow's rear and front `arrow`, her stung
-hand `hand` and her sprite's lips blowing on it `lips`, 格斗少女 `fighter`'s gloves bumping `bump`, blows `punch`, `upper`
-and `kick` and raised hand `pull`).
+spins her gun on `finger` and her head it falls on `head`, 绿袍女武将 `warlord`'s light arrow's rear and front `arrow` and her stung
+hand `hand`, 格斗少女 `fighter`'s gloves bumping `bump`, blows `punch`, `upper` and `kick` and raised hand `pull`; and, for every
+costume, her sprite's lips as it blows, from its centre, `lips`).

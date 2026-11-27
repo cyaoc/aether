@@ -94,14 +94,16 @@
       "gacha": { "win": [22, 100, 215, 278], "bay": [164.5, 334], "knob": [66, 335, 40], "outlet": [117, 430], "cell": 265, "hug": [41, 87] },
       "hotpot": { "pot": [256, 337], "give": { "her": [184.1, 312.9], "sprite": [146.6, 44.1] }, "tip": [-85, 165] },
       "cos": {
-        "ninja": { "palm": [-0.02, 0.46], "item": { "from": ["njPalm", 0.594, 0.347], "ground": [0.38, -4], "give": ["njLensIn", 0.86, 0.253], "sprite": [-124.6, 10.5] } },
-        "fire": { "throwHand": { "pose": "fnThrow", "at": [0, 0.501] }, "catchHand": { "pose": "fnCatch", "at": [0.262, 0.365] }, "ponytail": { "pose": "fnBurn", "at": [0.133, 0.576] }, "lips": [282, -16.7] },
+        "lips": [141, -16.7],
+        "ninja": { "palm": { "pose": "njPalm", "at": [-0.02, 0.46] }, "item": { "from": ["njPalm", 0.594, 0.347], "ground": [0.38, -4], "give": ["njLensIn", 0.86, 0.253], "sprite": [-124.6, 10.5] } },
+        "fire": { "throwHand": { "pose": "fnThrow", "at": [0, 0.501] }, "catchHand": { "pose": "fnCatch", "at": [0.262, 0.365] }, "ponytail": { "pose": "fnBurn", "at": [0.133, 0.576] } },
         "ice": { "snap": [0.003, 0.448], "head": ["icRubNose", 0.375, 0], "item": { "from": ["icSnap", 0.455, 0.094], "ground": [0.68, 0], "sprite": [-1.1, -118.1] } },
         "miao": { "crown": [[0.3, 0.12], [0.68, 0.1], [0.5, 0.2]], "pot": { "pose": "miOpen", "at": [0.595, 0.516] }, "finger": { "pose": "miFinger", "at": [0.067, 0.427] },
           "item": { "from": ["miBug", 0.322, 0.552], "ground": [-0.42, -5], "sprite": [-162.8, 2.6] } },
         "esports": { "muzzle": { "pose": "esAim", "at": [0, 0.422] }, "finger": { "pose": "esTwirl", "at": [0.004, 0.481] }, "head": { "pose": "esLookUp", "at": [0.496, 0] } },
-        "warlord": { "arrow": [{ "pose": "wlAim", "at": [0.504, 0.467] }, { "pose": "wlAim", "at": [0.017, 0.467] }], "hand": { "pose": "wlSting", "at": [0.178, 0.343] }, "lips": [282, -16.7] },
-        "fighter": { "bump": [0.505, 0.576], "punch": [-0.05, 0.5], "upper": [0.667, 0.17], "kick": [-0.04, 0.606], "pull": ["ftSplit", 0.13, 0.27] }
+        "warlord": { "arrow": [{ "pose": "wlAim", "at": [0.504, 0.467] }, { "pose": "wlAim", "at": [0.017, 0.467] }], "hand": { "pose": "wlSting", "at": [0.178, 0.343] } },
+        "fighter": { "bump": [0.505, 0.576], "punch": { "pose": "ftPunch", "at": [-0.05, 0.5] }, "upper": { "pose": "ftUpper", "at": [0.667, 0.17] }, "kick": { "pose": "ftKick", "at": [-0.04, 0.606] },
+          "pull": ["ftSplit", 0.13, 0.27] }
       }
     },
     "poses": {

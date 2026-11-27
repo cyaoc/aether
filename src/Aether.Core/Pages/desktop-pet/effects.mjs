@@ -26,6 +26,10 @@ export function drawFx(g, f, st, her, now, pet) {
   const glow = a => `rgba(${st.glow || '255,236,170'},${a})`;
   const star = (x, y, rad, color, a) => drawStar(g, x, y, rad, color, a);
   const heart = (x, y, s, a) => { g.save(); g.globalAlpha = a; g.fillStyle = '#FF7FA8'; g.beginPath(); g.moveTo(x, y + s * 0.3); g.bezierCurveTo(x, y, x - s * 0.5, y, x - s * 0.5, y + s * 0.3); g.bezierCurveTo(x - s * 0.5, y + s * 0.6, x, y + s * 0.8, x, y + s); g.bezierCurveTo(x, y + s * 0.8, x + s * 0.5, y + s * 0.6, x + s * 0.5, y + s * 0.3); g.bezierCurveTo(x + s * 0.5, y, x, y, x, y + s * 0.3); g.fill(); g.restore(); };
+  // a little flame at (x, y), s its size: an orange tongue and a yellow one in it
+  const flame = (x, y, s) => { for (const [r, col] of [[s, '#FF6A2B'], [s * 0.55, '#FFD45E']]) { g.fillStyle = col; g.beginPath(); g.moveTo(x, y - 18 * r); g.quadraticCurveTo(x + 9 * r, y - 4 * r, x, y + 6 * r); g.quadraticCurveTo(x - 9 * r, y - 4 * r, x, y - 18 * r); g.fill(); } };
+  // one of her props at her scale, turned by rot about (x, y): its middle, or px of its width from its left
+  const prop = (im, x, y, rot, px = 0.5) => { const s = H / pet.art.anchor; g.save(); g.translate(x, y); g.rotate(rot); g.drawImage(im, -im.width * s * px, -im.height * s / 2, im.width * s, im.height * s); g.restore(); };
   switch (type) {
     // Her frizzed hair smoothed by the sprite's magic (smooth): stars gather and circle her head (at f[2], f[3]), brightening,
     // for f[4] before its last pat lands; then a soft glow blooms over it and they fall down her hair as glitter.
@@ -127,8 +131,7 @@ export function drawFx(g, f, st, her, now, pet) {
       for (let i = 0; i < 3; i++) {
         const u = (t + i * 160) % 480 / 480, x = p.x + (i - 1) * 16 + 3 * Math.sin(t / 50 + i), y = p.y - u * 10, s = (i === 1 ? 1.5 : 1.1) * (1 - 0.3 * u) * (0.85 + 0.15 * Math.sin(t / 40 + i));
         g.globalAlpha = 0.9 * (1 - u);
-        const fl = (r, col) => { g.fillStyle = col; g.beginPath(); g.moveTo(x, y - 18 * r); g.quadraticCurveTo(x + 9 * r, y - 4 * r, x, y + 6 * r); g.quadraticCurveTo(x - 9 * r, y - 4 * r, x, y - 18 * r); g.fill(); };
-        fl(s, '#FF6A2B'); fl(s * 0.55, '#FFD45E');
+        flame(x, y, s);
       }
       g.restore(); break;
     }
@@ -209,7 +212,7 @@ export function drawFx(g, f, st, her, now, pet) {
         x = p0.x + (p1.x - p0.x) * ux; y = p0.y + (p1.y - p0.y) * u * (kind === 'bug' ? u : 1) - hop * Math.sin(Math.PI * u); if (kind === 'cap') rot = 2 * Math.PI * ease(u); }
       else if (t < U) { x = p1.x + (kind === 'bug' ? 8 * Math.sin((t - 500) / 500) : 0); y = p1.y; }
       else { const u = ease((t - U) / (T - U)); x = p1.x + (paw.x - p1.x) * u; y = p1.y + (paw.y - p1.y) * u; }
-      if (kind === 'cap') { const im = pet.props.cap, s = H / pet.art.anchor; g.save(); g.translate(x, y); g.rotate(rot); g.drawImage(im, -im.width * s / 2, -im.height * s / 2, im.width * s, im.height * s); g.restore(); }
+      if (kind === 'cap') prop(pet.props.cap, x, y, rot);
       else if (kind === 'bug') {
         g.save(); g.lineWidth = 1.5; g.strokeStyle = '#4E7A1E';
         for (let i = 3; i >= 0; i--) { const bx = x + i * 7, by = y - 5 - (t >= 500 && t < U ? 3 * Math.max(0, Math.sin((t - 500) / 180 + i)) : 0); g.fillStyle = i ? '#A6D84E' : '#B9E46A'; g.beginPath(); g.arc(bx, by, i ? 5 : 6.5, 0, Math.PI * 2); g.fill(); g.stroke(); }
@@ -226,7 +229,7 @@ export function drawFx(g, f, st, her, now, pet) {
     // spinning, a trail of flames behind it
     case 'fanFly': {
       const D = f[4]; if (t > D) break;
-      const im = pet.props.fan, s = H / pet.art.anchor, c0 = { x: st.x, y: her.y + her.h * 0.45 }, rx = her.w * 0.95, ry = her.h * 0.42;   // (ry: over her hair, under her bubble)
+      const c0 = { x: st.x, y: her.y + her.h * 0.45 }, rx = her.w * 0.95, ry = her.h * 0.42;   // (ry: over her hair, under her bubble)
       // once round from where it left her hand to where she catches it (both at her left: their angles straddle ±π, so the
       // difference is taken the short way and a whole turn added; over her head first, the angle growing)
       const a0 = Math.atan2(f[2].y - c0.y, f[2].x - c0.x), d = Math.atan2(f[3].y - c0.y, f[3].x - c0.x) - a0, a1 = a0 + 2 * Math.PI + (d - 2 * Math.PI * Math.round(d / (2 * Math.PI)));
@@ -235,7 +238,7 @@ export function drawFx(g, f, st, her, now, pet) {
         return { x: e.x + (p.x - e.x) * w * w, y: e.y + (p.y - e.y) * w * w }; };
       const u = t / D;
       for (let i = 6; i >= 1; i--) { const q = pos(Math.max(0, u - i * 0.025)); g.save(); g.globalAlpha = 0.7 * (1 - i / 7); g.fillStyle = i % 2 ? '#FF6A2B' : '#FFD45E'; g.beginPath(); g.arc(q.x, q.y, 9 - i, 0, Math.PI * 2); g.fill(); g.restore(); }
-      const q = pos(u); g.save(); g.translate(q.x, q.y); g.rotate(t / 70); g.drawImage(im, -im.width * s / 2, -im.height * s / 2, im.width * s, im.height * s); g.restore();
+      const q = pos(u); prop(pet.props.fan, q.x, q.y, t / 70);
       break;
     }
     // little flames flickering at a point (f[2]) for f[3] ms, dying down at the end; f[4]: how big (1)
@@ -246,8 +249,7 @@ export function drawFx(g, f, st, her, now, pet) {
       for (let i = 0; i < 3; i++) {
         const v = (t + i * 160) % 480 / 480, x = p.x + (i - 1) * 7 + 2 * Math.sin(t / 50 + i), y = p.y - v * 8, s = k * (i === 1 ? 1.1 : 0.8) * (1 - 0.3 * v) * (0.85 + 0.15 * Math.sin(t / 40 + i));
         g.globalAlpha = 0.9 * (1 - v);
-        const fl = (r, col) => { g.fillStyle = col; g.beginPath(); g.moveTo(x, y - 18 * r); g.quadraticCurveTo(x + 9 * r, y - 4 * r, x, y + 6 * r); g.quadraticCurveTo(x - 9 * r, y - 4 * r, x, y - 18 * r); g.fill(); };
-        fl(s, '#FF6A2B'); fl(s * 0.55, '#FFD45E');
+        flame(x, y, s);
       }
       g.restore(); break;
     }
@@ -321,11 +323,11 @@ export function drawFx(g, f, st, her, now, pet) {
     // until f[4][2]
     case 'gunTrick': {
       const [s1, s2, s3] = f[4].map(v => v - from); if (t > s3) break;
-      const im = pet.props.gun, s = H / pet.art.anchor; let x, y, rot;
+      let x, y, rot;
       if (t < s1) { x = f[2].x; y = f[2].y; rot = t / 45; }
       else if (t < s2) { const u = (t - s1) / (s2 - s1); x = f[2].x + 30 * u; y = f[2].y - (f[2].y + 80) * ease(u); rot = t / 30; }
       else { const u = (t - s2) / (s3 - s2); x = f[3].x; y = -80 + (f[3].y + 80) * u * u; rot = t / 40; }
-      g.save(); g.translate(x, y); g.rotate(rot); g.drawImage(im, -im.width * s * 0.3, -im.height * s * 0.5, im.width * s, im.height * s); g.restore();
+      prop(pet.props.gun, x, y, rot, 0.3);   // (about its grip)
       break;
     }
     // a green light arrow forming in the empty groove (f[2]: its rear, f[3]: its front) and, from f[4], shot off the left edge
