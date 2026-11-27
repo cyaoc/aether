@@ -474,6 +474,15 @@ for (const [costume, label, calm, wrong] of [
   ['ninja', '白眼格斗忍者 pokes her fingertips together, drops into her stance, thrusts her palm and settles; her lens popped out she crouches for it, puts it back and thanks her sprite',
     { 699: 'idle', 700: 'njReady', 1100: 'njShy', 2400: 'njStance', 3500: 'njPalm', 4300: 'njSettle', 7199: 'njSettle', 7200: 'idle' },
     { 3500: 'njPalm', 4100: 'njLensOut', 4800: 'njSearch', 6300: 'njLensIn', 7300: 'njThanks', 9399: 'njThanks', 9400: 'idle' }],
+  ['fire', '火焰扇子女忍者 flicks her fan open, draws it back by her ear, throws it and catches it; still burning it sets her ponytail alight and she holds the singed tip',
+    { 699: 'idle', 700: 'fnReady', 1100: 'fnPose', 2300: 'fnWindup', 2900: 'fnThrow', 4120: 'fnCatch', 7199: 'fnCatch', 7200: 'idle' },
+    { 2900: 'fnThrow', 4120: 'fnCatch', 4700: 'fnBurn', 5950: 'fnSinged', 9399: 'fnSinged', 9400: 'idle' }],
+  ['ice', '冰系女将军 puts her fists on her hips, raises her hand, snaps her fingers and folds her arms; she sneezes, shivers and rubs her nose',
+    { 699: 'idle', 700: 'icReady', 1100: 'icProud', 2300: 'icSnapReady', 3000: 'icSnap', 3900: 'icArms', 7199: 'icArms', 7200: 'idle' },
+    { 3000: 'icSnap', 3900: 'icSneeze', 4600: 'icShiver', 6400: 'icRubNose', 9399: 'icRubNose', 9400: 'idle' }],
+  ['miao', '苗疆蛊毒少女 holds up her orchid fingers, takes her pot, lifts its lid and raises her fingertip; a caterpillar on her hand she cowers and is relieved',
+    { 699: 'idle', 700: 'miReady', 1100: 'miPose', 2300: 'miHold', 3000: 'miOpen', 4300: 'miFinger', 7199: 'miFinger', 7200: 'idle' },
+    { 3000: 'miOpen', 3600: 'miBug', 4500: 'miCower', 6300: 'miRelief', 9399: 'miRelief', 9400: 'idle' }],
   ['esports', '电竞少女 makes a V, aims, fires three shots, the gun kicking up each time, and blows on its muzzle; showing off she spins it, it flies up and comes down on her head and she picks it up',
     { 699: 'idle', 700: 'esReady', 1100: 'esV', 2300: 'esAim', 2800: 'esRecoil', 3100: 'esAim', 3400: 'esRecoil', 3700: 'esAim', 4000: 'esRecoil', 4600: 'esBlow', 7199: 'esBlow', 7200: 'idle' },
     { 4000: 'esRecoil', 4600: 'esTwirl', 5700: 'esLookUp', 6300: 'esOuch', 7600: 'esReady', 9399: 'esReady', 9400: 'idle' }],
@@ -485,21 +494,33 @@ for (const [costume, label, calm, wrong] of [
   assertPlays('cosplay', { mishap: true, costume }, wrong, 9600);
 });
 
-// A cos's effects in each costume done and gone wrong ([kind, ms, its times and sizes], where they are left out), besides the
-// sprite's flashes dressing her and back; the ms the corner shakes; the kind of line she says from ms and the sprite's drawing.
-for (const [costume, mishap, fx, shakes, said, sprite] of [
-  ['esports', false, [['bolt', 2800], ['bolt', 3400], ['bolt', 4000]], [2800, 3400, 4000], {}, {}],
-  ['esports', true, [['bolt', 2800], ['bolt', 3400], ['bolt', 4000], ['gunTrick', 4780, [5700, 6000, 6300]], ['shock', 5700], ['impact', 6300], ['dizzy', 6500, 1100], ['tears', 6600, 900]],
-    [2800, 3400, 4000, 6300], { 4600: 'cosEsportsTwirl', 6300: 'cosEsportsBonk' }, { 5700: 'surprised', 6500: 'pat' }],
-  ['warlord', false, [['arrow', 3680, 4580], ['flash', 4580, 0.5]], [4580], {}, {}],
-  ['warlord', true, [['impact', 3480], ['tears', 3600, 1800], ['blowAir', 4100, 1100]], [], { 3300: 'cosWarlordSting', 6000: 'cosWarlordAgain' }, { 3300: 'surprised', 3700: 'sBlow' }]
-]) test(`a cos as ${costume}${mishap ? ' gone wrong' : ''} has its effects, shakes, lines and sprite when they are due`, () => {
-  const [, at] = daily('cosplay', { mishap, costume }), end = mishap ? 9600 : 7400, dressing = [['flash', 700, 0.8], ['flash', end - 200, 0.8]];
-  const { fx: drawn, shake } = at(1000);
-  assert.deepEqual(new Set(drawn.map(f => f.filter(v => typeof v !== 'object' || typeof v[0] === 'number'))), new Set([...dressing, ...fx]));
-  assert.deepEqual(shake.map(([ms]) => ms), shakes);
-  for (const [ms, kind] of Object.entries(said)) assert.ok(lines[kind].includes(at(+ms).bubble?.text), `${ms}: ${kind}`);
-  assert.deepEqual(Object.keys(sprite).map(ms => at(+ms).sprite), Object.values(sprite));
+// What else a cos in its costume, done or gone wrong, has at those ms: an effect of that kind setting off (fx), the corner
+// starting to shake (shake), her sprite's drawing (sprite) and the kind of line she says (line; null: no bubble).
+for (const [costume, mishap, label, moments] of [
+  ['fire', false, '火焰扇子女忍者\'s fan leaves her hand at 3.08 s and sparks back in it at 4.3 s', { 3080: { fx: 'fanFly' }, 4300: { fx: 'spark' } }],
+  ['fire', true, '火焰扇子女忍者\'s fan still burns in her hand and her ponytail catches; her sprite blows it out, it smokes and she says it is singed',
+    { 4300: { fx: 'fireAt' }, 4700: { fx: 'shock', line: 'cosFireBurn' }, 4880: { fx: 'fireAt' }, 4950: { sprite: 'sBlow' }, 5250: { fx: 'blowAir' }, 5950: { fx: 'smoke' }, 6300: { line: 'cosFireSinged' } }],
+  ['ice', false, '冰系女将军\'s snap sparks at 3.18 s and her ice pillars rise from 3.2 s', { 3180: { fx: 'spark' }, 3200: { fx: 'pillars' } }],
+  ['ice', true, '冰系女将军\'s sneeze blows her cap off; her sprite has it at 5.1 s, no bubble while it brings it, and she says it is back',
+    { 3900: { fx: 'shock', line: 'cosIceSneeze' }, 4080: { fx: 'item' }, 5100: { sprite: 'sCap' }, 5300: { line: null }, 6649: { line: null }, 6650: { line: 'cosIceCap' } }],
+  ['miao', false, '苗疆蛊毒少女\'s crown glints three times and butterflies come out of her pot at 3.18 s', { 1300: { fx: 'glint' }, 1500: { fx: 'glint' }, 1700: { fx: 'glint' }, 3180: { fx: 'butterflies' } }],
+  ['miao', true, '苗疆蛊毒少女 finds a caterpillar, flings it off as she cowers, her sprite carries it off from 5.7 s and she is relieved',
+    { 3600: { line: 'cosMiaoBug' }, 3780: { fx: 'shock' }, 4500: { fx: 'item' }, 5700: { sprite: 'sBug' }, 5950: { sprite: 'sBug' }, 6300: { line: 'cosMiaoRelief' } }],
+  ['esports', false, '电竞少女 fires at 2.8, 3.4 and 4 s, the corner shaking with each shot', { 2800: { fx: 'bolt', shake: true }, 3400: { fx: 'bolt', shake: true }, 4000: { fx: 'bolt', shake: true } }],
+  ['esports', true, '电竞少女 spins her gun, it flies up and comes down on her head at 6.3 s, the corner shaking, and her sprite pats it',
+    { 4600: { line: 'cosEsportsTwirl' }, 4780: { fx: 'gunTrick' }, 5700: { fx: 'shock', sprite: 'surprised' }, 6300: { fx: 'impact', shake: true, line: 'cosEsportsBonk' }, 6500: { fx: 'dizzy', sprite: 'pat' }, 6600: { fx: 'tears' } }],
+  ['warlord', false, '绿袍女武将\'s light arrow forms from 3.68 s and shoots off at 4.58 s in a flash, the corner shaking', { 3680: { fx: 'arrow' }, 4580: { fx: 'flash', shake: true } }],
+  ['warlord', true, '绿袍女武将\'s string stings her hand, her sprite flies round to blow on it and she says she will hit it next time',
+    { 3300: { line: 'cosWarlordSting', sprite: 'surprised' }, 3480: { fx: 'impact' }, 3600: { fx: 'tears' }, 3700: { sprite: 'sBlow' }, 4100: { fx: 'blowAir' }, 6000: { line: 'cosWarlordAgain' } }]
+]) test(`a cos as ${label}`, () => {
+  const [, at] = daily('cosplay', { mishap, costume });
+  for (const [ms, { fx, shake, sprite, line }] of Object.entries(moments)) {
+    const st = at(+ms);
+    if (fx) assert.ok(st.fx.some(([kind, from]) => kind === fx && from === +ms), `${fx} at ${ms}`);
+    if (shake) assert.ok(st.shake.some(([from]) => from === +ms), `shake at ${ms}`);
+    if (sprite) assert.equal(st.sprite, sprite, ms);
+    if (line !== undefined) assert.ok(line ? lines[line].includes(st.bubble?.text) : !st.bubble, `${line} at ${ms}`);
+  }
 });
 
 test('绿袍女武将\'s light arrow lies level along her crossbow as she aims', () => {
@@ -514,7 +535,7 @@ test('格斗少女 bounces on her toes in her guard, from 2.4 s until her straig
 });
 
 test('a cos dresses her as one of the costumes of COS at random, or the one it is given, and she strikes its pose saying its line', () => {
-  const KIND = { ninja: 'cosNinja', esports: 'cosEsports', warlord: 'cosWarlord', fighter: 'cosFighter' }, engine = pet(), seen = new Set();
+  const KIND = { ninja: 'cosNinja', fire: 'cosFire', ice: 'cosIce', miao: 'cosMiao', esports: 'cosEsports', warlord: 'cosWarlord', fighter: 'cosFighter' }, engine = pet(), seen = new Set();
   for (let n = 0; n < 40; n++) {
     engine.start('cosplay', {});
     const { costume } = engine.cur.opts;
