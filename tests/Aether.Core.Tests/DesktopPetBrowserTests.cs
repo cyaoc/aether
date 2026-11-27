@@ -295,10 +295,19 @@ public sealed class DesktopPetBrowserTests
     {
         await using var page = await StartAsync();
         await page.OpenAsync(480, 640);
+        // every other costume's sheets (the page's SEGMENTS) and the in-betweens that come with them, by their files
+        var others = (await page.Browser.EvaluateAsync("""
+            (async () => {
+              const { COS } = await import('/desktop-pet/engine.mjs'), { sheets, frames, transitions } = pet.art, mine = pet.segments('cosplay', { costume: 'fighter' });
+              const theirs = Object.keys(COS).flatMap(costume => pet.segments('cosplay', { costume })).filter(k => !mine.includes(k));
+              return [...theirs.map(k => sheets[k]), ...Object.keys(transitions).filter(pair => theirs.includes(pet.tweenSheet(pair))).map(pair => frames[transitions[pair]])]
+                .map(file => file.replace(/^desktop-pet\/|\.webp$/g, ''));
+            })()
+            """)).EnumerateArray().Select(file => file.ToString()).ToArray();
 
         await page.Browser.EvaluateAsync("pet.start('cosplay', { costume: 'fighter' }), true");
 
-        await AssertLoadsAsync(page, "frames/ftIn", ["pose-39-cos-fighter", "pose-40-cos-fighter2", "sprite-pose-6"], ["pose-27-cos-ninja", "pose-28-cos-ninja2", "frames/njIn"]);
+        await AssertLoadsAsync(page, "frames/ftIn", ["pose-39-cos-fighter", "pose-40-cos-fighter2", "sprite-pose-6"], others);
     }
 
     /// <summary>Waits for the page to ask for <paramref name="last"/> as the show just started loads its pictures, then checks
