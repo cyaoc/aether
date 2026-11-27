@@ -111,9 +111,11 @@ the chili's `flame`; the board's `HOTPOT` points measured on her pictures, the p
 `give`, and the meatball on her chopsticks its `hotpot` has inline, `tip`, are her `points.hotpot`, how far back she kneels, `back`, and its timeline `t` stay in `HOTPOT`; the 手游's is losing, the phone
 falling on her face: `MOBILE`, `mobile`, the sofa standing from her `propSpot.sofa`; a cos's is its costume's own: `COS`,
 `cosplay` (the board's `cos`), in a costume picked as it starts (`o.costume`), the palm strike's rings `aura`, what she drops,
-`item`, popping out and picked up by her sprite (`itemSpot`), and its blowing `blowAir` (`blowSpot`); the board's `COS`
+`item`, popping out and picked up by her sprite (`itemSpot`), and its blowing `blowAir` (`blowSpot`), 电竞少女's shots `bolt`
+and her gun spun, flung up and falling on her head `gunTrick`, 绿袍女武将's light arrow `arrow`; the board's `COS`
 numbers measured on her drawings and her sprite's, where its effects burst and its blows land, where her sprite takes her
-hand and where what she drops pops from, lands and is handed back, are her `points.cos.<costume>`, its timelines, effects
+hand and where what she drops pops from, lands and is handed back, where a shot leaves the muzzle and an arrow lies in its
+groove and her sprite's lips blowing, are her `points.cos.<costume>`, its timelines, effects
 and her sprite's ways stay in `COS`), entries, gifts, blind boxes,
 castles, 大航海, a new first place on the 礼物榜 (found by the 礼物榜页's `../gift-board/changes.mjs`), each step of a lottery,
 a 盲盒查询's 账单卡 and, in a PK, the 对手情报卡 her sprite prints (`pkMatch`, `intelShow`, the card `pk-intel.mjs`, the design
