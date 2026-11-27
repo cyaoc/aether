@@ -279,6 +279,56 @@ export const COS = {
       fall: [[700, 'sHappy', null], [2400, 'hide', ['rel', 1.3, 0.3]], [4100, 'surprised', ['rel', 1.3, 0.3]], [4500, 'sHappy', ['rel', 1.25, 0.85]],
         [4800, 'sHappy', ['item', 'pick']], [5600, 'sLens', ['item', 'pick']], [5800, 'sLens', ['rel', 1.25, 0.85]], [6050, 'sLens', ['item', 'give']],
         [6480, 'sHappy', ['rel', 1.3, 0.3]], [7300, 'sHappy', null]] } }),
+  // she flicks her fan open over her face and winks, draws it back by her ear and throws it (P.throwHand): it loops round her,
+  // spinning and trailing flames, back into her hand (P.catchHand). Or the caught fan is still burning and sets the end of
+  // her ponytail (her wig, P.ponytail) alight: she drops it hopping, the sprite flies round low to her left and blows it out
+  // (its lips P.lips); she holds the singed tip.
+  fire: P => ({ steps: [[700, 'fnReady'], [1100, 'fnPose'], [2300, 'fnWindup'], [2900, 'fnThrow']],
+    // the fan leaves her hand as the throw's in-between ends (3080) and is back as her catching drawing shows (4300)
+    // (the flame drawn on her ponytail goes with her drawing: she lets go of it as the sprite's puffs end)
+    calm: [[4120, 'fnCatch']], fall: [[4120, 'fnCatch'], [4700, 'fnBurn'], [5950, 'fnSinged']],
+    fx: [['fanFly', 3080, P.throwHand, P.catchHand, 1220]],
+    calmFx: [['spark', 4300, ...P.catchHand.at, 8]],
+    fallFx: [['fireAt', 4300, P.catchHand, 400, 1.8], ['shock', 4700], ['fireAt', 4880, P.ponytail, 1070],
+      ['blowAir', 5250, { sprite: 'blow' }, P.ponytail, 700], ['smoke', 5950, P.ponytail, 2400], ['tears', 4800, 1300]],
+    blow: [P.ponytail, P.lips],
+    lines: [[4700, 'cosFireBurn'], [6300, 'cosFireSinged']],
+    sprite: { calm: [[700, 'sHappy', null], [2300, 'hide', ['rel', 1.6, 0.55]], [4300, 'flag', null]],
+      // low in front of her to her left, then up by the flame (straight across it flew over her face)
+      fall: [[700, 'sHappy', null], [2300, 'hide', ['rel', 1.6, 0.55]], [4700, 'surprised', ['rel', 1.2, 0.95]], [4950, 'sBlow', ['blow']],
+        // down from her head by her left side (straight down it passed over her face)
+        [6100, 'pat', 'head'], [7400, 'sHappy', ['rel', -0.25, 0.25]], [7700, 'sHappy', null]] } }),
+  // chin up, fists on her hips; she raises her hand and snaps (P.snap): a ring of ice pillars shoots up round her; she folds
+  // her arms. Or it is too cold: a huge sneeze blows her cap off (P.item) and shatters the pillars; the cap lands at her
+  // right, she shivers, the sprite picks it up and brings it back onto her head (P.head); she rubs her nose.
+  ice: P => ({ steps: [[700, 'icReady'], [1100, 'icProud'], [2300, 'icSnapReady'], [3000, 'icSnap']],
+    calm: [[3900, 'icArms']], fall: [[3900, 'icSneeze'], [4600, 'icShiver'], [6400, 'icRubNose']],
+    fx: [['spark', 3180, ...P.snap, 8]],
+    calmFx: [['pillars', 3200, [[-0.85, 0.42], [-0.55, 0.58], [0.55, 0.55], [0.85, 0.4]], 7200, null]],
+    fallFx: [['pillars', 3200, [[-0.85, 0.42], [-0.55, 0.58], [0.55, 0.55], [0.85, 0.4]], 9000, 4080], ['shock', 3900], ['tears', 4800, 1500]],
+    fallShake: [[4080, 3, 260]],
+    item: { kind: 'cap', pop: 4080, pick: [4900, 5100], ...P.item },
+    // (no bubble while the sprite brings the cap over her head: it went behind the bubble)
+    lines: [[3900, 'cosIceSneeze'], [5300, false], [6650, 'cosIceCap']],
+    sprite: { calm: [[700, 'sHappy', null], [2300, 'sHappy', ['rel', 1.5, 0.25]], [3900, 'flag', null]],
+      // the cap goes back on as her drawing with it shows (6580): it holds it over her head, as the crown is brought
+      fall: [[700, 'sHappy', null], [2300, 'sHappy', ['rel', 1.5, 0.25]], [3900, 'surprised', ['rel', 1.5, 0.25]], [4300, 'sHappy', ['item', 'pick']],
+        [5100, 'sCap', ['item', 'pick']], [5400, 'sCap', ['onPose', ...P.head, -0.55]], [6580, 'sHappy', ['rel', 1.5, 0.25]], [7300, 'sHappy', null]] } }),
+  // her crown's tassels swing as she tilts her head, orchid fingers by her cheek (her silver crown glinting, P.crown); she
+  // lifts the lid of her silver pot (P.pot) and blue butterflies flutter out round her, one settling on her raised fingertip
+  // (P.finger). Or a fat caterpillar crawls out onto her hand (P.item): she drops the pot and cowers; it falls in front of
+  // her and the sprite carries it off, far away to the left.
+  miao: P => ({ steps: [[700, 'miReady'], [1100, 'miPose'], [2300, 'miHold'], [3000, 'miOpen']],
+    calm: [[4300, 'miFinger']], fall: [[3600, 'miBug'], [4500, 'miCower'], [6300, 'miRelief']],
+    fx: [['glint', 1300, ...P.crown[0]], ['glint', 1500, ...P.crown[1]], ['glint', 1700, ...P.crown[2]]],
+    calmFx: [['butterflies', 3180, P.pot, P.finger, 4480, 7200]],
+    fallFx: [['shock', 3780], ['tears', 4700, 1500]],
+    // (flung off as she starts flapping her hand, before she is down: after it, it slid down her face)
+    item: { kind: 'bug', pop: 4500, pick: [5500, 5700], ...P.item },
+    lines: [[3600, 'cosMiaoBug'], [6300, 'cosMiaoRelief']],
+    sprite: { calm: [[700, 'sHappy', null], [3000, 'sHappy', ['rel', 1.45, 0.35]], [4300, 'flag', null]],
+      fall: [[700, 'sHappy', null], [3000, 'sHappy', ['rel', 1.45, 0.35]], [3600, 'surprised', ['rel', 1.45, 0.35]], [4500, 'surprised', ['rel', 1.2, 0.95]],
+        [4800, 'sHappy', ['item', 'pick']], [5700, 'sBug', ['item', 'pick']], [5950, 'sBug', ['at', -110, FOOT.y - 0.55 * H]], [7000, 'sHappy', null]] } }),
   // she knocks her gloves together (P.bump), takes her guard bouncing on her toes, throws a straight, an uppercut and a side
   // kick (each blow lands as its in-between's last frame gives way to the pose, 180 ms in: P.punch, P.upper, P.kick) and
   // wipes her nose; or her thigh cramps mid-kick, she drops into the splits, the sprite pulls her up by her raised hand
