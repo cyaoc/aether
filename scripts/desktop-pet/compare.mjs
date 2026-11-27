@@ -26,7 +26,7 @@ const RESULT = { Gain: '赚', Even: '平', Loss: '亏', Jackpot: '大奖', BigWi
 const QUERY = { Gain: { result: '赚' }, Even: { result: '回本', profit: 0 }, Loss: { result: '亏', spend: 45, profit: -12.5 }, None: { result: '没有记录' } };
 const KIND = { hum: '哼歌', gym: '举哑铃', hike: '爬山', bike: '骑车', ski: '滑雪', gacha: '扭蛋', hotpot: '火锅', mobileGame: '手游', cosplay: 'cos' };
 // A cos's costumes (COS) as the board names them.
-const COSTUME = { ninja: '白眼格斗忍者', fighter: '格斗少女' };
+const COSTUME = { ninja: '白眼格斗忍者', fire: '火焰扇子女忍者', ice: '冰系女将军', miao: '苗疆蛊毒少女', fighter: '格斗少女' };
 const MOOD = { calm: 0, happy: 0, bored: 15, gloomy: 40, sleepy: 60 };
 const { shows } = JSON.parse(fs.readFileSync(here + '../../src/Aether.Core/Pages/desktop-pet/shows.json', 'utf8'));
 // (the board's numbers are character 1's)
