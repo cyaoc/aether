@@ -536,10 +536,11 @@ test('绿袍女武将\'s light arrow lies level along her crossbow as she aims',
 });
 
 // The drawing of hers a cos in its costume, done, has shown up to ms: the pose she went into last before it, once her
-// in-between into it has played out (TWEEN a frame), else null.
+// in-between into it has played out (TWEEN a frame, or her slow's), else null.
 function drawnIn(engine, costume, ms) {
   const c = COS[costume](character.desktopPet.points.cos[costume]), poses = [[0, 'idle'], ...c.steps, ...c.calm], i = poses.findLastIndex(([from]) => from < ms);
-  return poses[i][0] + engine.route(poses[i - 1][1], poses[i][1]).length * TWEEN <= ms ? poses[i][1] : null;
+  const [[into, pose], [, before]] = [poses[i], poses[i - 1]];
+  return into + engine.route(before, pose).length * (engine.art.slow[`${before}>${pose}`] || TWEEN) <= ms ? pose : null;
 }
 
 test('火焰扇子女忍者\'s fan leaves her throwing hand and comes back into her catching hand, and 电竞少女\'s first shot leaves the muzzle, each as she is drawn then', () => {
