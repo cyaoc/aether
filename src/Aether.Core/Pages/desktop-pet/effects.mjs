@@ -222,6 +222,35 @@ export function drawFx(g, f, st, her, now, pet) {
       }
       break;
     }
+    // the thrown fan (f[2]: her throwing hand, f[3]: her catching hand, f[4]: ms): once round her, over her head first,
+    // spinning, a trail of flames behind it
+    case 'fanFly': {
+      const D = f[4]; if (t > D) break;
+      const im = pet.props.fan, s = H / pet.art.anchor, c0 = { x: st.x, y: her.y + her.h * 0.45 }, rx = her.w * 0.95, ry = her.h * 0.42;   // (ry: over her hair, under her bubble)
+      // once round from where it left her hand to where she catches it (both at her left: their angles straddle ±π, so the
+      // difference is taken the short way and a whole turn added; over her head first, the angle growing)
+      const a0 = Math.atan2(f[2].y - c0.y, f[2].x - c0.x), d = Math.atan2(f[3].y - c0.y, f[3].x - c0.x) - a0, a1 = a0 + 2 * Math.PI + (d - 2 * Math.PI * Math.round(d / (2 * Math.PI)));
+      const pos = u => { const a = a0 + (a1 - a0) * u, e = { x: c0.x + Math.cos(a) * rx, y: c0.y + Math.sin(a) * ry };
+        const w0 = Math.max(0, 1 - u / 0.15), w1 = Math.max(0, 1 - (1 - u) / 0.15), p = w0 ? f[2] : f[3], w = Math.max(w0, w1);
+        return { x: e.x + (p.x - e.x) * w * w, y: e.y + (p.y - e.y) * w * w }; };
+      const u = t / D;
+      for (let i = 6; i >= 1; i--) { const q = pos(Math.max(0, u - i * 0.025)); g.save(); g.globalAlpha = 0.7 * (1 - i / 7); g.fillStyle = i % 2 ? '#FF6A2B' : '#FFD45E'; g.beginPath(); g.arc(q.x, q.y, 9 - i, 0, Math.PI * 2); g.fill(); g.restore(); }
+      const q = pos(u); g.save(); g.translate(q.x, q.y); g.rotate(t / 70); g.drawImage(im, -im.width * s / 2, -im.height * s / 2, im.width * s, im.height * s); g.restore();
+      break;
+    }
+    // little flames flickering at a point (f[2]) for f[3] ms, dying down at the end; f[4]: how big (1)
+    case 'fireAt': {
+      const dur = f[3]; if (t > dur) break;
+      const p = f[2], k = (1 - k01(t, dur - 250, dur)) * (f[4] || 1);
+      g.save();
+      for (let i = 0; i < 3; i++) {
+        const v = (t + i * 160) % 480 / 480, x = p.x + (i - 1) * 7 + 2 * Math.sin(t / 50 + i), y = p.y - v * 8, s = k * (i === 1 ? 1.1 : 0.8) * (1 - 0.3 * v) * (0.85 + 0.15 * Math.sin(t / 40 + i));
+        g.globalAlpha = 0.9 * (1 - v);
+        const fl = (r, col) => { g.fillStyle = col; g.beginPath(); g.moveTo(x, y - 18 * r); g.quadraticCurveTo(x + 9 * r, y - 4 * r, x, y + 6 * r); g.quadraticCurveTo(x - 9 * r, y - 4 * r, x, y - 18 * r); g.fill(); };
+        fl(s, '#FF6A2B'); fl(s * 0.55, '#FFD45E');
+      }
+      g.restore(); break;
+    }
     // blowing: little white puffs of air from f[2] to f[3] for f[4] ms ('puff' is the blind box's grey smoke)
     case 'blowAir': {
       const dur = f[4]; if (t > dur) break;
@@ -229,6 +258,56 @@ export function drawFx(g, f, st, her, now, pet) {
       for (let i = 0; i < 5; i++) { const v = (t + i * 120) % 600 / 600, x = f[2].x + (f[3].x - f[2].x) * v, y = f[2].y + (f[3].y - f[2].y) * v + 3 * Math.sin(v * 9 + i);
         g.globalAlpha = 0.85 * Math.sin(Math.PI * v); g.beginPath(); g.arc(x, y, 3 + 4 * v, 0, Math.PI * 2); g.fill(); }
       g.restore(); break;
+    }
+    // a thin wisp of smoke rising from a point (f[2]) for f[3] ms
+    case 'smoke': {
+      const dur = f[3]; if (t > dur) break;
+      g.save(); g.fillStyle = '#8A8A92';
+      for (let i = 0; i < 4; i++) { const v = (t + i * 300) % 1200 / 1200, x = f[2].x + 6 * Math.sin(v * 6 + i), y = f[2].y - v * 46;
+        g.globalAlpha = 0.45 * (1 - v) * (1 - k01(t, dur - 400, dur)); g.beginPath(); g.arc(x, y, 3 + v * 7, 0, Math.PI * 2); g.fill(); }
+      g.restore(); break;
+    }
+    // ice pillars round her (f[2]: [from her feet in her heights, how tall in her heights]), shooting up one after the
+    // other, gleaming; gone by f[3] (melting), or shattered at f[4] (shards flying out)
+    case 'pillars': {
+      const end = f[3] - from, smash = f[4] == null ? null : f[4] - from; if (t > (smash ?? end) + 650) break;
+      f[2].forEach(([dx, hh], i) => {
+        const x = FOOT.x + dx * H, h = hh * H * ease(k01(t, i * 90, i * 90 + 260)), w = 0.11 * H;
+        if (smash != null && t >= smash) {
+          const u = (t - smash) / 650;
+          for (let j = 0; j < 5; j++) { const ang = -Math.PI / 2 + (j - 2) * 0.55 + (dx > 0 ? 0.3 : -0.3), d = 90 * u;
+            g.save(); g.globalAlpha = 1 - u; g.translate(x + Math.cos(ang) * d, FOOT.y - hh * H * 0.5 + Math.sin(ang) * d + 120 * u * u); g.rotate(u * 6 + j);
+            g.fillStyle = '#CFEFFF'; g.strokeStyle = '#7CC4F0'; g.lineWidth = 1.5; g.beginPath(); g.moveTo(0, -9); g.lineTo(6, 0); g.lineTo(0, 9); g.lineTo(-6, 0); g.closePath(); g.fill(); g.stroke(); g.restore(); }
+          return;
+        }
+        const a = 1 - k01(t, end - 400, end); if (h <= 1 || a <= 0) return;
+        const gr = g.createLinearGradient(x - w / 2, 0, x + w / 2, 0); gr.addColorStop(0, '#E9F8FF'); gr.addColorStop(0.5, '#A8DDF8'); gr.addColorStop(1, '#D6F0FF');
+        g.save(); g.globalAlpha = 0.92 * a; g.fillStyle = gr; g.strokeStyle = '#6FB8E6'; g.lineWidth = 2;
+        g.beginPath(); g.moveTo(x - w / 2, FOOT.y); g.lineTo(x - w / 2, FOOT.y - h + w * 0.6); g.lineTo(x, FOOT.y - h); g.lineTo(x + w / 2, FOOT.y - h + w * 0.6); g.lineTo(x + w / 2, FOOT.y); g.closePath(); g.fill(); g.stroke();
+        g.globalAlpha = 0.7 * a * (0.6 + 0.4 * Math.sin(now / 300 + i)); g.strokeStyle = '#fff'; g.lineWidth = 2.5; g.beginPath(); g.moveTo(x - w * 0.22, FOOT.y - 6); g.lineTo(x - w * 0.22, FOOT.y - h + w * 0.8); g.stroke();
+        g.restore();
+      });
+      break;
+    }
+    // blue butterflies fluttering out of the pot (f[2]) and round her; the first settles on her fingertip (f[3]) at f[4]
+    // and stays, the others fly off upward; all gone by f[5]
+    case 'butterflies': {
+      const end = f[5] - from, land = f[4] - from; if (t > end) break;
+      // round her skirt, clear of her face (her silver crown fills the top of her drawing: its middle is her face)
+      const c0 = { x: st.x, y: her.y + her.h * 0.74 };
+      const fly = (x, y, flap, a) => { g.save(); g.globalAlpha = a; g.translate(x, y); const w = 0.35 + 0.65 * Math.abs(Math.sin(flap));
+        g.fillStyle = '#7CC0FF'; g.strokeStyle = '#3D7FD9'; g.lineWidth = 1.2;
+        for (const sx of [-1, 1]) { g.beginPath(); g.ellipse(sx * 6 * w, -3, 7 * w, 6, sx * 0.4, 0, Math.PI * 2); g.fill(); g.stroke(); g.beginPath(); g.ellipse(sx * 4 * w, 4, 4.5 * w, 4, -sx * 0.4, 0, Math.PI * 2); g.fill(); g.stroke(); }
+        g.fillStyle = '#2E3A5C'; g.fillRect(-1, -6, 2, 12); g.restore(); };
+      for (let i = 0; i < 5; i++) {
+        const t0 = i * 140, v = t - t0; if (v < 0) continue;
+        const out = ease(k01(v, 0, 500)), ang = v / 700 + i * 1.3, orbit = { x: c0.x + Math.cos(ang) * her.w * (0.9 + 0.15 * i), y: c0.y + Math.sin(ang * 1.3) * her.h * 0.14 };
+        let x = f[2].x + (orbit.x - f[2].x) * out, y = f[2].y + (orbit.y - f[2].y) * out, a = 1;
+        if (i === 0 && t >= land - 500) { const u = ease(k01(t, land - 500, land)); x += (f[3].x - x) * u; y += (f[3].y - 6 - y) * u; }
+        else if (i && t >= land) { const u = k01(t, land, land + 900); y -= 160 * u; a = 1 - u; }
+        fly(x, y, i === 0 && t >= land ? now / 260 : now / 55 + i, a * (1 - k01(t, end - 300, end)));
+      }
+      break;
     }
     case 'dust': {
       if (t > 600) break;
