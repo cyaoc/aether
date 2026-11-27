@@ -279,6 +279,37 @@ export const COS = {
       fall: [[700, 'sHappy', null], [2400, 'hide', ['rel', 1.3, 0.3]], [4100, 'surprised', ['rel', 1.3, 0.3]], [4500, 'sHappy', ['rel', 1.25, 0.85]],
         [4800, 'sHappy', ['item', 'pick']], [5600, 'sLens', ['item', 'pick']], [5800, 'sLens', ['rel', 1.25, 0.85]], [6050, 'sLens', ['item', 'give']],
         [6480, 'sHappy', ['rel', 1.3, 0.3]], [7300, 'sHappy', null]] } }),
+  // a V sign and a wink; she aims left and fires three shots, the gun kicking up each time, and blows on its muzzle. Or
+  // she shows off spinning it on her finger (P.finger): it flies up off the page and comes down on her head (P.head); she
+  // picks it up.
+  esports: P => ({ steps: [[700, 'esReady'], [1100, 'esV'], [2300, 'esAim'], [2800, 'esRecoil'], [3100, 'esAim'], [3400, 'esRecoil'], [3700, 'esAim'], [4000, 'esRecoil']],
+    calm: [[4600, 'esBlow']], fall: [[4600, 'esTwirl'], [5700, 'esLookUp'], [6300, 'esOuch'], [7600, 'esReady']],
+    // each shot leaves the muzzle (P.muzzle) as she pulls the trigger, the gun still level (fired as the kick showed, it left
+    // from where the muzzle had been: 用户：“子弹没从枪里出来”)
+    fx: [['bolt', 2800, P.muzzle], ['bolt', 3400, P.muzzle], ['bolt', 4000, P.muzzle]],
+    shake: [[2800, 1, 90], [3400, 1, 90], [4000, 1, 90]], calmFx: [],
+    fallFx: [['gunTrick', 4780, P.finger, P.head, [5700, 6000, 6300]], ['shock', 5700],
+      ['impact', 6300, P.head], ['dizzy', 6500, 1100], ['tears', 6600, 900]],
+    fallShake: [[6300, 2, 200]],
+    lines: [[4600, 'cosEsportsTwirl'], [6300, 'cosEsportsBonk']],
+    sprite: { calm: [[700, 'sHappy', null], [2300, 'hide', ['rel', 1.3, 0.3]], [4600, 'flag', null]],
+      fall: [[700, 'sHappy', null], [2300, 'hide', ['rel', 1.3, 0.3]], [4600, 'sHappy', ['rel', 1.3, 0.3]], [5700, 'surprised', ['rel', 1.3, 0.3]], [6500, 'pat', 'head'],
+        [7600, 'sHappy', ['rel', -0.25, 0.25]], [7900, 'sHappy', null]] } }),
+  // she stands her giant crossbow up beside her, chin high; stands on its bow and pulls the string up to the trigger; aims
+  // left while a green light arrow forms in the empty groove, and shoots it off the page; the crossbow onto her shoulder,
+  // her fist up. Or the string slips half way and stings her hand (P.hand): she drops it and hops, the sprite flies round
+  // low to blow on her fingers (P.lips); she picks the crossbow up and stands it up again ("下次一定").
+  warlord: P => ({ steps: [[700, 'wlReady'], [1100, 'wlPose'], [2200, 'wlCrouch'], [2800, 'wlPull']],
+    calm: [[3500, 'wlAim'], [4400, 'wlShot'], [5100, 'wlShoulder']], fall: [[3300, 'wlSting'], [5600, 'wlReady'], [6000, 'wlPose'], [8000, 'wlReady']],
+    // the arrow lies along the top of the stock, level, from the trigger's nut to the bow (P.arrow, read off the drawing: its
+    // rear was first taken on her hands, and the arrow lay slanted: 用户：“弩箭怎么是斜的”)
+    fx: [], calmFx: [['arrow', 3680, ...P.arrow, 4580], ['flash', 4580, 0.5]],
+    calmShake: [[4580, 2, 160]],
+    fallFx: [['impact', 3480, P.hand], ['tears', 3600, 1800], ['blowAir', 4100, { sprite: 'blow' }, P.hand, 1100]],
+    blow: [P.hand, P.lips],
+    lines: [[3300, 'cosWarlordSting'], [6000, 'cosWarlordAgain']],
+    sprite: { calm: [[700, 'sHappy', null], [2200, 'sHappy', ['rel', 1.35, 0.3]], [5100, 'flag', null]],
+      fall: [[700, 'sHappy', null], [2200, 'sHappy', ['rel', 1.35, 0.3]], [3300, 'surprised', ['rel', 1.2, 0.95]], [3700, 'sBlow', ['blow']], [5400, 'sHappy', null]] } }),
   // she knocks her gloves together (P.bump), takes her guard bouncing on her toes, throws a straight, an uppercut and a side
   // kick (each blow lands as its in-between's last frame gives way to the pose, 180 ms in: P.punch, P.upper, P.kick) and
   // wipes her nose; or her thigh cramps mid-kick, she drops into the splits, the sprite pulls her up by her raised hand

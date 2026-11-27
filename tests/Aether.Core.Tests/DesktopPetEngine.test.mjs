@@ -473,10 +473,39 @@ for (const [costume, label, calm, wrong] of [
     { 4200: 'ftKick', 4500: 'ftSplit', 6400: 'ftRub', 8300: 'ftReady', 9399: 'ftReady', 9400: 'idle' }],
   ['ninja', '白眼格斗忍者 pokes her fingertips together, drops into her stance, thrusts her palm and settles; her lens popped out she crouches for it, puts it back and thanks her sprite',
     { 699: 'idle', 700: 'njReady', 1100: 'njShy', 2400: 'njStance', 3500: 'njPalm', 4300: 'njSettle', 7199: 'njSettle', 7200: 'idle' },
-    { 3500: 'njPalm', 4100: 'njLensOut', 4800: 'njSearch', 6300: 'njLensIn', 7300: 'njThanks', 9399: 'njThanks', 9400: 'idle' }]
+    { 3500: 'njPalm', 4100: 'njLensOut', 4800: 'njSearch', 6300: 'njLensIn', 7300: 'njThanks', 9399: 'njThanks', 9400: 'idle' }],
+  ['esports', '电竞少女 makes a V, aims, fires three shots, the gun kicking up each time, and blows on its muzzle; showing off she spins it, it flies up and comes down on her head and she picks it up',
+    { 699: 'idle', 700: 'esReady', 1100: 'esV', 2300: 'esAim', 2800: 'esRecoil', 3100: 'esAim', 3400: 'esRecoil', 3700: 'esAim', 4000: 'esRecoil', 4600: 'esBlow', 7199: 'esBlow', 7200: 'idle' },
+    { 4000: 'esRecoil', 4600: 'esTwirl', 5700: 'esLookUp', 6300: 'esOuch', 7600: 'esReady', 9399: 'esReady', 9400: 'idle' }],
+  ['warlord', '绿袍女武将 stands her crossbow up, stands on its bow pulling the string, aims, shoots and shoulders it; stung by the string she drops it, picks it up and stands it up again',
+    { 699: 'idle', 700: 'wlReady', 1100: 'wlPose', 2200: 'wlCrouch', 2800: 'wlPull', 3500: 'wlAim', 4400: 'wlShot', 5100: 'wlShoulder', 7199: 'wlShoulder', 7200: 'idle' },
+    { 2800: 'wlPull', 3300: 'wlSting', 5600: 'wlReady', 6000: 'wlPose', 8000: 'wlReady', 9399: 'wlReady', 9400: 'idle' }]
 ]) test(`a cos as ${label}, 7.4 s and 9.6 s`, () => {
   assertPlays('cosplay', { mishap: false, costume }, calm, 7400);
   assertPlays('cosplay', { mishap: true, costume }, wrong, 9600);
+});
+
+// A cos's effects in each costume done and gone wrong ([kind, ms, its times and sizes], where they are left out), besides the
+// sprite's flashes dressing her and back; the ms the corner shakes; the kind of line she says from ms and the sprite's drawing.
+for (const [costume, mishap, fx, shakes, said, sprite] of [
+  ['esports', false, [['bolt', 2800], ['bolt', 3400], ['bolt', 4000]], [2800, 3400, 4000], {}, {}],
+  ['esports', true, [['bolt', 2800], ['bolt', 3400], ['bolt', 4000], ['gunTrick', 4780, [5700, 6000, 6300]], ['shock', 5700], ['impact', 6300], ['dizzy', 6500, 1100], ['tears', 6600, 900]],
+    [2800, 3400, 4000, 6300], { 4600: 'cosEsportsTwirl', 6300: 'cosEsportsBonk' }, { 5700: 'surprised', 6500: 'pat' }],
+  ['warlord', false, [['arrow', 3680, 4580], ['flash', 4580, 0.5]], [4580], {}, {}],
+  ['warlord', true, [['impact', 3480], ['tears', 3600, 1800], ['blowAir', 4100, 1100]], [], { 3300: 'cosWarlordSting', 6000: 'cosWarlordAgain' }, { 3300: 'surprised', 3700: 'sBlow' }]
+]) test(`a cos as ${costume}${mishap ? ' gone wrong' : ''} has its effects, shakes, lines and sprite when they are due`, () => {
+  const [, at] = daily('cosplay', { mishap, costume }), end = mishap ? 9600 : 7400, dressing = [['flash', 700, 0.8], ['flash', end - 200, 0.8]];
+  const { fx: drawn, shake } = at(1000);
+  assert.deepEqual(new Set(drawn.map(f => f.filter(v => typeof v !== 'object' || typeof v[0] === 'number'))), new Set([...dressing, ...fx]));
+  assert.deepEqual(shake.map(([ms]) => ms), shakes);
+  for (const [ms, kind] of Object.entries(said)) assert.ok(lines[kind].includes(at(+ms).bubble?.text), `${ms}: ${kind}`);
+  assert.deepEqual(Object.keys(sprite).map(ms => at(+ms).sprite), Object.values(sprite));
+});
+
+test('绿袍女武将\'s light arrow lies level along her crossbow as she aims', () => {
+  const [, at] = daily('cosplay', { mishap: false, costume: 'warlord' }), [, , rear, front] = at(3680).fx.find(f => f[0] === 'arrow');
+  assert.ok(rear.x > front.x, 'it points to the page\'s left');
+  assert.equal(rear.y, front.y);
 });
 
 test('格斗少女 bounces on her toes in her guard, from 2.4 s until her straight', () => {
@@ -485,7 +514,7 @@ test('格斗少女 bounces on her toes in her guard, from 2.4 s until her straig
 });
 
 test('a cos dresses her as one of the costumes of COS at random, or the one it is given, and she strikes its pose saying its line', () => {
-  const KIND = { ninja: 'cosNinja', fighter: 'cosFighter' }, engine = pet(), seen = new Set();
+  const KIND = { ninja: 'cosNinja', esports: 'cosEsports', warlord: 'cosWarlord', fighter: 'cosFighter' }, engine = pet(), seen = new Set();
   for (let n = 0; n < 40; n++) {
     engine.start('cosplay', {});
     const { costume } = engine.cur.opts;
