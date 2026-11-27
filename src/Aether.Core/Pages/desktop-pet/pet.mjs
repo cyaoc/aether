@@ -1,7 +1,7 @@
 // The 桌宠 on the 桌宠页's canvas, drawn as the design package's board draws her (DP-DesktopPet.dc.html), from the current
 // character's Q 版 pictures and the numbers in her manifest (characters/README.md, desktopPet).
 import { canvasOf, loadImage } from '../video/animations/toolkit.mjs';
-import { BALL, BAR, BURST, CHEST, DONE, DROP, Engine, FOOT, GACHA, GAME, GLOW, H, HANG, HOOK, HOP, INTEL, LUCK, NOTICE, PAGE, PK_H, PK_SIGN, SPRITE_H, bump, clamp, ease, k01, seeded, xfade } from './engine.mjs';
+import { BALL, BAR, BURST, CHEST, DONE, DROP, Engine, FOOT, GACHA, GAME, GLOW, H, HANG, HOOK, HOP, INTEL, LUCK, NOTICE, PAGE, PK_H, PK_SIGN, SPRITE_H, TWEEN, bump, clamp, ease, k01, seeded, xfade } from './engine.mjs';
 import { BACK, drawFx, drawStar, giftBox } from './effects.mjs';
 import { PK_INTEL } from './pk-intel.mjs';
 import { SIGN } from './sign.mjs';
@@ -495,12 +495,12 @@ export class Pet extends Engine {
   drawHer(g, st, now) {
     const rt = performance.now(), el = t0 => rt - t0;
     const hv = this.hv ??= { pose: st.pose, at: -1e9, since: this.clock, tween: null, fromX: st.x, fromY: st.y };
-    if (st.pose !== hv.pose) Object.assign(hv, { tween: this.route(hv.pose, st.pose), ms: this.art.slow[`${hv.pose}>${st.pose}`] || 90, pose: st.pose, at: rt, since: this.clock, fromX: hv.x ?? st.x, fromY: hv.y ?? st.y });
+    if (st.pose !== hv.pose) Object.assign(hv, { tween: this.route(hv.pose, st.pose), ms: this.art.slow[`${hv.pose}>${st.pose}`] || TWEEN, pose: st.pose, at: rt, since: this.clock, fromX: hv.x ?? st.x, fromY: hv.y ?? st.y });
     // she breathes in every pose, in-between frames too (breathing that stopped when she left her idle pose made her head
     // jump up to 3 px at the change): her drawing scaled at her feet, a touch taller and narrower, then shorter and wider.
     // Some in-betweens are played slower (slow: her hair settling under the sprite's magic, her curling up to sulk), and slow
-    // may give each frame its own time: [frame 2, frame 3], then 90 ms for any further frames of a route.
-    const e = el(hv.at), i = Array.isArray(hv.ms) ? (() => { let n = 0, acc = 0; while (e >= acc + (hv.ms[n] ?? 90)) acc += hv.ms[n++] ?? 90; return n; })() : Math.floor(e / (hv.ms || 90));
+    // may give each frame its own time: [frame 2, frame 3], then TWEEN for any further frames of a route.
+    const e = el(hv.at), i = Array.isArray(hv.ms) ? (() => { let n = 0, acc = 0; while (e >= acc + (hv.ms[n] ?? TWEEN)) acc += hv.ms[n++] ?? TWEEN; return n; })() : Math.floor(e / (hv.ms || TWEEN));
     const s = 1 + 0.012 * Math.sin(now / 600), c = hv.tween?.[i] || this.cell(hv.pose);
     // In the chest game her place goes with her pose (her fists on the ring, wherever each drawing has them): through the
     // in-betweens she moves from where the earlier pose stood to the later one's, a share at each frame (st.slide), not all

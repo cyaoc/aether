@@ -13,7 +13,7 @@
 import { execFileSync } from 'node:child_process';
 import fs from 'node:fs';
 import { NAME, ROUTES, STAR, STEP, VIEWERS, announced, drive, end, frames, itemsOf, send, spendOf, told, walk } from './routes.mjs';
-import { COS, DAILY, GACHA, HOTPOT, MOBILE } from '../../src/Aether.Core/Pages/desktop-pet/engine.mjs';
+import { COS, DAILY, GACHA, HOTPOT, MOBILE, TWEEN } from '../../src/Aether.Core/Pages/desktop-pet/engine.mjs';
 
 const here = new URL('.', import.meta.url).pathname, eval_ = here + '../../docs/design/desktop-pet/tools/cdp-eval.mjs';
 const args = process.argv.slice(2), opt = (k, d) => { const i = args.indexOf(k); return i < 0 ? d : args.splice(i, 2)[1]; };
@@ -39,16 +39,15 @@ const at = (dur, extra = []) => [...new Set([200, 600, Math.round(dur * 0.25), M
 const T = GACHA.t, W = T.won, L = T.lost, gone = ([a, b]) => [a, (a + b) / 2, b - 20], popUp = a => [a, a + 100, a + 200, a + 350];
 const give = [T.give - 70, T.give - 60, T.give, T.give + 40, T.give + 90], up = popUp(T.up);
 // The 手游's (MOBILE.t): the sofa popping up and shrinking away; her slow in-betweens sitting down, lying back and sitting up,
-// frames 2 and 3 and the pose after (slow, her change of pose at a: 90 ms a frame, or slower, or [frame 2, frame 3]); won her
+// frames 2 and 3 and the pose after (slow, her change of pose at a: TWEEN a frame, or slower, or [frame 2, frame 3]); won her
 // cheering, lost her freezing and the phone falling on her face as the corner shakes.
-const M = MOBILE.t, MW = M.won, ML = M.lost, slow = (a, pair) => { const [f2, f3 = f2] = [SLOW[pair] ?? 90].flat(); return [a, a + f2, a + f2 + f3]; };
+const M = MOBILE.t, MW = M.won, ML = M.lost, slow = (a, pair) => { const [f2, f3 = f2] = [SLOW[pair] ?? TWEEN].flat(); return [a, a + f2, a + f2 + f3]; };
 const lying = [...popUp(M.up), ...slow(M.sit, 'mPhone>mSit'), ...slow(M.lie, 'mSit>mPlay')];
 // The 火锅's (HOTPOT.t): the table popping up and shrinking away, her kneeling behind it and getting up (slow) and the bowl
 // coming; yum the sprite at her chopsticks, mouth open, and chewing; spicy the chili burning and the sprite starting, flying
 // home and back, its drawing holding out the 豆奶 just before and after it lets go, and her hand on it, frame 2 (slow, its own
 // ms), frame 3 and hDrink.
 const HP = HOTPOT.t, HY = HP.yum, HS = HP.spicy, table = [...popUp(HP.up), ...slow(HP.kneel, 'idle>hPray'), HP.bowl - 100, HP.bowl];
-const [drink2, drink3] = SLOW['hSpicy>hDrink'];
 // A cos's, in each costume done and gone wrong (COS, with character 1's points.cos): each change of her pose (slow), into the
 // costume and back out of it too, each effect and 100 ms on, each move of the sprite and 200 ms on, and the lens or the cap she
 // drops landing and the sprite taking it.
@@ -63,8 +62,8 @@ const MOMENTS = {
   gacha: at(DAILY.gacha[0], [...give, ...up, T.open - 20, T.open, T.open + W.rise, T.open + W.down - 20, W.hug - 100, W.hug, ...gone(W.gone)]),
   'gacha-Mishap': at(DAILY.gacha[0] + DAILY.gacha[1], [...give, ...up, L.wail, L.wail + 130, L.wail + 260, ...gone(L.gone)]),
   hotpot: at(DAILY.hotpot[0], [...table, HY.open, HY.chew, ...slow(HY.stand, 'hPray>idle'), ...gone(HY.gone)]),
-  'hotpot-Mishap': at(DAILY.hotpot[0] + DAILY.hotpot[1], [...table, HS.burn, HS.fly, HS.back, HS.give, HS.drink - 70, HS.drink - 60, HS.drink, HS.drink + drink2,
-    HS.drink + drink2 + drink3, ...slow(HS.stand, 'hPray>idle'), ...gone(HS.gone)]),
+  'hotpot-Mishap': at(DAILY.hotpot[0] + DAILY.hotpot[1], [...table, HS.burn, HS.fly, HS.back, HS.give, HS.drink - 70, HS.drink - 60,
+    ...slow(HS.drink, 'hSpicy>hDrink'), ...slow(HS.stand, 'hPray>idle'), ...gone(HS.gone)]),
   mobileGame: at(DAILY.mobileGame[0], [...lying, MW.win, MW.win + 90, ...slow(MW.sit, 'mWin>mSit'), MW.stand, MW.stand + SLOW['mSit>mPhone'], ...gone(MW.gone)]),
   'mobileGame-Mishap': at(DAILY.mobileGame[0] + DAILY.mobileGame[1], [...lying, ML.stun, ML.smack, ML.smack + 90, ML.smack + 140, ML.ouch, ...slow(ML.sit, 'mOuch>mSit'), ...gone(ML.gone)])
 };

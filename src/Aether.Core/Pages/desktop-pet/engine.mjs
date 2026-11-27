@@ -192,6 +192,8 @@ const GIFTS = ['gift', BLIND_BOX, 'castle', 'guard'];
 const BOX_LINES = { Gain: 'blindBoxGain', Even: 'blindBoxEven', Loss: 'blindBoxLoss', Jackpot: 'blindBoxJackpot' };
 export const PAGE = { w: 480, h: 640 }, H = 250, FOOT = { x: 240, y: 626 };
 export const SPRITE_H = 76;
+// How long each in-between frame of hers plays, where her slow gives none of its own (ms).
+export const TWEEN = 90;
 // How high she rises in each hop up or down the 总督's stair of light (README 3, 7).
 export const HOP = 40;
 // The sports (README 6), each in its own outfit: the sprite dresses her for it, she gets ready and goes for act ms; then
