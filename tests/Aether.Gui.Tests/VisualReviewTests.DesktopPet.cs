@@ -47,15 +47,17 @@ public sealed partial class VisualReviewTests
                 Capture("shows");
                 GuiHarness.Tab(page, 1);
                 Capture("moods");
-                // Design package preview/gui-switches*.webp; switched back on so the scenes after it stay unsaved-free.
-                await TurnAsync(page, on: false, "沮丧", "出事");
+                // Design package preview/gui-switches*.webp, a tab each since #425; switched back on so the scenes after it stay unsaved-free.
+                await TurnAsync(page, on: false, "沮丧");
                 Capture("switches");
-                await TurnAsync(page, on: true, "沮丧", "出事");
-                // 做哪几样 and the mishap note sit below the narrowest window's fold.
-                page.FindControl<ScrollViewer>("MoodsTab")!.ScrollToEnd();
-                GuiHarness.Flush();
+                await TurnAsync(page, on: true, "沮丧");
+                // Design package preview/gui-daily-tab*.webp.
+                GuiHarness.Tab(page, 2);
                 Capture("daily");
-                GuiHarness.Tab(page, 3);
+                await TurnAsync(page, on: false, "出事");
+                Capture("daily-switches");
+                await TurnAsync(page, on: true, "出事");
+                GuiHarness.Tab(page, 4);
                 Pick(page, "LineKindList", "大礼物");
                 Capture("lines");
                 // The design's list scrolled down to its lines, 露破绽 the last it shows.
@@ -63,7 +65,7 @@ public sealed partial class VisualReviewTests
                 Pick(page, "LineKindList", "招人");
                 kinds.ScrollIntoView(kinds.Items.OfType<DesktopPetLineKind>().Single(kind => kind.Kind.Label == "露破绽"));
                 Capture("game-lines");
-                GuiHarness.Tab(page, 2);
+                GuiHarness.Tab(page, 3);
                 harness.Client.WebService.SetDesktopPetRoom(true);
                 await GuiHarness.WaitForAsync(() => page.FindControl<Button>("SummonButton")!.IsEnabled);
                 Capture("game");
